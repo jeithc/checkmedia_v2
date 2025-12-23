@@ -8,45 +8,38 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration {
     public function up(): void
     {
-        // 1. Roles Table (Normalization)
-        Schema::create('roles', function (Blueprint $table) {
-            $table->id(); // tinyint equivalent if desired, but id() is standard
-            $table->string('name')->unique();
-            $table->timestamps();
-        });
-
-        // Seed basic roles
-        DB::table('roles')->insertOrIgnore([
-            ['name' => 'admin', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'auditor', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'client', 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        // 1. Roles are handled by Orchid's '2015_..._create_orchid_roles_table.php'.
+        // We do NOT create 'roles' here to avoid conflicts.
+        // We will seed them in a Seeder, not here, or ensure they exist if needed.
 
         // 2. Users Table Updates (Enhanced)
         Schema::table('users', function (Blueprint $table) {
-            $table->string('username')->unique()->nullable()->after('name');
+            // Check if columns exist before adding to be safe during fresh migrations
+            if (!Schema::hasColumn('users', 'username')) {
+                $table->string('username')->unique()->nullable()->after('name');
+            }
 
-            // Relation to roles
-            $table->foreignId('role_id')->nullable()->after('password')->constrained('roles')->nullOnDelete();
+            // Orchid uses a pivot table 'role_users' for logic. 
+            // We removed 'role_id' to strictly follow Orchid's Many-to-Many RBAC.
 
-            $table->boolean('is_active')->default(true);
-            $table->boolean('must_change_password')->default(true)->comment('Force password reset on next login');
-            $table->string('avatar_path')->nullable();
+            if (!Schema::hasColumn('users', 'is_active')) {
+                $table->boolean('is_active')->default(true);
+            }
+            if (!Schema::hasColumn('users', 'must_change_password')) {
+                $table->boolean('must_change_password')->default(true)->comment('Force password reset on next login');
+            }
+            if (!Schema::hasColumn('users', 'avatar_path')) {
+                $table->string('avatar_path')->nullable();
+            }
         });
 
         // 3. User Notification Subscriptions (Refactor of 'user_alarm')
-        // Allows assigning specific alarms/subscriptions to users (e.g., 'AEROPUERTOS')
         Schema::create('user_notification_subscriptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-
-            // Event type: e.g., 'product_issue', 'audit_completed'
             $table->string('event_type')->default('product_issue');
-
-            // Filter: e.g., filter_key='product_type', filter_value='AEROPUERTOS'
             $table->string('filter_key')->default('product_type');
             $table->string('filter_value')->nullable()->comment('Null means subscribe to all');
-
             $table->string('channel')->default('email');
             $table->timestamps();
 
@@ -70,7 +63,6 @@ return new class extends Migration {
         });
 
         // 5. Performance Optimization: Current States Table
-        // Replaces slow views by storing the latest snapshot
         Schema::create('advertising_space_current_states', function (Blueprint $table) {
             $table->unsignedBigInteger('advertising_space_id')->primary();
 
@@ -95,7 +87,6 @@ return new class extends Migration {
             $table->integer('week');
             $table->date('audit_date');
 
-            // Scores (1=Good, 3=Bad in old system. We can map to simple status or keep enum)
             $table->string('general_status')->default('good');
             $table->string('illumination_status')->nullable();
             $table->string('material_status')->nullable();
@@ -148,9 +139,9 @@ return new class extends Migration {
         Schema::dropIfExists('user_notification_subscriptions');
 
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['username', 'role_id', 'is_active', 'must_change_password', 'avatar_path']);
+            $table->dropColumn(['username', 'is_active', 'must_change_password', 'avatar_path']);
         });
 
-        Schema::dropIfExists('roles');
+        // Roles are managed by Orchid migration, so we don't drop them here.
     }
 };

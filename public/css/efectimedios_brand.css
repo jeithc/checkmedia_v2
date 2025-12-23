@@ -1,0 +1,48 @@
+/* Efectimedios Branding */
+:root {
+    --brand-red: #c60813;
+    --brand-red-dark: #a30c15;
+    --brand-text: #ffffff;
+}
+
+/* Sidebar and Header Background */
+.aside, .bg-dark {
+    background-color: var(--brand-red) !important;
+}
+
+/* Primary Buttons */
+.btn-primary, .btn-default {
+    background-color: var(--brand-red) !important;
+    border-color: var(--brand-red-dark) !important;
+    color: var(--brand-text) !important;
+}
+
+.btn-primary:hover, .btn-default:hover {
+    background-color: var(--brand-red-dark) !important;
+}
+
+/* Active Menu Items */
+.nav-link.active, .nav-item.active > .nav-link {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+}
+
+/* Logo Text in Sidebar */
+.brand-wrapper {
+    color: #fff !important;
+}
+
+/* Links */
+a {
+    color: var(--brand-red);
+}
+
+a:hover {
+    color: var(--brand-red-dark);
+}
+
+/* Top Bar/Header if separate */
+header.navbar {
+    background-color: var(--brand-red) !important;
+    border-bottom: 1px solid var(--brand-red-dark);
+}

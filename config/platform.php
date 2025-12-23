@@ -45,7 +45,7 @@ return [
      */
 
     'middleware' => [
-        'public'  => ['web', 'cache.headers:private;must_revalidate;etag'],
+        'public' => ['web', 'cache.headers:private;must_revalidate;etag'],
         'private' => ['web', 'platform', 'cache.headers:private;must_revalidate;etag'],
     ],
 
@@ -126,8 +126,10 @@ return [
      */
 
     'resource' => [
-        'stylesheets' => [],
-        'scripts'     => [],
+        'stylesheets' => [
+            '/css/efectimedios_brand.css',
+        ],
+        'scripts' => [],
     ],
 
     /*
@@ -185,7 +187,7 @@ return [
      */
 
     'attachment' => [
-        'disk'      => env('PLATFORM_FILESYSTEM_DISK', 'public'),
+        'disk' => env('PLATFORM_FILESYSTEM_DISK', 'public'),
         'generator' => \Orchid\Attachment\Engines\Generator::class,
     ],
 
@@ -203,7 +205,7 @@ return [
      */
 
     'icons' => [
-        'bs'  => \Orchid\Support\BootstrapIconsPath::getFolder(),
+        'bs' => \Orchid\Support\BootstrapIconsPath::getFolder(),
     ],
 
     /*
@@ -221,7 +223,7 @@ return [
      */
 
     'notifications' => [
-        'enabled'  => true,
+        'enabled' => true,
         'interval' => 60,
     ],
 
@@ -260,8 +262,8 @@ return [
      */
 
     'turbo' => [
-        'cache'          => true,
-        'prefetch'       => true,
+        'cache' => true,
+        'prefetch' => true,
         'refresh-method' => 'replace',
         'refresh-scroll' => 'preserve',
     ],
