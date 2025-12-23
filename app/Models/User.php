@@ -16,8 +16,12 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username', // Added
         'email',
         'password',
+        'is_active', // Added
+        'must_change_password', // Added
+        'avatar_path', // Added
     ];
 
     /**
@@ -37,8 +41,10 @@ class User extends Authenticatable
      * @var array
      */
     protected $casts = [
-        'permissions'          => 'array',
-        'email_verified_at'    => 'datetime',
+        'permissions' => 'array',
+        'email_verified_at' => 'datetime',
+        'is_active' => 'boolean',
+        'must_change_password' => 'boolean',
     ];
 
     /**
@@ -47,11 +53,12 @@ class User extends Authenticatable
      * @var array
      */
     protected $allowedFilters = [
-           'id'         => Where::class,
-           'name'       => Like::class,
-           'email'      => Like::class,
-           'updated_at' => WhereDateStartEnd::class,
-           'created_at' => WhereDateStartEnd::class,
+        'id' => Where::class,
+        'name' => Like::class,
+        'email' => Like::class,
+        'username' => Like::class,
+        'updated_at' => WhereDateStartEnd::class,
+        'created_at' => WhereDateStartEnd::class,
     ];
 
     /**
@@ -63,7 +70,16 @@ class User extends Authenticatable
         'id',
         'name',
         'email',
+        'username',
         'updated_at',
         'created_at',
     ];
+
+    /**
+     * Get the notification subscriptions for the user.
+     */
+    public function notificationSubscriptions()
+    {
+        return $this->hasMany(UserNotificationSubscription::class);
+    }
 }

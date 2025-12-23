@@ -6,6 +6,8 @@ namespace App\Orchid\Layouts\User;
 
 use Orchid\Screen\Field;
 use Orchid\Screen\Fields\Input;
+use Orchid\Screen\Fields\CheckBox;
+use Orchid\Screen\Fields\Cropper;
 use Orchid\Screen\Layouts\Rows;
 
 class UserEditLayout extends Rows
@@ -25,11 +27,32 @@ class UserEditLayout extends Rows
                 ->title(__('Name'))
                 ->placeholder(__('Name')),
 
+            Input::make('user.username')
+                ->type('text')
+                ->max(255)
+                ->title(__('Username'))
+                ->placeholder(__('Username (Optional)')),
+
             Input::make('user.email')
                 ->type('email')
                 ->required()
                 ->title(__('Email'))
                 ->placeholder(__('Email')),
+
+            CheckBox::make('user.is_active')
+                ->sendTrueOrFalse()
+                ->title(__('Is Active'))
+                ->help(__('If unchecked, the user will not be able to log in.')),
+
+            CheckBox::make('user.must_change_password')
+                ->sendTrueOrFalse()
+                ->title(__('Force Password Change'))
+                ->help(__('If checked, the user will be forced to change their password upon next login.')),
+
+            Cropper::make('user.avatar_path')
+                ->title(__('Avatar'))
+                ->width(500)
+                ->height(500),
         ];
     }
 }

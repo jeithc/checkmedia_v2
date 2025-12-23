@@ -8,14 +8,18 @@ use App\Orchid\Layouts\Role\RolePermissionLayout;
 use App\Orchid\Layouts\User\UserEditLayout;
 use App\Orchid\Layouts\User\UserPasswordLayout;
 use App\Orchid\Layouts\User\UserRoleLayout;
+use App\Models\User;
+use App\Models\UserNotificationSubscription;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Orchid\Access\Impersonation;
-use App\Models\User;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
+use Orchid\Screen\Fields\Matrix;
+use Orchid\Screen\Fields\Select;
+use Orchid\Screen\Fields\Input;
 use Orchid\Screen\Screen;
 use Orchid\Support\Color;
 use Orchid\Support\Facades\Layout;
@@ -35,11 +39,12 @@ class UserEditScreen extends Screen
      */
     public function query(User $user): iterable
     {
-        $user->load(['roles']);
+        $user->load(['roles', 'notificationSubscriptions']);
 
         return [
-            'user'       => $user,
+            'user' => $user,
             'permission' => $user->statusOfPermissions(),
+            'subscriptions' => $user->notificationSubscriptions->toArray(),
         ];
     }
 
@@ -56,7 +61,7 @@ class UserEditScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'User profile and privileges, including their associated role.';
+        return 'User profile, privileges, and notification settings.';
     }
 
     public function permission(): ?iterable
@@ -132,6 +137,34 @@ class UserEditScreen extends Screen
                         ->method('save')
                 ),
 
+            Layout::rows([
+                Matrix::make('subscriptions')
+                    ->title('Notification Subscriptions')
+                    ->columns([
+                        'Event Type' => 'event_type',
+                        'Filter Key' => 'filter_key',
+                        'Filter Value' => 'filter_value',
+                        'Channel' => 'channel',
+                    ])
+                    ->fields([
+                        'event_type' => Select::make()->options([
+                            'product_issue' => 'Product Issue (Report)',
+                            'system_alert' => 'System Alert',
+                        ]),
+                        'filter_key' => Select::make()->options([
+                            'product_type' => 'Product Type (e.g. VALLAS)',
+                            'city' => 'City',
+                            'all' => 'All Events',
+                        ]),
+                        'filter_value' => Input::make()->type('text'),
+                        'channel' => Select::make()->options([
+                            'email' => 'Email',
+                            'sms' => 'SMS',
+                        ]),
+                    ])
+                    ->help('Define which events this user should receive notifications for.'),
+            ])->title('Notifications'),
+
             Layout::block(RolePermissionLayout::class)
                 ->title(__('Permissions'))
                 ->description(__('Allow the user to perform some actions that are not provided for by his roles'))
@@ -154,12 +187,18 @@ class UserEditScreen extends Screen
         $request->validate([
             'user.email' => [
                 'required',
+                'email',
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
+            'user.username' => [
+                'nullable',
+                'string',
+                Rule::unique(User::class, 'username')->ignore($user),
+            ]
         ]);
 
         $permissions = collect($request->get('permissions'))
-            ->map(fn ($value, $key) => [base64_decode($key) => $value])
+            ->map(fn($value, $key) => [base64_decode($key) => $value])
             ->collapse()
             ->toArray();
 
@@ -167,12 +206,25 @@ class UserEditScreen extends Screen
             $builder->getModel()->password = Hash::make($request->input('user.password'));
         });
 
-        $user
-            ->fill($request->collect('user')->except(['password', 'permissions', 'roles'])->toArray())
+        // Save User Core Data
+        $userData = $request->collect('user')->except(['password', 'permissions', 'roles'])->toArray();
+        $user->fill($userData)
             ->forceFill(['permissions' => $permissions])
             ->save();
 
+        // Sync Roles
         $user->replaceRoles($request->input('user.roles'));
+
+        // Save Notification Subscriptions
+        $subscriptions = $request->input('subscriptions', []);
+        $user->notificationSubscriptions()->delete(); // Clear old to easy sync
+
+        foreach ($subscriptions as $sub) {
+            // Matrix might return partial rows if empty? usually not if validated but simple foreach is safe
+            if (!empty($sub['event_type'])) {
+                $user->notificationSubscriptions()->create($sub);
+            }
+        }
 
         Toast::info(__('User was saved.'));
 
