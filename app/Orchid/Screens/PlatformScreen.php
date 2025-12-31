@@ -87,7 +87,9 @@ class PlatformScreen extends Screen
 
             Layout::table('recent_audits', [
                 TD::make('advertising_space_id', 'Espacio')
-                    ->render(fn(Audit $audit) => $audit->space->external_code),
+                    ->render(fn(Audit $audit) => Link::make($audit->space->external_code)
+                        ->route('platform.audit.detail', $audit)
+                        ->class('text-primary font-weight-bold')),
                 TD::make('year', 'Semana')
                     ->render(fn(Audit $audit) => "S" . $audit->week . " / " . $audit->year),
                 TD::make('general_status', 'Estado')

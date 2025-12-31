@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Orchid\Metrics\Chartable;
+use Orchid\Screen\AsSource;
 
 class Audit extends Model
 {
-    use HasFactory, Chartable;
+    use HasFactory, Chartable, AsSource;
 
     protected $fillable = [
         'advertising_space_id',

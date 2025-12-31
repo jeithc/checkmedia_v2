@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Orchid\Screen\AsSource;
 
 class AdvertisingSpace extends Model
 {
-    use HasFactory;
+    use HasFactory, AsSource;
 
     protected $fillable = [
         'external_code',
