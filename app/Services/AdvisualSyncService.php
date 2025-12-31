@@ -63,6 +63,8 @@ class AdvisualSyncService
                 [
                     'provider' => $row->ProveedorNombre,
                     'type' => $row->TipoElementoNombre,
+                    'category' => $row->ProductoNombre,
+                    'ownership' => $row->EspacioPropio,
                     'illumination_type' => $row->IluminacionNombre,
                     'city' => $row->CiudadNombre,
                     'location_name' => $row->LocacionNombre,

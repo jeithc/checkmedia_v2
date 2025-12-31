@@ -18,11 +18,15 @@ class Audit extends Model
         'week',
         'audit_date',
         'general_status',
-        'observation'
+        'observation',
+        'resolution_photo_path',
+        'resolution_comment',
+        'resolved_at',
     ];
 
     protected $casts = [
         'audit_date' => 'datetime',
+        'resolved_at' => 'datetime',
     ];
 
     public function space()
@@ -43,6 +47,11 @@ class Audit extends Model
     public function photos()
     {
         return $this->hasMany(AuditPhoto::class);
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(AuditComment::class);
     }
 
     /**

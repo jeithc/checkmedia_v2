@@ -3,10 +3,11 @@
 namespace App\Orchid\Screens\Audit;
 
 use App\Models\Audit;
+use Illuminate\Http\Request;
 use Orchid\Screen\Screen;
-use Orchid\Screen\Sight;
 use Orchid\Support\Facades\Layout;
 use Orchid\Screen\Actions\Link;
+use Orchid\Support\Facades\Toast;
 
 class AuditDetailScreen extends Screen
 {
@@ -24,9 +25,16 @@ class AuditDetailScreen extends Screen
     {
         $audit->load(['space', 'values.criterion', 'photos', 'user']);
 
+        // Fetch Booking for Client Name
+        $booking = $audit->space->bookings()
+            ->where('year', $audit->year)
+            ->where('week', $audit->week)
+            ->first();
+
         return [
             'audit' => $audit,
             'space' => $audit->space,
+            'booking' => $booking,
         ];
     }
 
@@ -76,31 +84,36 @@ class AuditDetailScreen extends Screen
     public function layout(): iterable
     {
         return [
-            // Space Metadata
-            Layout::legend('space', [
-                Sight::make('external_code', 'Código Externo'),
-                Sight::make('name', 'Nombre Comercial'),
-                Sight::make('provider', 'Proveedor'),
-                Sight::make('city', 'Ciudad'),
-                Sight::make('address', 'Dirección'),
-                Sight::make('type', 'Tipo'),
-            ])->title('Información del Espacio'),
-
-            // Audit Metadata
-            Layout::legend('audit', [
-                Sight::make('created_at', 'Fecha de Registro')->render(fn($a) => $a->created_at->format('d/m/Y H:i')),
-                Sight::make('user.name', 'Auditor Responsable'),
-                Sight::make('week', 'Semana')->render(fn($a) => "S{$a->week} / {$a->year}"),
-                Sight::make('general_status', 'Estado General')->render(function ($a) {
-                    return $a->general_status === 'good'
-                        ? '<span class="text-success">● Bueno</span>'
-                        : '<span class="text-danger">● Malo / Irregular</span>';
-                }),
-                Sight::make('observation', 'Observación General'),
-            ])->title('Resumen de Auditoría'),
-
-            // Detailed View (Blade)
             Layout::view('orchid.audit.detail'),
         ];
+    }
+
+    /**
+     * Mark audit as Third Party (Tercero).
+     */
+    public function markAsThirdParty(Audit $audit)
+    {
+        // 1. Mark Space as third party
+        $audit->space->is_third_party = true;
+        // Optionally store WHO marked it and WHEN
+        if (\Illuminate\Support\Facades\Schema::hasColumn('advertising_spaces', 'third_party_user_id')) {
+            $audit->space->third_party_user_id = auth()->id();
+            $audit->space->third_party_modified_at = now();
+        }
+        $audit->space->save();
+
+        // 2. Update all values to 'good'
+        foreach ($audit->values as $value) {
+            $value->value = 'good';
+            $value->comment = 'Marcado como Tercero - Automático';
+            $value->save();
+        }
+
+        // 3. Update General Status
+        $audit->general_status = 'good';
+        $audit->observation = trim($audit->observation . " [Marcado como Tercero]");
+        $audit->save();
+
+        Toast::info('La auditoría se ha marcado como Tercero y todos los criterios están Aprobados.');
     }
 }

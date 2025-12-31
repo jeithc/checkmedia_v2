@@ -21,7 +21,14 @@ return new class extends Migration {
             $table->string('external_code')->unique()->index(); // "EspacioCodigo"
             $table->string('provider')->nullable(); // "ProveedorNombre"
             $table->string('type')->nullable(); // "TipoElementoNombre"
+            $table->string('category')->nullable(); //"ProductoElementoNombre"
             $table->string('illumination_type')->nullable(); // "IluminacionNombre"
+
+            // Ownership & Third Party
+            $table->string('ownership')->nullable()->comment('P: Propio, etc.'); // "espacioProEle"
+            $table->boolean('is_third_party')->default(false); // "tercero"
+            $table->foreignId('third_party_user_id')->nullable()->constrained('users'); // "usuario_tercero"
+            $table->timestamp('third_party_modified_at')->nullable(); // "fecha_tercero"
 
             // Location Info
             $table->string('city')->index(); // "CiudadNombre"

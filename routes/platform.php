@@ -46,6 +46,12 @@ Route::screen('audit/{audit}', AuditDetailScreen::class)
         ->parent('platform.main')
         ->push('Auditoría ' . $audit->space->external_code, route('platform.audit.detail', $audit)));
 
+use App\Http\Controllers\AuditActionController;
+Route::post('audit/{audit}/action/third-party', [AuditActionController::class, 'markAsThirdParty'])
+    ->name('platform.audit.action.third-party');
+Route::post('audit/{audit}/action/upload-revision', [AuditActionController::class, 'uploadRevision'])
+    ->name('platform.audit.action.upload-revision');
+
 // Platform > Profile
 Route::screen('profile', UserProfileScreen::class)
     ->name('platform.profile')
