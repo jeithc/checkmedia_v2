@@ -41,17 +41,42 @@ class AuditForm extends Component
         }
     }
 
-    public function searchSpace()
+    public function searchSpace(\App\Services\AdvisualSyncService $syncService)
     {
         $this->validate([
             'external_code' => 'required'
         ]);
 
+        // 1. Try Local Search
         $this->space = AdvertisingSpace::where('external_code', $this->external_code)->first();
 
+        // 2. If not found, try External Sync
         if (!$this->space) {
-            $this->addError('external_code', 'Espacio no encontrado.');
+            try {
+                $this->space = $syncService->syncSpaceByCcde($this->external_code);
+            } catch (\Exception $e) {
+                // Log error but treat as not found for UI
+            }
+        }
+
+        if (!$this->space) {
+            $this->addError('external_code', 'Espacio no encontrado ni en local ni en remoto.');
             return;
+        }
+
+        // 3. Setup context (Booking)
+        // If we just synced, the booking might have been created too. 
+        // Or if it was local, we might need to Refresh booking from remote? 
+        // For now, let's assume if it exists locally we trust it, OR we could force sync every time.
+        // User Requirement: "buscardata2.php ... servia para buscar los ultimos datos ... importarlo para que tenga un mejor uso"
+        // Better approach: ALWAYS try sync to get latest client data if connected.
+
+        try {
+            $syncedSpace = $syncService->syncSpaceByCcde($this->external_code);
+            if ($syncedSpace)
+                $this->space = $syncedSpace;
+        } catch (\Exception $e) {
+            // Fail silently if remote is down, use local cache
         }
 
         // Load Booking for current week
