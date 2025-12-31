@@ -138,6 +138,11 @@ class AuditForm extends Component
         session()->flash('message', 'Auditoría guardada exitosamente.');
     }
 
+    public function removePhoto($index)
+    {
+        array_splice($this->photos, $index, 1);
+    }
+
     public function render()
     {
         return view('livewire.audit-form');

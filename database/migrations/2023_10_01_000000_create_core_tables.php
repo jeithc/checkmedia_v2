@@ -29,8 +29,9 @@ return new class extends Migration {
             $table->text('address')->nullable(); // "EspacioUbicacion"
             $table->string('zone')->nullable(); // "LocalizacionNombre"
 
-            $table->decimal('latitude', 10, 8)->nullable();
-            $table->decimal('longitude', 11, 8)->nullable();
+            $table->geography('location', subtype: 'point', srid: 4326)->nullable();
+            // $table->decimal('latitude', 10, 8)->nullable();
+            // $table->decimal('longitude', 11, 8)->nullable();
 
             $table->timestamps();
         });
@@ -136,7 +137,9 @@ return new class extends Migration {
     {
         Schema::dropIfExists('maintenances');
         Schema::dropIfExists('audit_photos');
+        Schema::dropIfExists('audit_values');
         Schema::dropIfExists('audits');
+        Schema::dropIfExists('audit_criteria');
         Schema::dropIfExists('commercial_bookings');
         Schema::dropIfExists('advertising_spaces');
         Schema::table('users', function (Blueprint $table) {

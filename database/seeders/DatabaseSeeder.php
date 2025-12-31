@@ -18,8 +18,18 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Jeith Admin',
+            'email' => 'admin@checkmedia.com',
+            'password' => bcrypt('password'),
+            'permissions' => [
+                'platform.index' => true,
+                'platform.systems.roles' => true,
+                'platform.systems.users' => true,
+                'platform.systems.attachment' => true,
+                'platform.systems.settings' => true,
+            ],
         ]);
+
+        $this->call(AuditCriterionSeeder::class);
     }
 }

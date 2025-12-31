@@ -18,8 +18,7 @@ class AdvertisingSpace extends Model
         'location_name',
         'address',
         'zone',
-        'latitude',
-        'longitude',
+        'location',
     ];
 
     public function audits()
