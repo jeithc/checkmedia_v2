@@ -78,28 +78,9 @@ class PlatformScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Layout::metrics([
-                'Espacios Publicitarios' => 'metrics.total_spaces',
-                'Auditorías (Semana)' => 'metrics.audits_week',
-                'Mantenimientos Pend.' => 'metrics.pending_maint',
-                'Pautas Activas' => 'metrics.active_bookings',
-            ]),
+            Layout::view('orchid.admin-dashboard-wrapper'),
 
-            Layout::table('recent_audits', [
-                TD::make('advertising_space_id', 'Espacio')
-                    ->render(fn(Audit $audit) => Link::make($audit->space->external_code)
-                        ->route('platform.audit.detail', $audit)
-                        ->class('text-primary font-weight-bold')),
-                TD::make('year', 'Semana')
-                    ->render(fn(Audit $audit) => "S" . $audit->week . " / " . $audit->year),
-                TD::make('general_status', 'Estado')
-                    ->render(fn(Audit $audit) => $audit->general_status === 'good'
-                        ? '<span class="text-success">● Bueno</span>'
-                        : '<span class="text-danger">● Malo</span>'),
-                TD::make('audit_date', 'Fecha')
-                    ->render(fn(Audit $audit) => $audit->audit_date->format('d/m/Y')),
-            ])->title('Últimas Auditorías'),
-
+            // Still keep the chart as it's separate and might not need real-time polling
             Layout::chart('audit_charts'),
         ];
     }
