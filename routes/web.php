@@ -7,4 +7,4 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/auditoria', AuditForm::class)->name('audit.form');
+Route::get('/audit', AuditForm::class)->name('audit.form');

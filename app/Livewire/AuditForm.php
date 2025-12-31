@@ -88,9 +88,10 @@ class AuditForm extends Component
 
         // DUPLICATE CHECK
         $now = now();
+        $weekData = Audit::getCalendarYearAndWeek($now);
         $this->existingAudit = Audit::where('advertising_space_id', $this->space->id)
-            ->where('year', $now->year)
-            ->where('week', $now->weekOfYear)
+            ->where('year', $weekData['year'])
+            ->where('week', $weekData['week'])
             ->first();
 
         if ($this->existingAudit) {
@@ -175,11 +176,12 @@ class AuditForm extends Component
 
         // 1. Create or Update Audit
         $date = now();
+        $weekData = Audit::getCalendarYearAndWeek($date);
         $audit = Audit::updateOrCreate(
             [
                 'advertising_space_id' => $this->space->id,
-                'year' => $date->year,
-                'week' => $date->weekOfYear,
+                'year' => $weekData['year'],
+                'week' => $weekData['week'],
             ],
             [
                 'user_id' => auth()->id() ?? 1,

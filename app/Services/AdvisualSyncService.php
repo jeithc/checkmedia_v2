@@ -79,12 +79,13 @@ class AdvisualSyncService
             // In legacy: INSERT INTO espacio_elemento (Semana Actual...)
 
             $now = now();
+            $weekData = \App\Models\Audit::getCalendarYearAndWeek($now);
 
             CommercialBooking::updateOrCreate(
                 [
                     'advertising_space_id' => $space->id,
-                    'year' => $now->year,
-                    'week' => $now->weekOfYear,
+                    'year' => $weekData['year'],
+                    'week' => $weekData['week'],
                 ],
                 [
                     'client_name' => $row->clientenombre ?? 'SIN CLIENTE',

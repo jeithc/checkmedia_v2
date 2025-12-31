@@ -63,4 +63,35 @@ class Audit extends Model
         $hasIssues = $this->values()->where('value', 'bad')->exists();
         $this->update(['general_status' => $hasIssues ? 'bad' : 'good']);
     }
+
+    /**
+     * Get calendar-based year and week for a given date.
+     * Uses the calendar year (not ISO week year) to avoid year-end confusion.
+     * 
+     * @param \Carbon\Carbon|null $date
+     * @return array ['year' => int, 'week' => int]
+     */
+    public static function getCalendarYearAndWeek($date = null)
+    {
+        $date = $date ? \Carbon\Carbon::parse($date) : now();
+
+        // Use calendar year
+        $year = $date->year;
+
+        // Calculate week number: day of year divided by 7, rounded down
+        // Day 0-6 = Week 1, Day 7-13 = Week 2, etc.
+        // This ensures Dec 31 (day 364) = Week 52
+        $dayOfYear = $date->dayOfYear; // 1-365 (or 366)
+        $weekNumber = (int) floor(($dayOfYear - 1) / 7) + 1;
+
+        // Cap at 52 weeks maximum (business requirement)
+        if ($weekNumber > 52) {
+            $weekNumber = 52;
+        }
+
+        return [
+            'year' => $year,
+            'week' => $weekNumber
+        ];
+    }
 }

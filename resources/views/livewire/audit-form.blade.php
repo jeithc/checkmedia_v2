@@ -140,7 +140,7 @@
                 <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">{{ $space->external_code }}</h3>
-                        <p class="text-sm text-gray-500">{{ $space->type }}</p>
+                        <p class="text-sm text-gray-500">{{ $booking->product_name }}</p>
                     </div>
                     <div class="bg-white px-3 py-1 rounded border border-gray-200 text-xs font-mono text-gray-500">
                         ID: {{ $space->id }}
@@ -174,10 +174,10 @@
                                 </div>
                                 <div class="ml-3">
                                     <h3 class="text-sm font-bold text-green-800">
-                                        Cliente Vigente: {{ $booking->client_name }}
+                                        Cliente: {{ $booking->client_name }}
                                     </h3>
                                     <div class="mt-1 text-sm text-green-700">
-                                        <p>{{ $booking->product_name }}</p>
+                                        <p>{{ $space->type }}</p>
                                         <p class="text-xs opacity-75 mt-0.5">Contrato: {{ $booking->contract_code }} (Semana
                                             {{ $booking->week }})</p>
                                     </div>

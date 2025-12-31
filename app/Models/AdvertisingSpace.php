@@ -48,12 +48,11 @@ class AdvertisingSpace extends Model
     public function getBookingForDate($date = null)
     {
         $date = $date ? \Carbon\Carbon::parse($date) : now();
-        $year = $date->year;
-        $week = $date->weekOfYear;
+        $weekData = \App\Models\Audit::getCalendarYearAndWeek($date);
 
         return $this->bookings()
-            ->where('year', $year)
-            ->where('week', $week)
+            ->where('year', $weekData['year'])
+            ->where('week', $weekData['week'])
             ->first();
     }
 }
