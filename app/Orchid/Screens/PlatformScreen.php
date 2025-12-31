@@ -4,7 +4,14 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens;
 
+use App\Models\AdvertisingSpace;
+use App\Models\Audit;
+use App\Models\Maintenance;
+use App\Models\CommercialBooking;
+use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
+use Orchid\Screen\Widgets\Chart;
+use Orchid\Screen\TD;
 use Orchid\Support\Facades\Layout;
 
 class PlatformScreen extends Screen
@@ -16,7 +23,16 @@ class PlatformScreen extends Screen
      */
     public function query(): iterable
     {
-        return [];
+        $now = now();
+        return [
+            'metrics' => [
+                'total_spaces' => ['value' => number_format(AdvertisingSpace::count()), 'diff' => 'Total Activos'],
+                'audits_week' => ['value' => number_format(Audit::where('year', $now->year)->where('week', $now->weekOfYear)->count()), 'diff' => 'Esta Semana'],
+                'pending_maint' => ['value' => number_format(Maintenance::where('status', '!=', 'completed')->count()), 'diff' => 'Por Atender'],
+                'active_bookings' => ['value' => number_format(CommercialBooking::where('year', $now->year)->where('week', $now->weekOfYear)->count()), 'diff' => 'Con Cliente'],
+            ],
+            'recent_audits' => Audit::with('space')->latest()->limit(5)->get(),
+        ];
     }
 
     /**
@@ -24,7 +40,7 @@ class PlatformScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'Get Started';
+        return 'Panel de Control';
     }
 
     /**
@@ -32,7 +48,7 @@ class PlatformScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'Welcome to your Orchid application.';
+        return 'Resumen operativo de Auditoría y Mantenimiento de Checkmedia.';
     }
 
     /**
@@ -42,7 +58,11 @@ class PlatformScreen extends Screen
      */
     public function commandBar(): iterable
     {
-        return [];
+        return [
+            Link::make('Nueva Auditoría')
+                ->icon('bs.pencil')
+                ->route('audit.form'),
+        ];
     }
 
     /**
@@ -53,7 +73,26 @@ class PlatformScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Layout::view('platform::partials.update-assets'),
+            Layout::metrics([
+                'Espacios Publicitarios' => 'metrics.total_spaces',
+                'Auditorías (Semana)' => 'metrics.audits_week',
+                'Mantenimientos Pend.' => 'metrics.pending_maint',
+                'Pautas Activas' => 'metrics.active_bookings',
+            ]),
+
+            Layout::table('recent_audits', [
+                TD::make('advertising_space_id', 'Espacio')
+                    ->render(fn(Audit $audit) => $audit->space->external_code),
+                TD::make('year', 'Semana')
+                    ->render(fn(Audit $audit) => "S" . $audit->week . " / " . $audit->year),
+                TD::make('general_status', 'Estado')
+                    ->render(fn(Audit $audit) => $audit->general_status === 'good'
+                        ? '<span class="text-success">● Bueno</span>'
+                        : '<span class="text-danger">● Malo</span>'),
+                TD::make('audit_date', 'Fecha')
+                    ->render(fn(Audit $audit) => $audit->audit_date->format('d/m/Y')),
+            ])->title('Últimas Auditorías'),
+
             Layout::view('platform::partials.welcome'),
         ];
     }

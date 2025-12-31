@@ -41,7 +41,99 @@
     </div>
 
     @if($space)
-        <form wire:submit.prevent="save" class="space-y-6">
+        <!-- DUPLICATE WARNING -->
+        @if($duplicateFound)
+            <div class="bg-white rounded-xl shadow-lg border-2 border-red-100 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+                <div class="bg-red-50 p-6 border-b border-red-100 flex items-center">
+                    <div class="bg-red-100 p-2 rounded-full mr-4">
+                        <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-red-800 italic">Ya se reportó el elemento esta semana.</h3>
+                        <p class="text-sm text-red-600">Este espacio ya tiene una auditoría registrada para la semana actual.</p>
+                    </div>
+                </div>
+                <div class="p-6 bg-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <button type="button" wire:click="viewAudit"
+                        class="flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-sm shadow-md shadow-green-600/20">
+                        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        Ver auditoría
+                    </button>
+                    <button type="button" wire:click="complementAudit"
+                        class="flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-sm shadow-md shadow-blue-600/20">
+                        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        Complementar
+                    </button>
+                    <button type="button" onclick="location.reload()"
+                        class="flex items-center justify-center px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm">
+                        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        Cancelar
+                    </button>
+                    <button type="button" wire:click="reuploadAudit"
+                        class="flex items-center justify-center px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-semibold text-sm shadow-md shadow-orange-500/20">
+                        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Volver a subir
+                    </button>
+                </div>
+            </div>
+        @endif
+
+        @if($showExistingDetails && $existingAudit)
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Detalles de Auditoría Existente</h3>
+                    <button wire:click="$set('showExistingDetails', false)" class="text-gray-400 hover:text-gray-600">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <!-- Criteria Status Table -->
+                    <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+                        <table class="min-w-full divide-y divide-gray-300">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Concepto</th>
+                                    <th class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">Estado</th>
+                                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Observación</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                @foreach($existingAudit->values as $val)
+                                    <tr>
+                                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">{{ $val->criterion->name }}</td>
+                                        <td class="whitespace-nowrap px-3 py-4 text-sm text-center">
+                                            @if($val->value === 'good')
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Bueno</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Malo</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-4 text-sm text-gray-500 italic">{{ $val->comment ?? '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Photo Gallery -->
+                    <div>
+                        <h4 class="text-sm font-bold text-gray-700 mb-4">Fotos registradas</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            @foreach($existingAudit->photos as $photo)
+                                <a href="{{ asset('storage/'.$photo->file_path) }}" target="_blank" class="block aspect-square rounded-lg overflow-hidden border border-gray-200 group">
+                                    <img src="{{ asset('storage/'.$photo->file_path) }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <form wire:submit.prevent="save" class="space-y-6 @if($duplicateFound && !$showExistingDetails) opacity-40 pointer-events-none grayscale @endif @if($showExistingDetails) hidden @endif">
 
             <!-- 2. Info Widget (Grid) -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

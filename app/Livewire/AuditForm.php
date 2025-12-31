@@ -22,8 +22,12 @@ class AuditForm extends Component
 
     // Form Inputs
     public $values = []; // [criterion_id => ['value' => 'good', 'comment' => '']]
-    public $observation;
     public $photos = [];
+    public $observation;
+
+    public $duplicateFound = false;
+    public $existingAudit = null;
+    public $showExistingDetails = false;
 
     public function mount()
     {
@@ -81,6 +85,67 @@ class AuditForm extends Component
 
         // Load Booking for current week
         $this->booking = $this->space->getBookingForDate(now());
+
+        // DUPLICATE CHECK
+        $now = now();
+        $this->existingAudit = Audit::where('advertising_space_id', $this->space->id)
+            ->where('year', $now->year)
+            ->where('week', $now->weekOfYear)
+            ->first();
+
+        if ($this->existingAudit) {
+            $this->duplicateFound = true;
+        }
+    }
+
+    public function viewAudit()
+    {
+        $this->showExistingDetails = true;
+    }
+
+    public function complementAudit()
+    {
+        if (!$this->existingAudit)
+            return;
+
+        $this->showExistingDetails = false;
+        $this->observation = $this->existingAudit->observation;
+
+        // Load existing values
+        foreach ($this->existingAudit->values as $val) {
+            if (isset($this->values[$val->audit_criterion_id])) {
+                $this->values[$val->audit_criterion_id]['value'] = $val->value;
+                $this->values[$val->audit_criterion_id]['comment'] = $val->comment;
+            }
+        }
+
+        $this->duplicateFound = false;
+    }
+
+    public function reuploadAudit()
+    {
+        $this->showExistingDetails = false;
+        $this->duplicateFound = false;
+        $this->resetForm(false); // Reset but keep the space
+    }
+
+    protected function resetForm($resetSpace = true)
+    {
+        if ($resetSpace) {
+            $this->space = null;
+            $this->booking = null;
+            $this->external_code = '';
+        }
+
+        $this->photos = [];
+        $this->observation = '';
+        $this->duplicateFound = false;
+        $this->existingAudit = null;
+        $this->showExistingDetails = false;
+
+        foreach ($this->criteria as $c) {
+            $this->values[$c->id] = ['value' => 'good', 'comment' => ''];
+        }
     }
 
     public function save()
@@ -90,17 +155,29 @@ class AuditForm extends Component
             'photos.*' => 'image|max:10240', // 10MB Max per image
         ]);
 
-        // 1. Create Audit
+        // 1. Create or Update Audit
         $date = now();
-        $audit = Audit::create([
-            'advertising_space_id' => $this->space->id,
-            'user_id' => auth()->id() ?? 1, // Fallback for dev without auth
-            'year' => $date->year,
-            'week' => $date->weekOfYear,
-            'audit_date' => $date,
-            'observation' => $this->observation,
-            'general_status' => 'good' // Will update below
-        ]);
+        $audit = Audit::updateOrCreate(
+            [
+                'advertising_space_id' => $this->space->id,
+                'year' => $date->year,
+                'week' => $date->weekOfYear,
+            ],
+            [
+                'user_id' => auth()->id() ?? 1,
+                'audit_date' => $this->existingAudit ? $this->existingAudit->audit_date : $date,
+                'observation' => $this->observation,
+                'general_status' => 'good'
+            ]
+        );
+
+        // Clear existing values if updating
+        if ($this->existingAudit) {
+            $audit->values()->delete();
+            // Note: Photos are tricky. For now we append new ones, 
+            // but normally re-upload might mean replacing.
+            // Leaving photos as is for now.
+        }
 
         // 2. Save Values & Calculate Status
         $hasIssues = false;
