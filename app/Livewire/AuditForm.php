@@ -242,6 +242,16 @@ class AuditForm extends Component
 
     public function render()
     {
-        return view('livewire.audit-form');
+        try {
+            return view('livewire.audit-form');
+        } catch (\Exception $e) {
+            dd([
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 }

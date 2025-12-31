@@ -140,7 +140,7 @@
                 <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">{{ $space->external_code }}</h3>
-                        <p class="text-sm text-gray-500">{{ $booking->product_name }}</p>
+                        <p class="text-sm text-gray-500">{{ optional($booking)->product_name }}</p>
                     </div>
                     <div class="bg-white px-3 py-1 rounded border border-gray-200 text-xs font-mono text-gray-500">
                         ID: {{ $space->id }}
