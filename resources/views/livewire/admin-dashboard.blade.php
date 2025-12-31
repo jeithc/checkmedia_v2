@@ -53,6 +53,10 @@
                                     <span class="text-success small d-inline-flex align-items-center">
                                         <span class="me-1">●</span> Bueno
                                     </span>
+                                @elseif($audit->general_status === 'acceptable')
+                                    <span class="text-warning small d-inline-flex align-items-center">
+                                        <span class="me-1">●</span> Aceptable
+                                    </span>
                                 @else
                                     <span class="text-danger small d-inline-flex align-items-center">
                                         <span class="me-1">●</span> Malo

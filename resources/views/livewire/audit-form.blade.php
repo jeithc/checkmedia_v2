@@ -140,7 +140,7 @@
                 <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">{{ $space->external_code }}</h3>
-                        <p class="text-sm text-gray-500">{{ optional($booking)->product_name }}</p>
+                        <p class="text-sm font-semibold text-gray-700 uppercase tracking-tight">{{ $space->category ?? 'Sin Categoría' }}</p>
                     </div>
                     <div class="bg-white px-3 py-1 rounded border border-gray-200 text-xs font-mono text-gray-500">
                         ID: {{ $space->id }}
@@ -151,8 +151,8 @@
                     <!-- Location Code -->
                     <div>
                         <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ubicación</label>
-                        <p class="mt-1 text-sm font-medium text-gray-900">{{ $space->address }}</p>
-                        <p class="text-xs text-gray-500">{{ $space->city }} - {{ $space->location_name }}</p>
+                        <p class="mt-1 text-sm font-medium text-gray-900">{{ $space->city }} - {{ $space->location_name }}</p>
+                        <p class="text-xs text-gray-500">{{ $space->address }} - {{ $space->zone }}</p>
                     </div>
 
                     <!-- Provider -->
@@ -212,7 +212,7 @@
                                     <div class="flex items-center space-x-2">
                                         <!-- Good Button -->
                                         <button type="button" wire:click="$set('values.{{ $criterion->id }}.value', 'good')" class="relative inline-flex items-center px-4 py-2 rounded-full border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all duration-200
-                                                    {{ $values[$criterion->id]['value'] === 'good'
+                                                     {{ $values[$criterion->id]['value'] === 'good'
                         ? 'bg-green-100 border-green-200 text-green-800 ring-2 ring-green-500 ring-offset-2'
                         : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' }}">
                                             <svg class="mr-1.5 h-4 w-4 {{ $values[$criterion->id]['value'] === 'good' ? 'text-green-600' : 'text-gray-400' }}"
@@ -224,9 +224,23 @@
                                             Bueno
                                         </button>
 
+                                        <!-- Acceptable Button -->
+                                        <button type="button" wire:click="$set('values.{{ $criterion->id }}.value', 'acceptable')" class="relative inline-flex items-center px-4 py-2 rounded-full border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-yellow-500 transition-all duration-200
+                                                     {{ $values[$criterion->id]['value'] === 'acceptable'
+                        ? 'bg-yellow-100 border-yellow-200 text-yellow-800 ring-2 ring-yellow-500 ring-offset-2'
+                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' }}">
+                                            <svg class="mr-1.5 h-4 w-4 {{ $values[$criterion->id]['value'] === 'acceptable' ? 'text-yellow-600' : 'text-gray-400' }}"
+                                                fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd"
+                                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
+                                                    clip-rule="evenodd" />
+                                            </svg>
+                                            Aceptable
+                                        </button>
+
                                         <!-- Bad Button -->
                                         <button type="button" wire:click="$set('values.{{ $criterion->id }}.value', 'bad')" class="relative inline-flex items-center px-4 py-2 rounded-full border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-red-500 transition-all duration-200
-                                                    {{ $values[$criterion->id]['value'] === 'bad'
+                                                     {{ $values[$criterion->id]['value'] === 'bad'
                         ? 'bg-red-100 border-red-200 text-red-800 ring-2 ring-red-500 ring-offset-2'
                         : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' }}">
                                             <svg class="mr-1.5 h-4 w-4 {{ $values[$criterion->id]['value'] === 'bad' ? 'text-red-600' : 'text-gray-400' }}"

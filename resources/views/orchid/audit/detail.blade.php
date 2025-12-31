@@ -10,7 +10,8 @@
                 </div>
                 <div>
                     <h5 class="mb-0 text-dark">{{ $audit->space->category ?? 'Sin Categoría' }}</h5>
-                    <small class="mb-0 text-muted">{{ $audit->space->city }}</small>
+                    <small class="mb-0 text-muted d-block">{{ $audit->space->city }} - {{ $audit->space->location_name }}</small>
+                    <small class="mb-0 text-muted d-block">{{ $audit->space->address }} - {{ $audit->space->zone }}</small>
                 </div>
             </div>
 
@@ -45,21 +46,24 @@
                     <tbody>
                         @foreach($audit->values as $val)
                             <tr>
-                                <td class="fw-bold">{{ $val->criterion->name }}</td>
+                                <td class="fw-bold text-dark">{{ $val->criterion->name }}</td>
                                 <!-- Option 1: Bueno -->
                                 <td class="text-center">
                                     <input type="radio" disabled {{ $val->value === 'good' ? 'checked' : '' }}
-                                        class="form-check-input">
+                                        class="form-check-input @if($val->value === 'good') border-success bg-success @else border-gray-300 @endif"
+                                        style="opacity: 1;">
                                 </td>
                                 <!-- Option 2: Aceptable -->
                                 <td class="text-center">
                                     <input type="radio" disabled {{ $val->value === 'acceptable' ? 'checked' : '' }}
-                                        class="form-check-input">
+                                        class="form-check-input @if($val->value === 'acceptable') border-warning bg-warning @else border-gray-300 @endif"
+                                        style="opacity: 1;">
                                 </td>
                                 <!-- Option 3: Malo -->
                                 <td class="text-center">
                                     <input type="radio" disabled {{ $val->value === 'bad' ? 'checked' : '' }}
-                                        class="form-check-input">
+                                        class="form-check-input @if($val->value === 'bad') border-danger bg-danger @else border-gray-300 @endif"
+                                        style="opacity: 1;">
                                 </td>
                             </tr>
                         @endforeach

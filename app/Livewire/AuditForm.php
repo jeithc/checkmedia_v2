@@ -200,7 +200,7 @@ class AuditForm extends Component
         }
 
         // 2. Save Values & Calculate Status
-        $hasIssues = false;
+        $generalStatus = 'good';
         foreach ($this->values as $criterionId => $data) {
             AuditValue::create([
                 'audit_id' => $audit->id,
@@ -210,13 +210,13 @@ class AuditForm extends Component
             ]);
 
             if ($data['value'] === 'bad') {
-                $hasIssues = true;
+                $generalStatus = 'bad';
+            } elseif ($data['value'] === 'acceptable' && $generalStatus !== 'bad') {
+                $generalStatus = 'acceptable';
             }
         }
 
-        if ($hasIssues) {
-            $audit->update(['general_status' => 'bad']);
-        }
+        $audit->update(['general_status' => $generalStatus]);
 
         // 3. Save Photos
         foreach ($this->photos as $photo) {
