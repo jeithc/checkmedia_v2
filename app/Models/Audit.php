@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Orchid\Metrics\Chartable;
 
 class Audit extends Model
 {
-    use HasFactory;
+    use HasFactory, Chartable;
 
     protected $fillable = [
         'advertising_space_id',
@@ -19,9 +20,13 @@ class Audit extends Model
         'observation'
     ];
 
-    public function advertisingSpace()
+    protected $casts = [
+        'audit_date' => 'datetime',
+    ];
+
+    public function space()
     {
-        return $this->belongsTo(AdvertisingSpace::class);
+        return $this->belongsTo(AdvertisingSpace::class, 'advertising_space_id');
     }
 
     public function user()

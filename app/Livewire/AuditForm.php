@@ -155,6 +155,24 @@ class AuditForm extends Component
             'photos.*' => 'image|max:10240', // 10MB Max per image
         ]);
 
+        // Custom Validation: Photos
+        $totalPhotos = count($this->photos);
+        if ($this->existingAudit) {
+            $totalPhotos += $this->existingAudit->photos->count();
+        }
+
+        if ($totalPhotos === 0) {
+            $this->addError('photos', 'Debe registrar al menos una foto para guardar la auditoría.');
+            return;
+        }
+
+        // Custom Validation: Observation required if any "bad" value
+        $hasIssues = collect($this->values)->contains('value', 'bad');
+        if ($hasIssues && empty(trim($this->observation))) {
+            $this->addError('observation', 'Debe explicar el detalle de la irregularidad en las observaciones.');
+            return;
+        }
+
         // 1. Create or Update Audit
         $date = now();
         $audit = Audit::updateOrCreate(

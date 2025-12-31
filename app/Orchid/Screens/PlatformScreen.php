@@ -32,6 +32,11 @@ class PlatformScreen extends Screen
                 'active_bookings' => ['value' => number_format(CommercialBooking::where('year', $now->year)->where('week', $now->weekOfYear)->count()), 'diff' => 'Con Cliente'],
             ],
             'recent_audits' => Audit::with('space')->latest()->limit(5)->get(),
+            'audit_charts' => [
+                Audit::where('audit_date', '>=', $now->subDays(7))
+                    ->countByDays(null, null, 'audit_date')
+                    ->toChart('Auditorías Realizadas'),
+            ],
         ];
     }
 
@@ -93,7 +98,7 @@ class PlatformScreen extends Screen
                     ->render(fn(Audit $audit) => $audit->audit_date->format('d/m/Y')),
             ])->title('Últimas Auditorías'),
 
-            Layout::view('platform::partials.welcome'),
+            Layout::chart('audit_charts'),
         ];
     }
 }
