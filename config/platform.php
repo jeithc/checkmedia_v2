@@ -162,7 +162,7 @@ return [
     */
 
     'template' => [
-        'header' => '',
+        'header' => 'partials.header',
         'footer' => 'admin.footer',
     ],
 

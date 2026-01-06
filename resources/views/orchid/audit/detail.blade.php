@@ -48,22 +48,37 @@
                             <tr>
                                 <td class="fw-bold text-dark">{{ $val->criterion->name }}</td>
                                 <!-- Option 1: Bueno -->
-                                <td class="text-center">
-                                    <input type="radio" disabled {{ $val->value === 'good' ? 'checked' : '' }}
-                                        class="form-check-input @if($val->value === 'good') border-success bg-success @else border-gray-300 @endif"
-                                        style="opacity: 1;">
+                                <td class="text-center" @if($val->comment && $val->value === 'good') title="{{ $val->comment }}" style="cursor: help;" @endif>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <input type="radio" disabled {{ $val->value === 'good' ? 'checked' : '' }}
+                                            class="form-check-input me-1 @if($val->value === 'good') border-success bg-success @else border-gray-300 @endif"
+                                            style="opacity: 1;">
+                                        @if($val->comment && $val->value === 'good')
+                                            <i class="icon-bubble text-secondary" style="font-size: 0.8em;"></i>
+                                        @endif
+                                    </div>
                                 </td>
                                 <!-- Option 2: Aceptable -->
-                                <td class="text-center">
-                                    <input type="radio" disabled {{ $val->value === 'acceptable' ? 'checked' : '' }}
-                                        class="form-check-input @if($val->value === 'acceptable') border-warning bg-warning @else border-gray-300 @endif"
-                                        style="opacity: 1;">
+                                <td class="text-center" @if($val->comment && $val->value === 'acceptable') title="{{ $val->comment }}" style="cursor: help;" @endif>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <input type="radio" disabled {{ $val->value === 'acceptable' ? 'checked' : '' }}
+                                            class="form-check-input me-1 @if($val->value === 'acceptable') border-warning bg-warning @else border-gray-300 @endif"
+                                            style="opacity: 1;">
+                                        @if($val->comment && $val->value === 'acceptable')
+                                            <i class="icon-bubble text-secondary" style="font-size: 0.8em;"></i>
+                                        @endif
+                                    </div>
                                 </td>
                                 <!-- Option 3: Malo -->
-                                <td class="text-center">
-                                    <input type="radio" disabled {{ $val->value === 'bad' ? 'checked' : '' }}
-                                        class="form-check-input @if($val->value === 'bad') border-danger bg-danger @else border-gray-300 @endif"
-                                        style="opacity: 1;">
+                                <td class="text-center" @if($val->comment && $val->value === 'bad') title="{{ $val->comment }}" style="cursor: help;" @endif>
+                                    <div class="d-flex align-items-center justify-content-center">
+                                        <input type="radio" disabled {{ $val->value === 'bad' ? 'checked' : '' }}
+                                            class="form-check-input me-1 @if($val->value === 'bad') border-danger bg-danger @else border-gray-300 @endif"
+                                            style="opacity: 1;">
+                                        @if($val->comment && $val->value === 'bad')
+                                            <i class="icon-bubble text-secondary" style="font-size: 0.8em;"></i>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -232,3 +247,9 @@
         </div>
     </div>
 </div>
+ 
+<style>
+    td[title] {
+        cursor: help;
+    }
+</style>
