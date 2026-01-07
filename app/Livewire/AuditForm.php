@@ -9,6 +9,7 @@ use App\Models\Audit;
 use App\Models\AuditCriterion;
 use App\Models\AuditValue;
 use App\Models\AuditPhoto;
+use App\Models\SpaceActivityLog;
 use App\Services\ImageWatermarkService;
 use Carbon\Carbon;
 
@@ -239,7 +240,25 @@ class AuditForm extends Component
             ]);
         }
 
-        // 4. Reset
+        // 4. Log Activity
+        $isNew = !$this->existingAudit;
+        SpaceActivityLog::log(
+            spaceId: $this->space->id,
+            type: $isNew ? SpaceActivityLog::TYPE_AUDIT_CREATED : SpaceActivityLog::TYPE_AUDIT_UPDATED,
+            description: $isNew 
+                ? "Auditoría creada con estado: {$generalStatus}" 
+                : "Auditoría actualizada. Estado: {$generalStatus}",
+            auditId: $audit->id,
+            metadata: [
+                'general_status' => $generalStatus,
+                'photos_count' => count($this->photos),
+                'user_name' => auth()->user()?->name ?? 'Sistema',
+            ],
+            year: $weekData['year'],
+            week: $weekData['week']
+        );
+
+        // 5. Reset
         $this->reset(['space', 'external_code', 'photos', 'observation']);
         $this->mount(); // Reset values
         session()->flash('message', 'Auditoría guardada exitosamente.');

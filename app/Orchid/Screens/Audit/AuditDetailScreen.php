@@ -3,6 +3,7 @@
 namespace App\Orchid\Screens\Audit;
 
 use App\Models\Audit;
+use App\Models\SpaceActivityLog;
 use Illuminate\Http\Request;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
@@ -31,10 +32,26 @@ class AuditDetailScreen extends Screen
             ->where('week', $audit->week)
             ->first();
 
+        // Fetch Activity Logs for this space
+        $activityLogs = SpaceActivityLog::where('advertising_space_id', $audit->space->id)
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+
+        // Fetch all audits for this space (for history)
+        $allAudits = Audit::where('advertising_space_id', $audit->space->id)
+            ->orderBy('year', 'desc')
+            ->orderBy('week', 'desc')
+            ->limit(20)
+            ->get();
+
         return [
             'audit' => $audit,
             'space' => $audit->space,
             'booking' => $booking,
+            'activityLogs' => $activityLogs,
+            'allAudits' => $allAudits,
         ];
     }
 

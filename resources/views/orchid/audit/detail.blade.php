@@ -99,7 +99,9 @@
                             <div>
                                 <span class="fw-bold text-danger">{{ $audit->user->name ?? 'Auditor' }}</span>
                                 <br>
-                                <small class="text-muted">el {{ $audit->created_at->format('Y-m-d') }}</small>
+                                <small class="text-muted" title="{{ $audit->created_at->format('d/m/Y g:i a') }}">
+                                    {{ $audit->created_at->diffForHumans() }}
+                                </small>
                             </div>
                         </div>
                         <p class="mb-0">{{ $audit->observation }}</p>
@@ -112,7 +114,9 @@
                     <h6 class="text-success text-uppercase mb-2">✓ Revisión Cargada</h6>
                     <div class="p-2 bg-success bg-opacity-10 border border-success rounded">
                         <p class="mb-0 text-dark">{{ $audit->resolution_comment }}</p>
-                        <small class="text-muted">Resuelto el {{ $audit->resolved_at->format('d/m/Y H:i') }}</small>
+                        <small class="text-muted" title="{{ $audit->resolved_at->format('d/m/Y g:i a') }}">
+                            Resuelto {{ $audit->resolved_at->diffForHumans() }}
+                        </small>
                         @if($audit->resolution_photo_path)
                             <div class="mt-2">
                                 <a href="{{ asset('storage/' . $audit->resolution_photo_path) }}" target="_blank"
@@ -185,6 +189,218 @@
                 @endif
             </div>
 
+        </div>
+    </div>
+
+    <!-- History Section -->
+    <div class="col-12 mt-4">
+        <div class="bg-white rounded shadow-sm p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                <h5 class="text-black mb-0">
+                    <i class="icon-clock me-2"></i>Historial del Espacio
+                </h5>
+                <span class="badge bg-secondary">{{ $audit->space->external_code }}</span>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs mb-3" id="historyTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active text-dark fw-semibold" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
+                        <i class="icon-list me-1"></i> Actividad Reciente
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link text-dark fw-semibold" id="audits-tab" data-bs-toggle="tab" data-bs-target="#audits-history" type="button" role="tab">
+                        <i class="icon-docs me-1"></i> Auditorías Anteriores
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="historyTabsContent">
+                <!-- Activity Log Tab -->
+                <div class="tab-pane fade show active" id="activity" role="tabpanel">
+                    @if(isset($activityLogs) && $activityLogs->count() > 0)
+                        <div class="timeline-container" style="max-height: 400px; overflow-y: auto;">
+                            @foreach($activityLogs as $log)
+                                <div class="d-flex mb-3 pb-3 border-bottom">
+                                    <div class="me-3">
+                                        @php
+                                            $iconClass = match($log->activity_type) {
+                                                'audit_created' => 'bg-success',
+                                                'audit_updated' => 'bg-info',
+                                                'marked_third_party' => 'bg-warning',
+                                                'resolution_uploaded' => 'bg-primary',
+                                                'status_changed' => 'bg-secondary',
+                                                default => 'bg-secondary',
+                                            };
+                                            $icon = match($log->activity_type) {
+                                                'audit_created' => 'icon-plus',
+                                                'audit_updated' => 'icon-pencil',
+                                                'marked_third_party' => 'icon-people',
+                                                'resolution_uploaded' => 'icon-camera',
+                                                'status_changed' => 'icon-refresh',
+                                                default => 'icon-circle',
+                                            };
+                                        @endphp
+                                        <div class="rounded-circle {{ $iconClass }} d-flex align-items-center justify-content-center" 
+                                             style="width: 36px; height: 36px;">
+                                            <i class="{{ $icon }} text-white" style="font-size: 14px;"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <span class="fw-bold text-dark">
+                                                    @switch($log->activity_type)
+                                                        @case('audit_created')
+                                                            Auditoría Creada
+                                                            @break
+                                                        @case('audit_updated')
+                                                            Auditoría Actualizada
+                                                            @break
+                                                        @case('marked_third_party')
+                                                            Marcado como Tercero
+                                                            @break
+                                                        @case('resolution_uploaded')
+                                                            Revisión Cargada
+                                                            @break
+                                                        @case('status_changed')
+                                                            Estado Cambiado
+                                                            @break
+                                                        @default
+                                                            {{ ucfirst(str_replace('_', ' ', $log->activity_type)) }}
+                                                    @endswitch
+                                                </span>
+                                                @if($log->week && $log->year)
+                                                    <span class="badge bg-light text-dark ms-2">S{{ $log->week }}/{{ $log->year }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <p class="text-muted mb-1 small">{{ $log->description }}</p>
+                                        <div class="d-flex align-items-center">
+                                            <small class="text-muted">
+                                                <i class="icon-user me-1"></i>
+                                                {{ $log->user->name ?? ($log->metadata['user_name'] ?? 'Sistema') }}
+                                            </small>
+                                            <small class="text-muted ms-3" title="{{ $log->created_at->format('d/m/Y g:i a') }}">
+                                                <i class="icon-clock me-1"></i>
+                                                {{ $log->created_at->diffForHumans() }}
+                                            </small>
+                                        </div>
+                                        @if($log->metadata)
+                                            @if(isset($log->metadata['old_status']) && isset($log->metadata['new_status']))
+                                                <div class="mt-1">
+                                                    <small class="text-muted">
+                                                        Estado: 
+                                                        <span class="badge {{ $log->metadata['old_status'] === 'bad' ? 'bg-danger' : ($log->metadata['old_status'] === 'acceptable' ? 'bg-warning' : 'bg-success') }}">
+                                                            {{ ucfirst($log->metadata['old_status']) }}
+                                                        </span>
+                                                        →
+                                                        <span class="badge {{ $log->metadata['new_status'] === 'bad' ? 'bg-danger' : ($log->metadata['new_status'] === 'acceptable' ? 'bg-warning' : 'bg-success') }}">
+                                                            {{ ucfirst($log->metadata['new_status']) }}
+                                                        </span>
+                                                    </small>
+                                                </div>
+                                            @endif
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="text-center py-4 text-muted">
+                            <i class="icon-clock" style="font-size: 3rem; opacity: 0.3;"></i>
+                            <p class="mt-2 mb-0">No hay actividad registrada para este espacio.</p>
+                            <small>Las actividades futuras aparecerán aquí.</small>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Previous Audits Tab -->
+                <div class="tab-pane fade" id="audits-history" role="tabpanel">
+                    @if(isset($allAudits) && $allAudits->count() > 0)
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover table-sm align-middle">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Semana/Año</th>
+                                        <th>Fecha</th>
+                                        <th>Estado</th>
+                                        <th>Auditor</th>
+                                        <th class="text-end">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($allAudits as $histAudit)
+                                        <tr class="{{ $histAudit->id === $audit->id ? 'table-active' : '' }}">
+                                            <td>
+                                                <span class="badge bg-light text-dark">
+                                                    S{{ $histAudit->week }} / {{ $histAudit->year }}
+                                                </span>
+                                                @if($histAudit->id === $audit->id)
+                                                    <span class="badge bg-primary ms-1">Actual</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-muted small" title="{{ $histAudit->audit_date ? $histAudit->audit_date->format('d/m/Y g:i a') : '' }}">
+                                                {{ $histAudit->audit_date ? $histAudit->audit_date->diffForHumans() : '-' }}
+                                            </td>
+                                            <td>
+                                                @if($histAudit->general_status === 'bad')
+                                                    <span class="badge bg-danger">Malo</span>
+                                                @elseif($histAudit->general_status === 'acceptable')
+                                                    <span class="badge bg-warning text-dark">Aceptable</span>
+                                                @else
+                                                    <span class="badge bg-success">Bueno</span>
+                                                @endif
+                                                @if($histAudit->resolved_at)
+                                                    <i class="icon-check text-success ms-1" title="Resuelto"></i>
+                                                @endif
+                                            </td>
+                                            <td class="text-muted small">
+                                                {{ $histAudit->user->name ?? 'N/A' }}
+                                            </td>
+                                            <td class="text-end">
+                                                @if($histAudit->id !== $audit->id)
+                                                    <a href="{{ route('platform.audit.detail', $histAudit) }}" 
+                                                       class="btn btn-sm btn-outline-primary">
+                                                        <i class="icon-eye"></i> Ver
+                                                    </a>
+                                                @else
+                                                    <span class="text-muted small">Vista actual</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="text-center py-4 text-muted">
+                            <i class="icon-docs" style="font-size: 3rem; opacity: 0.3;"></i>
+                            <p class="mt-2 mb-0">No hay auditorías anteriores para este espacio.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Third Party Info (if applicable) -->
+            @if($audit->space->is_third_party)
+                <div class="alert alert-warning mt-3 mb-0 d-flex align-items-center">
+                    <i class="icon-people me-2" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <strong>Este espacio está marcado como TERCERO</strong>
+                        @if($audit->space->third_party_modified_at)
+                            <br>
+                            <small class="text-muted" title="{{ \Carbon\Carbon::parse($audit->space->third_party_modified_at)->format('d/m/Y g:i a') }}">
+                                Marcado {{ \Carbon\Carbon::parse($audit->space->third_party_modified_at)->diffForHumans() }}
+                                @if($audit->space->third_party_user_id)
+                                    por {{ \App\Models\User::find($audit->space->third_party_user_id)?->name ?? 'Usuario desconocido' }}
+                                @endif
+                            </small>
+                        @endif
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </div>
@@ -270,6 +486,26 @@
 <style>
     td[title] {
         cursor: help;
+    }
+    
+    /* Estilos para los tabs del historial */
+    #historyTabs .nav-link {
+        color: #495057 !important;
+        border: 1px solid transparent;
+        background-color: #f8f9fa;
+        margin-right: 4px;
+        border-radius: 0.375rem 0.375rem 0 0;
+    }
+    
+    #historyTabs .nav-link:hover {
+        border-color: #dee2e6 #dee2e6 transparent;
+        background-color: #e9ecef;
+    }
+    
+    #historyTabs .nav-link.active {
+        color: #0d6efd !important;
+        background-color: #fff;
+        border-color: #dee2e6 #dee2e6 #fff;
     }
     
     /* Estilos para el modal de revisión */

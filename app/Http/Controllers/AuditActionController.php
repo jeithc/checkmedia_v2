@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Audit;
+use App\Models\SpaceActivityLog;
 use Illuminate\Http\Request;
 use Orchid\Support\Facades\Toast;
 
@@ -13,6 +14,8 @@ class AuditActionController extends Controller
      */
     public function markAsThirdParty(Audit $audit)
     {
+        $oldStatus = $audit->general_status;
+        
         // 1. Update Space
         $audit->space->is_third_party = true;
         $audit->space->third_party_user_id = auth()->id();
@@ -33,6 +36,21 @@ class AuditActionController extends Controller
         }
         $audit->save();
 
+        // 4. Log Activity
+        SpaceActivityLog::log(
+            spaceId: $audit->advertising_space_id,
+            type: SpaceActivityLog::TYPE_MARKED_THIRD_PARTY,
+            description: 'Espacio marcado como TERCERO. Todos los criterios aprobados automáticamente.',
+            auditId: $audit->id,
+            metadata: [
+                'old_status' => $oldStatus,
+                'new_status' => 'good',
+                'user_name' => auth()->user()->name,
+            ],
+            year: $audit->year,
+            week: $audit->week
+        );
+
         Toast::info('La auditoría se ha marcado como Tercero y todos los criterios están Aprobados.');
 
         return back();
@@ -47,6 +65,8 @@ class AuditActionController extends Controller
             'revision_photo' => 'required|image|max:10240', // Max 10MB
             'revision_comment' => 'nullable|string',
         ]);
+
+        $oldStatus = $audit->general_status;
 
         // 1. Upload Photo
         if ($request->hasFile('revision_photo')) {
@@ -66,6 +86,23 @@ class AuditActionController extends Controller
             'message' => "Cargó revisión: " . ($request->input('revision_comment') ?: 'Sin comentario'),
             'type' => 'resolution',
         ]);
+
+        // 4. Log Activity
+        SpaceActivityLog::log(
+            spaceId: $audit->advertising_space_id,
+            type: SpaceActivityLog::TYPE_RESOLUTION_UPLOADED,
+            description: 'Revisión cargada. Auditoría marcada como resuelta.',
+            auditId: $audit->id,
+            metadata: [
+                'old_status' => $oldStatus,
+                'new_status' => 'good',
+                'comment' => $request->input('revision_comment'),
+                'photo_path' => $audit->resolution_photo_path,
+                'user_name' => auth()->user()->name,
+            ],
+            year: $audit->year,
+            week: $audit->week
+        );
 
         Toast::success('Revisión cargada exitosamente. La auditoría ha sido marcada como resuelta.');
 

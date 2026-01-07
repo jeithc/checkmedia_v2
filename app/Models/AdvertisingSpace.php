@@ -42,6 +42,11 @@ class AdvertisingSpace extends Model
         return $this->hasMany(Maintenance::class);
     }
 
+    public function activityLogs()
+    {
+        return $this->hasMany(SpaceActivityLog::class);
+    }
+
     /**
      * Get the booking for a specific date (or current date if null)
      */
