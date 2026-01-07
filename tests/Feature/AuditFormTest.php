@@ -158,7 +158,7 @@ class AuditFormTest extends TestCase
             'advertising_space_id' => $this->space->id,
             'year' => $weekData['year'],
             'week' => $weekData['week'],
-            'general_status' => 'good',
+            'general_status' => 'acceptable',
         ]);
     }
 
