@@ -40,11 +40,19 @@ Route::screen('/main', PlatformScreen::class)
 
 // Audit Detail
 use App\Orchid\Screens\Audit\AuditDetailScreen;
+use App\Models\Audit;
 Route::screen('audit/{audit}', AuditDetailScreen::class)
     ->name('platform.audit.detail')
-    ->breadcrumbs(fn(Trail $trail, $audit) => $trail
-        ->parent('platform.main')
-        ->push('Auditoría ' . $audit->space->external_code, route('platform.audit.detail', $audit)));
+    ->breadcrumbs(function(Trail $trail, $audit) {
+        // Ensure $audit is loaded as a model
+        if (!$audit instanceof Audit) {
+            $audit = Audit::with('space')->find($audit);
+        }
+        $code = $audit?->space?->external_code ?? $audit?->id ?? 'Detalle';
+        return $trail
+            ->parent('platform.main')
+            ->push('Auditoría ' . $code, route('platform.audit.detail', $audit));
+    });
 
 use App\Http\Controllers\AuditActionController;
 Route::post('audit/{audit}/action/third-party', [AuditActionController::class, 'markAsThirdParty'])

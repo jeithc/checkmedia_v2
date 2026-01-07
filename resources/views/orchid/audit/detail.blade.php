@@ -125,15 +125,12 @@
 
             <!-- Action Buttons -->
             <div class="d-flex gap-2 mb-3">
-                <!-- Tercero Button (Orange) -->
-                <form action="{{ route('platform.audit.action.third-party', $audit) }}" method="POST"
-                    onsubmit="return confirm('Al colocar estado \'TERCERO\' todos los reportes anteriores cambiaran a estado \'OK\' ¿Desea continuar?');">
-                    @csrf
-                    <button type="submit" class="btn text-white fw-bold px-4"
-                        style="background-color: #FFA500; border: none;">
-                        Tercero
-                    </button>
-                </form>
+                <!-- Tercero Button (Orange) - Uses fetch API to submit -->
+                <button type="button" class="btn text-white fw-bold px-4"
+                    style="background-color: #FFA500; border: none;"
+                    onclick="submitTercero()">
+                    Tercero
+                </button>
 
                 <!-- Cargar Revisión (Green) - Triggers Modal -->
                 <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
@@ -142,10 +139,30 @@
                 </button>
 
                 <!-- Editar (Green) -->
-                <a href="{{ route('audit.form', $audit->id) }}" class="btn btn-success text-white fw-bold px-4">
+                <a href="{{ route('audit.form', ['external_code' => $audit->space->external_code]) }}" class="btn btn-success text-white fw-bold px-4">
                     Editar
                 </a>
             </div>
+            
+            <script>
+                function submitTercero() {
+                    if(confirm('Al colocar estado \'TERCERO\' todos los reportes anteriores cambiaran a estado \'OK\' ¿Desea continuar?')) {
+                        // Create and submit form dynamically
+                        var form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '{{ url("/admin/audit/" . $audit->id . "/action/third-party") }}';
+                        
+                        var csrf = document.createElement('input');
+                        csrf.type = 'hidden';
+                        csrf.name = '_token';
+                        csrf.value = '{{ csrf_token() }}';
+                        form.appendChild(csrf);
+                        
+                        document.body.appendChild(form);
+                        form.submit();
+                    }
+                }
+            </script>
 
             <!-- Gallery -->
             <div class="border-top pt-3">
@@ -176,7 +193,7 @@
 <div class="modal fade" id="uploadRevisionModal" tabindex="-1" aria-labelledby="uploadRevisionModalLabel"
     aria-hidden="true">
     <div class="modal-dialog">
-        <form action="{{ route('platform.audit.action.upload-revision', $audit) }}" method="POST"
+        <form action="{{ url('/admin/audit/' . $audit->id . '/action/upload-revision') }}" method="POST"
             enctype="multipart/form-data">
             @csrf
             <div class="modal-content">
@@ -186,22 +203,24 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="revisionDate" class="form-label">Fecha reparación</label>
-                        <input type="text" class="form-control" id="revisionDate" value="{{ date('Y-m-d') }}" readonly>
+                        <label for="revisionDate" class="form-label fw-bold">Fecha reparación</label>
+                        <input type="text" class="form-control border" id="revisionDate" value="{{ date('Y-m-d') }}" readonly style="background-color: #f8f9fa;">
                     </div>
                     <div class="mb-3">
-                        <label for="revisionComment" class="form-label">Observación</label>
-                        <textarea class="form-control" id="revisionComment" name="revision_comment" rows="3"
-                            placeholder="Agregar un comentario..."></textarea>
+                        <label for="revisionComment" class="form-label fw-bold">Observación</label>
+                        <textarea class="form-control border" id="revisionComment" name="revision_comment" rows="3"
+                            placeholder="Agregar un comentario..." style="resize: vertical;"></textarea>
                     </div>
                     <div class="mb-3">
-                        <label for="revisionPhoto" class="form-label">Imagen(es)</label>
-                        <input type="file" class="form-control" id="revisionPhoto" name="revision_photo"
+                        <label for="revisionPhoto" class="form-label fw-bold">Imagen(es)</label>
+                        <input type="file" class="form-control border" id="revisionPhoto" name="revision_photo"
                             accept="image/*" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Enviar a cliente:</label>
-                        <input type="text" class="form-control" placeholder="separar por (,)">
+                        <label for="revisionClients" class="form-label fw-bold">Enviar a cliente:</label>
+                        <input type="text" class="form-control border" id="revisionClients" name="client_emails" 
+                            placeholder="separar por (,)">
+                        <small class="form-text text-muted">Ingrese los correos separados por comas</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -251,5 +270,35 @@
 <style>
     td[title] {
         cursor: help;
+    }
+    
+    /* Estilos para el modal de revisión */
+    #uploadRevisionModal .form-control {
+        border: 1px solid #dee2e6 !important;
+        border-radius: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    #uploadRevisionModal .form-control:focus {
+        border-color: #86b7fe !important;
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    #uploadRevisionModal .form-control:read-only {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6 !important;
+    }
+    
+    #uploadRevisionModal .form-label {
+        color: #212529;
+        margin-bottom: 0.5rem;
+    }
+    
+    #uploadRevisionModal .form-text {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.875rem;
     }
 </style>

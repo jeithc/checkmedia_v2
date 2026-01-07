@@ -15,34 +15,58 @@ class AdminDashboard extends Component
         $now = now();
         $weekData = Audit::getCalendarYearAndWeek($now);
 
+        // Auditorías con errores (bad o acceptable) de la semana actual
+        $auditsWithIssues = Audit::where('year', $weekData['year'])
+            ->where('week', $weekData['week'])
+            ->whereIn('general_status', ['bad', 'acceptable'])
+            ->count();
+
+        // Auditorías críticas (bad) sin resolver
+        $criticalAudits = Audit::where('year', $weekData['year'])
+            ->where('week', $weekData['week'])
+            ->where('general_status', 'bad')
+            ->whereNull('resolved_at')
+            ->count();
+
         $metrics = [
             'total_spaces' => [
                 'label' => 'Espacios Publicitarios',
                 'value' => number_format(AdvertisingSpace::count()),
                 'subtext' => 'Total Activos',
-                'icon' => 'bs.geo-alt'
+                'icon' => 'bs.geo-alt',
+                'color' => 'primary'
             ],
             'audits_week' => [
                 'label' => 'Auditorías (Semana)',
                 'value' => number_format(Audit::where('year', $weekData['year'])->where('week', $weekData['week'])->count()),
                 'subtext' => 'Esta Semana (S' . $weekData['week'] . ')',
-                'icon' => 'bs.check-circle'
+                'icon' => 'bs.check-circle',
+                'color' => 'primary'
+            ],
+            'audits_with_issues' => [
+                'label' => 'Auditorías con Errores',
+                'value' => number_format($auditsWithIssues),
+                'subtext' => $criticalAudits > 0 ? $criticalAudits . ' críticas sin resolver' : 'Esta Semana',
+                'icon' => 'bs.exclamation-triangle',
+                'color' => $auditsWithIssues > 0 ? 'danger' : 'success'
             ],
             'pending_maint' => [
                 'label' => 'Mantenimientos Pend.',
                 'value' => number_format(Maintenance::where('status', '!=', 'completed')->count()),
                 'subtext' => 'Por Atender',
-                'icon' => 'bs.tools'
-            ],
-            'active_bookings' => [
-                'label' => 'Pautas Activas',
-                'value' => number_format(CommercialBooking::where('year', $weekData['year'])->where('week', $weekData['week'])->count()),
-                'subtext' => 'Con Cliente',
-                'icon' => 'bs.megaphone'
+                'icon' => 'bs.tools',
+                'color' => 'primary'
             ],
         ];
 
-        $recentAudits = Audit::with('space')->latest()->limit(5)->get();
+        // Auditorías recientes con errores primero
+        $recentAudits = Audit::with('space')
+            ->where('year', $weekData['year'])
+            ->where('week', $weekData['week'])
+            ->orderByRaw("CASE WHEN general_status = 'bad' THEN 1 WHEN general_status = 'acceptable' THEN 2 ELSE 3 END")
+            ->orderBy('audit_date', 'desc')
+            ->limit(10)
+            ->get();
 
         return view('livewire.admin-dashboard', [
             'metrics' => $metrics,

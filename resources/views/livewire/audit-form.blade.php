@@ -224,19 +224,7 @@
                                             Bueno
                                         </button>
 
-                                        <!-- Acceptable Button -->
-                                        <button type="button" wire:click="$set('values.{{ $criterion->id }}.value', 'acceptable')" class="relative inline-flex items-center px-4 py-2 rounded-full border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-yellow-500 transition-all duration-200
-                                                     {{ $values[$criterion->id]['value'] === 'acceptable'
-                        ? 'bg-yellow-100 border-yellow-200 text-yellow-800 ring-2 ring-yellow-500 ring-offset-2'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' }}">
-                                            <svg class="mr-1.5 h-4 w-4 {{ $values[$criterion->id]['value'] === 'acceptable' ? 'text-yellow-600' : 'text-gray-400' }}"
-                                                fill="currentColor" viewBox="0 0 20 20">
-                                                <path fill-rule="evenodd"
-                                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"
-                                                    clip-rule="evenodd" />
-                                            </svg>
-                                            Aceptable
-                                        </button>
+                                     
 
                                         <!-- Bad Button -->
                                         <button type="button" wire:click="$set('values.{{ $criterion->id }}.value', 'bad')" class="relative inline-flex items-center px-4 py-2 rounded-full border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-red-500 transition-all duration-200

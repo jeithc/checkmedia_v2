@@ -2,12 +2,22 @@
     <!-- Metrics Section -->
     <div class="row mb-4 g-3">
         @foreach($metrics as $id => $metric)
+            @php
+                $borderColor = match($metric['color'] ?? 'primary') {
+                    'danger' => 'border-danger',
+                    'warning' => 'border-warning',
+                    'success' => 'border-success',
+                    default => 'border-primary'
+                };
+            @endphp
             <div class="col-sm-6 col-lg-3">
-                <div class="bg-white rounded shadow-sm p-4 h-100 border-start border-primary border-4">
+                <div class="bg-white rounded shadow-sm p-4 h-100 border-start {{ $borderColor }} border-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
                             <h6 class="text-muted small text-uppercase font-weight-bold mb-1">{{ $metric['label'] }}</h6>
-                            <h3 class="mb-0">{{ $metric['value'] }}</h3>
+                            <h3 class="mb-0 {{ $metric['color'] === 'danger' ? 'text-danger' : ($metric['color'] === 'warning' ? 'text-warning' : '') }}">
+                                {{ $metric['value'] }}
+                            </h3>
                             <small class="text-muted">{{ $metric['subtext'] }}</small>
                         </div>
                     </div>
@@ -19,7 +29,7 @@
     <!-- Recent Audits Table -->
     <div class="bg-white rounded shadow-sm overflow-hidden mb-4">
         <div class="px-4 py-3 border-b border-light d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 font-weight-bold">Últimas Auditorías</h5>
+            <h5 class="mb-0 font-weight-bold">Auditorías de la Semana Actual</h5>
             <span class="badge bg-primary-soft text-primary uppercase small">Actualizado en vivo</span>
         </div>
         <div class="table-responsive">
@@ -35,11 +45,22 @@
                 </thead>
                 <tbody class="divide-y divide-light">
                     @forelse($recentAudits as $audit)
-                        <tr class="align-middle transition-colors hover:bg-light/50">
+                        @php
+                            $rowClass = match($audit->general_status) {
+                                'bad' => 'table-danger',
+                                'acceptable' => 'table-warning',
+                                default => ''
+                            };
+                            $isResolved = $audit->resolved_at !== null;
+                        @endphp
+                        <tr class="align-middle transition-colors hover:bg-light/50 {{ $rowClass }} {{ $isResolved ? 'opacity-75' : '' }}">
                             <td class="px-4 py-3">
                                 <a href="{{ route('platform.audit.detail', $audit) }}"
-                                    class="text-primary font-weight-bold">
+                                    class="font-weight-bold {{ $audit->general_status === 'bad' ? 'text-danger' : ($audit->general_status === 'acceptable' ? 'text-warning' : 'text-primary') }}">
                                     {{ $audit->space->external_code }}
+                                    @if($audit->general_status === 'bad' && !$isResolved)
+                                        <span class="badge bg-danger ms-2">URGENTE</span>
+                                    @endif
                                 </a>
                                 <div class="text-muted small">{{ $audit->space->type }}</div>
                             </td>
@@ -50,17 +71,22 @@
                             </td>
                             <td class="px-4 py-3 text-center">
                                 @if($audit->general_status === 'good')
-                                    <span class="text-success small d-inline-flex align-items-center">
-                                        <span class="me-1">●</span> Bueno
+                                    <span class="badge bg-success small">
+                                        <i class="bs.check-circle me-1"></i> Bueno
                                     </span>
                                 @elseif($audit->general_status === 'acceptable')
-                                    <span class="text-warning small d-inline-flex align-items-center">
-                                        <span class="me-1">●</span> Aceptable
+                                    <span class="badge bg-warning text-dark small">
+                                        <i class="bs.exclamation-triangle me-1"></i> Aceptable
                                     </span>
                                 @else
-                                    <span class="text-danger small d-inline-flex align-items-center">
-                                        <span class="me-1">●</span> Malo
+                                    <span class="badge bg-danger small">
+                                        <i class="bs.x-circle me-1"></i> Malo
                                     </span>
+                                @endif
+                                @if($isResolved)
+                                    <div class="text-muted small mt-1">
+                                        <i class="bs.check2"></i> Resuelto
+                                    </div>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right text-muted small">
@@ -68,7 +94,7 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <a href="{{ route('platform.audit.detail', $audit) }}"
-                                    class="btn btn-sm btn-link text-muted">
+                                    class="btn btn-sm btn-link {{ $audit->general_status === 'bad' ? 'text-danger' : ($audit->general_status === 'acceptable' ? 'text-warning' : 'text-muted') }}">
                                     <i class="bs.chevron-right"></i>
                                 </a>
                             </td>
