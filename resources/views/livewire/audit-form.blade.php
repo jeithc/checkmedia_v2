@@ -290,9 +290,11 @@
 
                                     for (let i = 0; i < total; i++) {
                                         new Compressor(files[i], {
-                                            quality: 0.6,
-                                            maxWidth: 1600,
-                                            maxHeight: 1600,
+                                            quality: 0.85,
+                                            maxWidth: 2048,
+                                            maxHeight: 2048,
+                                            mimeType: 'image/jpeg',    // Forzar JPEG (más eficiente que PNG)
+                                            convertSize: 500000,       // Convertir a JPEG si > 500KB
                                             success(result) {
                                                 let file = new File([result], result.name, { type: result.type });
                                                 // Upload directly to Livewire

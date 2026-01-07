@@ -66,7 +66,8 @@ class Audit extends Model
 
     /**
      * Get calendar-based year and week for a given date.
-     * Uses the calendar year (not ISO week year) to avoid year-end confusion.
+     * Uses ISO-8601 week numbering (weeks start on Monday).
+     * Adjusts year for edge cases (late December / early January).
      * 
      * @param \Carbon\Carbon|null $date
      * @return array ['year' => int, 'week' => int]
@@ -75,14 +76,9 @@ class Audit extends Model
     {
         $date = $date ? \Carbon\Carbon::parse($date) : now();
 
-        // Use calendar year
-        $year = $date->year;
-
-        // Calculate week number: day of year divided by 7, rounded down
-        // Day 0-6 = Week 1, Day 7-13 = Week 2, etc.
-        // This ensures Dec 31 (day 364) = Week 52
-        $dayOfYear = $date->dayOfYear; // 1-365 (or 366)
-        $weekNumber = (int) floor(($dayOfYear - 1) / 7) + 1;
+        // Use ISO week number (1-53, weeks start Monday)
+        $weekNumber = (int) $date->format('W'); // ISO-8601 week number
+        $isoYear = (int) $date->format('o');    // ISO-8601 week-numbering year
 
         // Cap at 52 weeks maximum (business requirement)
         if ($weekNumber > 52) {
@@ -90,7 +86,7 @@ class Audit extends Model
         }
 
         return [
-            'year' => $year,
+            'year' => $isoYear,
             'week' => $weekNumber
         ];
     }

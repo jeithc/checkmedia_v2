@@ -9,6 +9,7 @@ use App\Models\Audit;
 use App\Models\AuditCriterion;
 use App\Models\AuditValue;
 use App\Models\AuditPhoto;
+use App\Services\ImageWatermarkService;
 use Carbon\Carbon;
 
 class AuditForm extends Component
@@ -218,9 +219,18 @@ class AuditForm extends Component
 
         $audit->update(['general_status' => $generalStatus]);
 
-        // 3. Save Photos
+        // 3. Save Photos with watermark
+        $watermarkService = new ImageWatermarkService();
+        $photoDateTime = $audit->audit_date ?? now();
+        
         foreach ($this->photos as $photo) {
-            $path = $photo->store('audit-photos', 'public'); // Store in storage/app/public/audit-photos
+            // Add watermark with audit date/time
+            $watermarkedPhoto = $watermarkService->addWatermark(
+                $photo, 
+                $photoDateTime->format('Y-m-d g:i a')
+            );
+            
+            $path = $watermarkedPhoto->store('audit-photos', 'public'); // Store in storage/app/public/audit-photos
 
             AuditPhoto::create([
                 'audit_id' => $audit->id,
