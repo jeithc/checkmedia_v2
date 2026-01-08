@@ -33,6 +33,19 @@
             font-weight: 500;
             letter-spacing: 0.025em;
         }
+
+        /* Pagination active state */
+        .page-item.active .page-link {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white !important;
+        }
+        .page-link {
+            color: #6b7280;
+        }
+        .page-link:hover {
+            background-color: #f3f4f6;
+        }
     </style>
 @endpush
 
