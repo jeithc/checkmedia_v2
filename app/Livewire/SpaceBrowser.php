@@ -9,51 +9,27 @@ use Illuminate\Database\Eloquent\Builder;
 
 class SpaceBrowser extends Component
 {
-    use WithPagination;
-
     // Filters
-    public $filterCategory = ''; // Replaces activeTab
+    public $filterCategory = '';
     public $filterCity = '';
     public $filterLocation = '';
     public $filterStatus = '';
+    public $filterIsThirdParty = '';
     public $search = '';
 
-    // Data Lists
-    public $categories = [];
-    public $cities = [];
-    public $locations = [];
-    // public $providers = []; // Removed
+    use WithPagination;
 
-    public function mount()
+    public function updatedFilterCategory()
     {
-        $this->loadOptions();
+        $this->filterCity = '';
+        $this->filterLocation = '';
+        $this->resetPage();
     }
 
-    public function loadOptions()
+    public function updatedFilterCity()
     {
-        // Load categories
-        $this->categories = AdvertisingSpace::select('category')
-            ->distinct()
-            ->whereNotNull('category')
-            ->orderBy('category')
-            ->pluck('category')
-            ->toArray();
-
-        // Load cities
-        $this->cities = AdvertisingSpace::select('city')
-            ->distinct()
-            ->whereNotNull('city')
-            ->orderBy('city')
-            ->pluck('city')
-            ->toArray();
-
-        // Load locations
-        $this->locations = AdvertisingSpace::select('location_name')
-            ->distinct()
-            ->whereNotNull('location_name')
-            ->orderBy('location_name')
-            ->pluck('location_name')
-            ->toArray();
+        $this->filterLocation = '';
+        $this->resetPage();
     }
 
     public function updated($propertyName)
@@ -63,31 +39,72 @@ class SpaceBrowser extends Component
 
     public function render()
     {
+        // Helper to apply "orthogonal" filters (Status, ThirdParty)
+        $applyOrthogonal = function ($q) {
+            if (!empty($this->filterStatus)) {
+                $q->whereHas('latestAudit', function ($subQ) {
+                    $subQ->where('general_status', $this->filterStatus);
+                });
+            }
+            if ($this->filterIsThirdParty !== '') {
+                $q->where('is_third_party', $this->filterIsThirdParty);
+            }
+        };
+
+        // 1. Load Categories (Filtered by Status & ThirdParty)
+        $categoriesQuery = AdvertisingSpace::select('category')
+            ->distinct()
+            ->whereNotNull('category');
+        $applyOrthogonal($categoriesQuery);
+        $categories = $categoriesQuery->orderBy('category')->pluck('category');
+
+        // 2. Load Cities (Dependent on Category + Orthogonal)
+        $citiesQuery = AdvertisingSpace::select('city')
+            ->distinct()
+            ->whereNotNull('city');
+            
+        if (!empty($this->filterCategory)) {
+            $citiesQuery->where('category', $this->filterCategory);
+        }
+        $applyOrthogonal($citiesQuery);
+        
+        $cities = $citiesQuery->orderBy('city')->pluck('city');
+
+        // 3. Load Locations (Dependent on Category & City + Orthogonal)
+        $locationsQuery = AdvertisingSpace::select('location_name')
+            ->distinct()
+            ->whereNotNull('location_name');
+
+        if (!empty($this->filterCategory)) {
+            $locationsQuery->where('category', $this->filterCategory);
+        }
+        if (!empty($this->filterCity)) {
+            $locationsQuery->where('city', $this->filterCity);
+        }
+        $applyOrthogonal($locationsQuery);
+
+        $locations = $locationsQuery->orderBy('location_name')->pluck('location_name');
+
+
+        // 4. Main Query for Table
         $query = AdvertisingSpace::query()
             ->with('latestAudit');
 
-        // 1. Category Filter
         if (!empty($this->filterCategory)) {
             $query->where('category', $this->filterCategory);
         }
 
-        // 2. City Filter
         if (!empty($this->filterCity)) {
             $query->where('city', $this->filterCity);
         }
 
-        // 3. Location Filter
         if (!empty($this->filterLocation)) {
             $query->where('location_name', $this->filterLocation);
         }
 
-        if (!empty($this->filterStatus)) {
-            $query->whereHas('latestAudit', function ($q) {
-                $q->where('general_status', $this->filterStatus);
-            });
-        }
+        // Apply shared orthogonal logic
+        $applyOrthogonal($query);
 
-        // 4. Search Filter
         if (!empty($this->search)) {
             $query->where(function ($q) {
                 $q->where('external_code', 'like', '%' . $this->search . '%')
@@ -101,7 +118,10 @@ class SpaceBrowser extends Component
             ->paginate(15);
 
         return view('livewire.space-browser', [
-            'spaces' => $spaces
+            'spaces' => $spaces,
+            'categories' => $categories,
+            'cities' => $cities,
+            'locations' => $locations
         ]);
     }
 }

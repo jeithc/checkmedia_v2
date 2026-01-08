@@ -41,7 +41,7 @@
     <div class="filter-toolbar mb-4">
         <div class="row g-3">
             <!-- Category Filter -->
-            <div class="col-md-2">
+            <div class="col-12 col-sm-6 col-lg-2">
                 <div class="filter-group">
                     <label class="small text-muted fw-bold mb-1 d-block">Categoría</label>
                     <select class="form-select form-select-sm" wire:model.live="filterCategory">
@@ -54,7 +54,7 @@
             </div>
 
             <!-- City Filter -->
-            <div class="col-md-2">
+            <div class="col-12 col-sm-6 col-lg-2">
                 <div class="filter-group">
                     <label class="small text-muted fw-bold mb-1 d-block">Ciudad</label>
                     <select class="form-select form-select-sm" wire:model.live="filterCity">
@@ -67,7 +67,7 @@
             </div>
 
             <!-- Location Filter -->
-            <div class="col-md-3">
+            <div class="col-12 col-sm-6 col-lg-2">
                 <div class="filter-group">
                     <label class="small text-muted fw-bold mb-1 d-block">Ubicación</label>
                     <select class="form-select form-select-sm" wire:model.live="filterLocation">
@@ -80,7 +80,7 @@
             </div>
 
             <!-- Status Filter -->
-            <div class="col-md-2">
+            <div class="col-12 col-sm-6 col-lg-2">
                 <div class="filter-group">
                     <label class="small text-muted fw-bold mb-1 d-block">Estado</label>
                     <select class="form-select form-select-sm" wire:model.live="filterStatus">
@@ -92,8 +92,20 @@
                 </div>
             </div>
 
+            <!-- Third Party Filter -->
+            <div class="col-12 col-sm-6 col-lg-2">
+                <div class="filter-group">
+                    <label class="small text-muted fw-bold mb-1 d-block">Tercerizado</label>
+                    <select class="form-select form-select-sm" wire:model.live="filterIsThirdParty">
+                        <option value="">(Todos)</option>
+                        <option value="1">Sí</option>
+                        <option value="0">No</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Search -->
-            <div class="col-md-3">
+            <div class="col-12 col-sm-6 col-lg-2">
                 <div class="filter-group">
                     <label class="small text-muted fw-bold mb-1 d-block">&nbsp;</label>
                     <div class="input-group input-group-sm">
@@ -148,7 +160,7 @@
                                     {{ $statusText }}
                                 </span>
                             @else
-                                <span class="badge bg-light text-muted border rounded-pill px-3 py-2 fw-normal">Sin Auditoría</span>
+                                <span class="badge bg-light text-muted border rounded-pill px-3 py-2 fw-normal">N/A</span>
                             @endif
                         </td>
                         <td>
