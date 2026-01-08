@@ -155,10 +155,17 @@
             @if($audit->observation)
                 <div class="mb-3 p-3 bg-light border rounded">
                     <div class="d-flex align-items-start">
-                        <div class="bg-secondary bg-opacity-25 rounded-circle me-3 d-flex align-items-center justify-content-center flex-shrink-0"
-                            style="width: 36px; height: 36px;">
-                            <i class="icon-bubble text-secondary"></i>
-                        </div>
+                        @if($audit->user)
+                            <img src="{{ $audit->user->presenter()->image() }}" 
+                                class="rounded-circle me-3 flex-shrink-0" 
+                                style="width: 36px; height: 36px; object-fit: cover;"
+                                alt="{{ $audit->user->name }}">
+                        @else
+                            <div class="bg-secondary bg-opacity-25 rounded-circle me-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                style="width: 36px; height: 36px;">
+                                <i class="icon-bubble text-secondary"></i>
+                            </div>
+                        @endif
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center mb-1">
                                 <span class="fw-bold text-dark me-2">{{ $audit->user->name ?? 'Auditor' }}</span>
@@ -247,10 +254,23 @@
                                                 default => 'icon-circle',
                                             };
                                         @endphp
-                                        <div class="rounded-circle {{ $iconClass }} d-flex align-items-center justify-content-center" 
-                                             style="width: 36px; height: 36px;">
-                                            <i class="{{ $icon }} text-white" style="font-size: 14px;"></i>
-                                        </div>
+                                        @if($log->user)
+                                            <div class="position-relative">
+                                                <img src="{{ $log->user->presenter()->image() }}" 
+                                                    class="rounded-circle" 
+                                                    style="width: 36px; height: 36px; object-fit: cover;"
+                                                    alt="{{ $log->user->name }}">
+                                                <div class="position-absolute bottom-0 end-0 rounded-circle {{ $iconClass }} d-flex align-items-center justify-content-center border border-white" 
+                                                     style="width: 16px; height: 16px; margin-bottom: -2px; margin-right: -2px;">
+                                                    <i class="{{ $icon }} text-white" style="font-size: 8px;"></i>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="rounded-circle {{ $iconClass }} d-flex align-items-center justify-content-center" 
+                                                 style="width: 36px; height: 36px;">
+                                                <i class="{{ $icon }} text-white" style="font-size: 14px;"></i>
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="flex-grow-1">
                                         <div class="d-flex justify-content-between align-items-start">

@@ -194,6 +194,13 @@ class UserEditScreen extends Screen
             unset($userData['password']);
         }
 
+        // Clean avatar_path if it's a full URL
+        if (isset($userData['avatar_path']) && !empty($userData['avatar_path'])) {
+            if (str_contains($userData['avatar_path'], '/storage/')) {
+                $userData['avatar_path'] = explode('/storage/', $userData['avatar_path'])[1];
+            }
+        }
+
         // Clean up userData to only contains what's in fillable
         $user->fill($userData);
         $user->permissions = $permissions;
