@@ -43,17 +43,20 @@ class UserEditLayout extends Rows
             CheckBox::make('user.is_active')
                 ->sendTrueOrFalse()
                 ->title(__('Is Active'))
-                ->help(__('If unchecked, the user will not be able to log in.')),
+                ->help(__('If unchecked, the user will not be able to log in.'))
+                ->canSee(\Illuminate\Support\Facades\Route::currentRouteName() !== 'platform.profile'),
 
             CheckBox::make('user.must_change_password')
                 ->sendTrueOrFalse()
                 ->title(__('Force Password Change'))
-                ->help(__('If checked, the user will be forced to change their password upon next login.')),
+                ->help(__('If checked, the user will be forced to change their password upon next login.'))
+                ->canSee(\Illuminate\Support\Facades\Route::currentRouteName() !== 'platform.profile'),
 
             CheckBox::make('user.is_superuser')
                 ->sendTrueOrFalse()
                 ->title('Super Usuario')
-                ->help('Los súper usuarios tienen acceso total a todas las secciones del sistema, ignorando los permisos granulares.'),
+                ->help('Los súper usuarios tienen acceso total a todas las secciones del sistema, ignorando los permisos granulares.')
+                ->canSee(\Illuminate\Support\Facades\Route::currentRouteName() !== 'platform.profile'),
 
             Cropper::make('user.avatar_path')
                 ->title(__('Avatar'))

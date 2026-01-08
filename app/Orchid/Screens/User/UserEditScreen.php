@@ -179,6 +179,14 @@ class UserEditScreen extends Screen
                 'string',
                 'min:6',
             ]
+        ], [
+            'user.username.required' => 'El nombre de usuario es obligatorio.',
+            'user.username.unique'   => 'Este nombre de usuario ya está en uso por otra persona.',
+            'user.email.required'    => 'El correo electrónico es obligatorio.',
+            'user.email.email'       => 'Por favor, ingresa un correo electrónico válido.',
+            'user.email.unique'      => 'Este correo electrónico ya está registrado en el sistema.',
+            'user.password.required' => 'La contraseña es obligatoria para nuevos usuarios.',
+            'user.password.min'      => 'La contraseña debe tener al menos 6 caracteres.',
         ]);
 
         $permissions = collect($request->get('permissions', []))

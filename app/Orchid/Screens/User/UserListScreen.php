@@ -26,7 +26,6 @@ class UserListScreen extends Screen
     {
         return [
             'users' => User::with('roles')
-                ->filters(UserFiltersLayout::class)
                 ->defaultSort('id', 'desc')
                 ->paginate(),
         ];
@@ -77,7 +76,6 @@ class UserListScreen extends Screen
     public function layout(): iterable
     {
         return [
-            UserFiltersLayout::class,
             UserListLayout::class,
 
             Layout::modal('editUserModal', UserEditLayout::class)
