@@ -974,7 +974,12 @@
                     // Limpiar para evitar advertencia de Chrome
                     window.onbeforeunload = null;
                     clearModalInputs('editAuditModal');
-                    window.location.reload();
+                    
+                    if (typeof Turbo !== 'undefined') {
+                        Turbo.visit(window.location.href, { action: "replace" });
+                    } else {
+                        window.location.reload();
+                    }
                 });
             } else {
                 return response.text().then(text => { throw new Error(text) });
