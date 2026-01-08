@@ -16,7 +16,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </div>
-                    <input type="text" wire:model="external_code" wire:keydown.enter="searchSpace"
+                    <input type="text" wire:model.live="external_code" wire:keydown.enter="searchSpace"  id="external_code_input"
                         class="pl-10 block w-full h-12 rounded-xl border-gray-300 bg-gray-50/50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all duration-200 sm:text-sm shadow-sm"
                         placeholder="Ingrese el código (Ej: 25889)">
                 </div>
@@ -402,4 +402,16 @@
 
     <!-- Compressor.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
+    
+    <script>
+        // Clear external_code input when audit is saved successfully
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('audit-saved', () => {
+                const input = document.getElementById('external_code_input');
+                if (input) {
+                    input.value = '';
+                }
+            });
+        });
+    </script>
 </div>

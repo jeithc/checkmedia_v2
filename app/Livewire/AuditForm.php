@@ -256,8 +256,8 @@ class AuditForm extends Component
         );
 
         // 5. Reset
-        $this->reset(['space', 'external_code', 'photos', 'observation']);
-        $this->mount(); // Reset values
+        $this->resetForm(true);
+        $this->dispatch('audit-saved');
         session()->flash('message', 'Auditoría guardada exitosamente.');
     }
 
