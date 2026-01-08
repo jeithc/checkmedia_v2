@@ -517,17 +517,31 @@
                     </div>
 
                     <div class="row g-3">
-                        <!-- Foto -->
+                        <!-- Foto con compresión -->
                         <div class="col-12">
                             <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Foto de Revisión *</label>
-                            <input type="file" class="form-control form-control-sm bg-white" name="revision_photo" accept="image/*" required>
+                            <input type="file" class="form-control form-control-sm bg-white" id="revision_photo_input" accept="image/*" required>
+                            <div class="invalid-feedback">Por favor selecciona una foto.</div>
+                            <div id="photo_preview" class="mt-2 d-none">
+                                <div class="d-flex align-items-center gap-2 p-2 bg-light rounded">
+                                    <img id="photo_preview_img" src="" alt="Preview" class="rounded" style="width: 60px; height: 60px; object-fit: cover;">
+                                    <div class="flex-grow-1">
+                                        <small class="text-success fw-bold d-block">Imagen lista</small>
+                                        <small class="text-muted" id="photo_size_info"></small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearRevisionPhoto()">
+                                        <i class="icon-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Observación -->
                         <div class="col-12">
-                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Observación</label>
-                            <textarea class="form-control form-control-sm bg-white" name="revision_comment" rows="2"
-                                placeholder="Descripción breve..."></textarea>
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Observación *</label>
+                            <textarea class="form-control form-control-sm bg-white" name="revision_comment" id="revision_comment_input" rows="2"
+                                placeholder="Descripción breve de la reparación..." required></textarea>
+                            <div class="invalid-feedback">Por favor ingresa una observación.</div>
                         </div>
                         
                         <!-- Emails -->
@@ -622,9 +636,10 @@
                         
                         <!-- Observación -->
                         <div class="col-12">
-                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Nota de Edición (Opcional)</label>
-                            <textarea class="form-control form-control-sm bg-white" name="revision_comment" rows="2"
-                                placeholder="Agregar nota sobre el cambio..."></textarea>
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Nota de Edición *</label>
+                            <textarea class="form-control form-control-sm bg-white" name="revision_comment" id="edit_comment_input" rows="2"
+                                placeholder="Explica brevemente el motivo del cambio..." required></textarea>
+                            <div class="invalid-feedback">Por favor ingresa una nota de edición (mínimo 3 caracteres).</div>
                         </div>
                     </div>
                 </div>
@@ -637,7 +652,13 @@
     </div>
 </div>
 
+<!-- Compressor.js para compresión de imagen -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/compressorjs/1.2.1/compressor.min.js"></script>
+
 <script>
+    // Variable para almacenar la imagen comprimida
+    let compressedRevisionPhoto = null;
+
     document.addEventListener('DOMContentLoaded', function() {
         // Mover los modales al final del body para evitar conflictos de formularios anidados
         ['uploadRevisionModal', 'editAuditModal'].forEach(id => {
@@ -646,29 +667,120 @@
                 document.body.appendChild(modal);
             }
         });
+
+        // Evento para comprimir imagen al seleccionar
+        const fileInput = document.getElementById('revision_photo_input');
+        if (fileInput) {
+            fileInput.addEventListener('change', function(e) {
+                fileInput.classList.remove('is-invalid'); // Limpiar error al seleccionar
+                const file = e.target.files[0];
+                if (file) {
+                    compressImage(file);
+                }
+            });
+        }
+        
+        // Limpiar errores al escribir en los campos de texto
+        const revisionComment = document.getElementById('revision_comment_input');
+        if (revisionComment) {
+            revisionComment.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
+        }
+        
+        const editComment = document.getElementById('edit_comment_input');
+        if (editComment) {
+            editComment.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
+        }
     });
+
+    function compressImage(file) {
+        const preview = document.getElementById('photo_preview');
+        const previewImg = document.getElementById('photo_preview_img');
+        const sizeInfo = document.getElementById('photo_size_info');
+        
+        // Mostrar estado de carga
+        preview.classList.remove('d-none');
+        sizeInfo.textContent = 'Comprimiendo...';
+        previewImg.src = '';
+
+        new Compressor(file, {
+            quality: 0.85,
+            maxWidth: 2048,
+            maxHeight: 2048,
+            mimeType: 'image/jpeg',
+            convertSize: 500000,
+            success(result) {
+                compressedRevisionPhoto = new File([result], result.name || 'revision.jpg', { type: result.type });
+                
+                // Mostrar preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                };
+                reader.readAsDataURL(compressedRevisionPhoto);
+                
+                // Mostrar tamaño
+                const originalSize = (file.size / 1024).toFixed(0);
+                const compressedSize = (compressedRevisionPhoto.size / 1024).toFixed(0);
+                sizeInfo.textContent = `${originalSize}KB → ${compressedSize}KB`;
+            },
+            error(err) {
+                console.error('Error comprimiendo:', err);
+                // Usar original si falla la compresión
+                compressedRevisionPhoto = file;
+                sizeInfo.textContent = 'Usando imagen original';
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    function clearRevisionPhoto() {
+        compressedRevisionPhoto = null;
+        const fileInput = document.getElementById('revision_photo_input');
+        if (fileInput) fileInput.value = '';
+        document.getElementById('photo_preview').classList.add('d-none');
+    }
 
     function submitRevisionForm() {
         const modal = document.getElementById('uploadRevisionModal');
-        const fileInput = modal.querySelector('input[name="revision_photo"]');
-        const commentInput = modal.querySelector('textarea[name="revision_comment"]');
+        const fileInput = document.getElementById('revision_photo_input');
+        const commentInput = document.getElementById('revision_comment_input');
         const emailsInput = modal.querySelector('input[name="client_emails"]');
         
-        // Validación
-        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Falta imagen',
-                text: 'Por favor selecciona una foto de la revisión.',
-                confirmButtonColor: '#198754'
-            });
+        // Limpiar errores previos
+        fileInput.classList.remove('is-invalid');
+        commentInput.classList.remove('is-invalid');
+        
+        let hasErrors = false;
+        
+        // Validación de foto
+        if (!compressedRevisionPhoto) {
+            fileInput.classList.add('is-invalid');
+            hasErrors = true;
+        }
+        
+        // Validación de observación (requerida)
+        if (!commentInput.value || commentInput.value.trim().length < 3) {
+            commentInput.classList.add('is-invalid');
+            hasErrors = true;
+        }
+        
+        if (hasErrors) {
             return;
         }
 
         // Construir FormData
         const formData = new FormData();
         formData.append('_token', '{{ csrf_token() }}');
-        formData.append('revision_photo', fileInput.files[0]);
+        formData.append('revision_photo', compressedRevisionPhoto);
         formData.append('revision_comment', commentInput.value || '');
         formData.append('client_emails', emailsInput.value || '');
         
@@ -713,7 +825,6 @@
                 });
             } else {
                 return response.text().then(text => {
-                    // Try to parse JSON error if available
                     try {
                         const json = JSON.parse(text);
                         throw new Error(json.message || 'Error al guardar');
@@ -753,12 +864,21 @@
 
     function submitEditAuditForm() {
         const modal = document.getElementById('editAuditModal');
-        const commentInput = modal.querySelector('textarea[name="revision_comment"]');
+        const commentInput = document.getElementById('edit_comment_input');
+        
+        // Limpiar errores previos
+        commentInput.classList.remove('is-invalid');
+        
+        // Validación estilo Orchid
+        if (!commentInput.value || commentInput.value.trim().length < 3) {
+            commentInput.classList.add('is-invalid');
+            return;
+        }
         
         // Construir FormData
         const formData = new FormData();
         formData.append('_token', '{{ csrf_token() }}');
-        formData.append('revision_comment', commentInput.value || '');
+        formData.append('revision_comment', commentInput.value.trim());
         
         // Agregar criterios
         modal.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
@@ -866,9 +986,30 @@
     }
     
     /* Estilos para el modal de revisión */
-    #uploadRevisionModal .form-control:focus {
+    #uploadRevisionModal .form-control:focus,
+    #editAuditModal .form-control:focus {
         border-color: #198754;
         box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.15);
+    }
+    
+    /* Validación estilo Orchid - mostrar invalid-feedback cuando is-invalid */
+    .form-control.is-invalid ~ .invalid-feedback,
+    .form-control.is-invalid + .invalid-feedback {
+        display: block;
+    }
+    
+    .form-control.is-invalid {
+        border-color: #dc3545 !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        padding-right: calc(1.5em + 0.75rem);
+    }
+    
+    .form-control.is-invalid:focus {
+        border-color: #dc3545 !important;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
     }
 </style>
 </style>

@@ -152,9 +152,12 @@ class AuditActionController extends Controller
     public function updateAudit(Request $request, Audit $audit)
     {
         $request->validate([
-            'revision_comment' => 'nullable|string', // Used for observation
+            'revision_comment' => 'required|string|min:3', // Required edit note
             'criteria' => 'nullable|array',
             'criteria.*' => 'in:good,acceptable,bad',
+        ], [
+            'revision_comment.required' => 'La nota de edición es obligatoria.',
+            'revision_comment.min' => 'La nota debe tener al menos 3 caracteres.',
         ]);
 
         $oldStatus = $audit->general_status;
