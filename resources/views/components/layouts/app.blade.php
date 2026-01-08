@@ -24,6 +24,8 @@
             }
         }
     </script>
+    
+    @livewireStyles
 </head>
 
 <body class="bg-gray-100 font-sans antialiased text-gray-900">
@@ -44,6 +46,8 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {{ $slot }}
     </main>
+
+    @livewireScripts
 </body>
 
 </html>

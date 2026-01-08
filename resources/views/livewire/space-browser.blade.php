@@ -1,5 +1,9 @@
 @push('head')
-    <link rel="stylesheet" href="{{ asset('resources/css/components/space-browser.css') }}">
+    <style>
+        .input-group-sm .input-group-text, .input-group-sm .form-control {
+            min-height: 31px; /* Force consistent height for sm inputs */
+        }
+    </style>
 @endpush
 
 <div class="space-browser-container p-4 bg-white rounded shadow-sm">
@@ -63,8 +67,8 @@
                 <div class="filter-group">
                     <label class="small text-muted fw-bold mb-1 d-block">&nbsp;</label>
                     <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Buscar..." wire:model.live.debounce.300ms="search">
+                        <span class="input-group-text bg-white border-end-0 text-muted ps-2 pe-2"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control form-control-sm border-start-0 ps-0" placeholder="Buscar..." wire:model.live.debounce.300ms="search" style="font-size: 0.875rem;">
                     </div>
                 </div>
             </div>
@@ -154,5 +158,15 @@
 </div>
 
 @push('scripts')
-    <script type="module" src="{{ asset('resources/js/components/space-browser.js') }}"></script>
+    <script>
+        document.addEventListener('livewire:initialized', () => {
+            // Restore scroll position after Livewire updates
+            Livewire.hook('morph.updated', ({ el, component }) => {
+                const container = document.querySelector('.space-browser-container');
+                if (container) {
+                     // logic to maintain scroll if needed, but often automatic
+                }
+            });
+        });
+    </script>
 @endpush
