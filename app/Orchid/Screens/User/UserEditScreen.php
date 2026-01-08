@@ -151,7 +151,7 @@ class UserEditScreen extends Screen
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
             'user.username' => [
-                'nullable',
+                'required',
                 'string',
                 Rule::unique(User::class, 'username')->ignore($user),
             ]

@@ -109,7 +109,7 @@
     <form action="{{ route('platform.login.auth') }}" method="POST">
         @csrf
 
-        @error('email')
+        @error('username')
             <div class="alert-error">{{ $message }}</div>
         @enderror
         @error('password')
@@ -117,7 +117,7 @@
         @enderror
 
         <div class="inputwrapper">
-            <input type="email" name="email" value="{{ old('email') }}" placeholder="Ingrese su Usuario (Email)" required autofocus>
+            <input type="text" name="username" value="{{ old('username') }}" placeholder="Ingrese su Usuario" required autofocus>
         </div>
         <div class="inputwrapper">
             <input type="password" name="password" placeholder="Ingrese su Clave" required>
