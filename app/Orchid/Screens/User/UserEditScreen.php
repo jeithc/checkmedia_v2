@@ -103,79 +103,39 @@ class UserEditScreen extends Screen
     public function layout(): iterable
     {
         return [
-
-            Layout::block(UserEditLayout::class)
-                ->title(__('Profile Information'))
-                ->description(__('Update your account\'s profile information and email address.'))
-                ->commands(
-                    Button::make(__('Save'))
-                        ->type(Color::BASIC)
-                        ->icon('bs.check-circle')
-                        ->canSee($this->user->exists)
-                        ->method('save')
-                ),
-
-            Layout::block(UserPasswordLayout::class)
-                ->title(__('Password'))
-                ->description(__('Ensure your account is using a long, random password to stay secure.'))
-                ->commands(
-                    Button::make(__('Save'))
-                        ->type(Color::BASIC)
-                        ->icon('bs.check-circle')
-                        ->canSee($this->user->exists)
-                        ->method('save')
-                ),
-
-            Layout::block(UserRoleLayout::class)
-                ->title(__('Roles'))
-                ->description(__('A Role defines a set of tasks a user assigned the role is allowed to perform.'))
-                ->commands(
-                    Button::make(__('Save'))
-                        ->type(Color::BASIC)
-                        ->icon('bs.check-circle')
-                        ->canSee($this->user->exists)
-                        ->method('save')
-                ),
-
-            Layout::rows([
-                Matrix::make('subscriptions')
-                    ->title('Notification Subscriptions')
-                    ->columns([
-                        'Event Type' => 'event_type',
-                        'Filter Key' => 'filter_key',
-                        'Filter Value' => 'filter_value',
-                        'Channel' => 'channel',
-                    ])
-                    ->fields([
-                        'event_type' => Select::make()->options([
-                            'product_issue' => 'Product Issue (Report)',
-                            'system_alert' => 'System Alert',
-                        ]),
-                        'filter_key' => Select::make()->options([
-                            'product_type' => 'Product Type (e.g. VALLAS)',
-                            'city' => 'City',
-                            'all' => 'All Events',
-                        ]),
-                        'filter_value' => Input::make()->type('text'),
-                        'channel' => Select::make()->options([
-                            'email' => 'Email',
-                            'sms' => 'SMS',
-                        ]),
-                    ])
-                    ->help('Define which events this user should receive notifications for.'),
-            ])->title('Notifications'),
-
-            Layout::block(RolePermissionLayout::class)
-                ->title(__('Permissions'))
-                ->description(__('Allow the user to perform some actions that are not provided for by his roles'))
-                ->commands(
-                    Button::make(__('Save'))
-                        ->type(Color::BASIC)
-                        ->icon('bs.check-circle')
-                        ->canSee($this->user->exists)
-                        ->method('save')
-                ),
-
+            Layout::tabs([
+                __('Profile Information') => UserEditLayout::class,
+                __('Password')            => UserPasswordLayout::class,
+                __('Roles')               => UserRoleLayout::class,
+                __('Notifications')       => Layout::rows([
+                    Matrix::make('subscriptions')
+                        ->title('Notification Subscriptions')
+                        ->columns([
+                            'Event Type' => 'event_type',
+                            'Filter Key' => 'filter_key',
+                            'Filter Value' => 'filter_value',
+                            'Channel' => 'channel',
+                        ])
+                        ->fields([
+                            'event_type' => Select::make()->options([
+                                'product_issue' => 'Product Issue (Report)',
+                                'system_alert' => 'System Alert',
+                            ]),
+                            'filter_key' => Select::make()->options([
+                                'product_type' => 'Product Type (e.g. VALLAS)',
+                                'city' => 'City',
+                                'all' => 'All Events',
+                            ]),
+                            'filter_value' => Input::make()->type('text'),
+                            'channel' => Select::make()->options([
+                                'email' => 'Email',
+                                'sms' => 'SMS',
+                            ]),
+                        ])
+                        ->help('Define which events this user should receive notifications for.'),
+                ]),
+                __('Permissions')         => RolePermissionLayout::class,
+            ]),
         ];
     }
 

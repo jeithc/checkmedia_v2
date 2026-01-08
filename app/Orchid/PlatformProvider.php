@@ -36,8 +36,11 @@ class PlatformProvider extends OrchidServiceProvider
         return [
             Menu::make('Dashboard')
                 ->icon('bs.collection')
-                ->title('Navigation')
                 ->route(config('platform.index')),
+            
+            Menu::make('Espacios')
+                ->icon('bs.geo-alt')
+                ->route('platform.spaces'),
 
             Menu::make('Sample Screen')
                 ->icon('bs.collection')
@@ -61,10 +64,7 @@ class PlatformProvider extends OrchidServiceProvider
                 ->icon('bs.bar-chart')
                 ->route('platform.example.charts'),
 
-            Menu::make('Espacios')
-                ->icon('bs.geo-alt')
-                ->route('platform.spaces')
-                ->title('Gestión'),
+            
 
             Menu::make('Cards')
                 ->icon('bs.card-text')

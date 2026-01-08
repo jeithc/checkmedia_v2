@@ -43,5 +43,6 @@
     "SMS": "SMS",
     "Define which events this user should receive notifications for.": "Defina qué eventos debe recibir este usuario.",
     "Notifications": "Notificaciones",
-    "Example Screen": "Pantalla de Ejemplo"
+    "Example Screen": "Pantalla de Ejemplo",
+    "Dashboard": "Dashboard"
 }
