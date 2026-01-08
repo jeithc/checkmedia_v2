@@ -71,49 +71,8 @@
                 </table>
             </div>
 
-            <!-- Observation -->
-            @if($audit->observation)
-                <div class="mb-3">
-                    <h6 class="text-muted text-uppercase mb-2">Observaciones</h6>
-                    <div class="p-2 bg-light border rounded">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="bg-secondary rounded-circle me-2"
-                                style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                                <i class="icon-user text-white"></i>
-                            </div>
-                            <div>
-                                <span class="fw-bold text-danger">{{ $audit->user->name ?? 'Auditor' }}</span>
-                                <br>
-                                <small class="text-muted" title="{{ $audit->created_at->format('d/m/Y g:i a') }}">
-                                    {{ $audit->created_at->diffForHumans() }}
-                                </small>
-                            </div>
-                        </div>
-                        <p class="mb-0">{{ $audit->observation }}</p>
-                    </div>
-                </div>
-            @endif
-
-            @if($audit->resolution_comment)
-                <div class="mb-3">
-                    <h6 class="text-success text-uppercase mb-2">✓ Revisión Cargada</h6>
-                    <div class="p-2 bg-success bg-opacity-10 border border-success rounded">
-                        <p class="mb-0 text-dark">{{ $audit->resolution_comment }}</p>
-                        <small class="text-muted" title="{{ $audit->resolved_at->format('d/m/Y g:i a') }}">
-                            Resuelto {{ $audit->resolved_at->diffForHumans() }}
-                        </small>
-                        @if($audit->resolution_photo_path)
-                            <div class="mt-2">
-                                <a href="{{ asset('storage/' . $audit->resolution_photo_path) }}" target="_blank"
-                                    class="btn btn-sm btn-outline-success">Ver Foto de Reparación</a>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-            @endif
-
-            <!-- Action Buttons -->
-            <div class="d-flex gap-2 mb-3">
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-2 mb-3">
                 <!-- Tercero Button (Orange) - Uses fetch API to submit -->
                 <button type="button" class="btn text-white fw-bold px-4"
                     style="background-color: #FFA500; border: none;"
@@ -184,6 +143,79 @@
                     });
                 }
             </script>
+
+            <!-- Observation -->
+            @if($audit->observation)
+                <div class="mb-3">
+                    <h6 class="text-muted text-uppercase mb-2">Observaciones</h6>
+                    <div class="p-2 bg-light border rounded">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="bg-secondary rounded-circle me-2"
+                                style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                                <i class="icon-user text-white"></i>
+                            </div>
+                            <div>
+                                <span class="fw-bold text-danger">{{ $audit->user->name ?? 'Auditor' }}</span>
+                                <br>
+                                <small class="text-muted" title="{{ $audit->created_at->format('d/m/Y g:i a') }}">
+                                    {{ $audit->created_at->diffForHumans() }}
+                                </small>
+                            </div>
+                        </div>
+                        <p class="mb-0">{{ $audit->observation }}</p>
+                    </div>
+                </div>
+            @endif
+
+            @if($audit->resolved_at)
+                <div class="mb-4">
+                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                        <i class="icon-check me-1"></i> Resolución
+                    </h6>
+                    <div class="p-3 bg-white border border-success border-opacity-25 rounded shadow-sm position-relative overflow-hidden">
+                        <!-- Green strip on left -->
+                        <div class="position-absolute top-0 start-0 bottom-0 bg-success" style="width: 4px;"></div>
+                        
+                        <div class="d-flex align-items-start ps-2">
+                            <!-- Icon -->
+                            <div class="bg-success bg-opacity-10 rounded-circle me-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                                style="width: 42px; height: 42px;">
+                                <i class="icon-check text-success" style="font-size: 1.2rem;"></i>
+                            </div>
+                            
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <div>
+                                        <span class="fw-bold text-dark">Revisión Realizada</span>
+                                        <span class="text-muted mx-1">•</span>
+                                        <small class="text-muted" title="{{ $audit->resolved_at->format('d/m/Y g:i a') }}">
+                                            {{ $audit->resolved_at->diffForHumans() }}
+                                        </small>
+                                    </div>
+                                    
+                                    @if($audit->resolution_photo_path)
+                                        <a href="{{ asset('storage/' . $audit->resolution_photo_path) }}" target="_blank"
+                                            class="btn btn-sm btn-success text-white px-3 shadow-sm rounded-pill"
+                                            style="font-size: 0.85rem;">
+                                            <i class="icon-camera me-1"></i> Ver Evidencia
+                                        </a>
+                                    @endif
+                                </div>
+                                
+                                @if($audit->resolution_comment)
+                                    <div class="mt-2 p-2 bg-light rounded border border-light">
+                                        <p class="mb-0 text-dark small text-muted">
+                                            <i class="icon-bubble me-1"></i> {{ $audit->resolution_comment }}
+                                        </p>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+
 
             <!-- Gallery -->
             <div class="border-top pt-3">
