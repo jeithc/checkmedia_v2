@@ -29,9 +29,9 @@ class LoginController extends Controller
 
             $user = Auth::user();
             
-            // If user only has auditor permission, redirect to spaces
+            // If user only has auditor permission, redirect to audit form
             if ($user->hasAnyAccess(['audit.can_audit']) && !$user->hasAnyAccess(['platform.index'])) {
-                 return redirect()->route('platform.spaces');
+                 return redirect()->route('audit.form');
             }
 
             return redirect()->intended(route(config('platform.index')));
