@@ -658,6 +658,13 @@
 <script>
     // Variable para almacenar la imagen comprimida
     let compressedRevisionPhoto = null;
+    
+    // Estado original de los criterios (para detectar cambios)
+    const originalCriteria = {
+        @foreach($audit->values as $val)
+        '{{ $val->id }}': '{{ $val->value }}',
+        @endforeach
+    };
 
     document.addEventListener('DOMContentLoaded', function() {
         // Mover los modales al final del body para evitar conflictos de formularios anidados
@@ -695,6 +702,28 @@
             });
         }
     });
+    
+    // Función para detectar si hay cambios en los criterios de un modal
+    function hasChangesInCriteria(modalId) {
+        const modal = document.getElementById(modalId);
+        let hasChanges = false;
+        
+        modal.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+            // Extraer el ID del criterio del nombre (criteria[123] -> 123)
+            const match = radio.name.match(/criteria\[(\d+)\]/);
+            if (match) {
+                const criteriaId = match[1];
+                const currentValue = radio.value;
+                const originalValue = originalCriteria[criteriaId];
+                
+                if (currentValue !== originalValue) {
+                    hasChanges = true;
+                }
+            }
+        });
+        
+        return hasChanges;
+    }
 
     function compressImage(file) {
         const preview = document.getElementById('photo_preview');
@@ -754,6 +783,17 @@
         const fileInput = document.getElementById('revision_photo_input');
         const commentInput = document.getElementById('revision_comment_input');
         const emailsInput = modal.querySelector('input[name="client_emails"]');
+        
+        // Verificar si hay cambios en los criterios
+        if (!hasChangesInCriteria('uploadRevisionModal')) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Sin cambios',
+                text: 'No se detectaron cambios en los criterios. Modifica al menos un criterio para guardar.',
+                confirmButtonColor: '#198754'
+            });
+            return;
+        }
         
         // Limpiar errores previos
         fileInput.classList.remove('is-invalid');
@@ -865,6 +905,17 @@
     function submitEditAuditForm() {
         const modal = document.getElementById('editAuditModal');
         const commentInput = document.getElementById('edit_comment_input');
+        
+        // Verificar si hay cambios en los criterios
+        if (!hasChangesInCriteria('editAuditModal')) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Sin cambios',
+                text: 'No se detectaron cambios en los criterios. Modifica al menos un criterio para guardar.',
+                confirmButtonColor: '#198754'
+            });
+            return;
+        }
         
         // Limpiar errores previos
         commentInput.classList.remove('is-invalid');
