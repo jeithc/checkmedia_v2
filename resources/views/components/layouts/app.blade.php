@@ -52,9 +52,9 @@
                                     class="flex items-center max-w-xs bg-[#CE3132] rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400 hover:bg-red-700 transition-colors p-1" 
                                     id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                                     <span class="sr-only">Open user menu</span>
-                                    <div class="h-8 w-8 rounded-full bg-white flex items-center justify-center text-[#CE3132] font-bold border-2 border-red-200">
-                                        {{ substr(auth()->user()->name ?? 'U', 0, 1) }}
-                                    </div>
+                                    <img src="{{ auth()->user()->presenter()->image() }}" 
+                                        class="h-8 w-8 rounded-full object-cover border-2 border-red-200" 
+                                        alt="{{ auth()->user()->name }}">
                                     <span class="ml-3 text-sm font-medium text-white hidden sm:block">
                                         {{ auth()->user()->name ?? 'Usuario' }}
                                     </span>
@@ -81,6 +81,17 @@
                                     <p class="text-xs text-gray-500">Conectado como</p>
                                     <p class="text-sm font-bold text-gray-900 truncate">{{ auth()->user()->email ?? '' }}</p>
                                 </div>
+
+                                @if(auth()->user()->hasAnyAccess(['platform.index']))
+                                    <a href="{{ route('platform.main') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 border-b border-gray-100" role="menuitem">
+                                        <div class="flex items-center text-gray-600">
+                                            <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                            </svg>
+                                            Panel de Control
+                                        </div>
+                                    </a>
+                                @endif
 
                                 <form method="POST" action="{{ route('platform.logout') }}">
                                     @csrf

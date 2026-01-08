@@ -3,6 +3,16 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Nueva Auditoría</h2>
+        
+        @if(auth()->user()->hasAnyAccess(['platform.index']))
+            <a href="{{ route('platform.main') }}" 
+                class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-all active:scale-95">
+                <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                Volver al Panel
+            </a>
+        @endif
     </div>
 
     <!-- 1. Search Section (Card) -->
@@ -80,7 +90,22 @@
         @if($showExistingDetails && $existingAudit)
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
                 <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Detalles de Auditoría Existente</h3>
+                    <div class="flex items-center">
+                        @if($existingAudit->user)
+                            <img src="{{ $existingAudit->user->presenter()->image() }}" 
+                                class="h-8 w-8 rounded-full object-cover mr-3 border border-gray-200" 
+                                alt="{{ $existingAudit->user->name }}">
+                        @endif
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Detalles de Auditoría Existente</h3>
+                            <p class="text-xs text-gray-500">
+                                Realizada por {{ $existingAudit->user->name ?? 'Auditor' }} 
+                                @if($existingAudit->audit_date)
+                                    el {{ \Carbon\Carbon::parse($existingAudit->audit_date)->format('d/m/Y H:i') }}
+                                @endif
+                            </p>
+                        </div>
+                    </div>
                     <button wire:click="$set('showExistingDetails', false)" class="text-gray-400 hover:text-gray-600">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
