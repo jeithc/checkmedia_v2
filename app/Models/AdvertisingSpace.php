@@ -48,6 +48,14 @@ class AdvertisingSpace extends Model
     }
 
     /**
+     * Get the latest audit for the space.
+     */
+    public function latestAudit()
+    {
+        return $this->hasOne(Audit::class)->latestOfMany();
+    }
+
+    /**
      * Get the booking for a specific date (or current date if null)
      */
     public function getBookingForDate($date = null)

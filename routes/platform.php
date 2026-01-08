@@ -31,6 +31,21 @@ use Tabuna\Breadcrumbs\Trail;
 |
 */
 
+// Spaces
+use App\Orchid\Screens\Spaces\SpacesScreen;
+Route::screen('/spaces', SpacesScreen::class)
+    ->name('platform.spaces')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.index')
+        ->push('Espacios Publicitarios', route('platform.spaces')));
+
+use App\Orchid\Screens\Spaces\SpaceViewScreen;
+Route::screen('/spaces/{space}', SpaceViewScreen::class)
+    ->name('platform.spaces.view')
+    ->breadcrumbs(fn(Trail $trail, $space) => $trail
+        ->parent('platform.spaces')
+        ->push($space->external_code, route('platform.spaces.view', $space)));
+
 // Main
 Route::screen('/main', PlatformScreen::class)
     ->name('platform.main')
