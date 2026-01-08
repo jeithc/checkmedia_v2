@@ -73,6 +73,13 @@ class AuditDetailScreen extends Screen
         return 'Vista detallada del reporte de auditoría y estado del espacio.';
     }
 
+    public function permission(): ?iterable
+    {
+        return [
+            'audit.can_audit',
+        ];
+    }
+
     /**
      * The screen's action buttons.
      *

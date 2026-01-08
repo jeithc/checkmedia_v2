@@ -14,6 +14,7 @@ class AuditActionController extends Controller
      */
     public function markAsThirdParty(Audit $audit)
     {
+        $this->authorize('audit.close_with_error');
         $oldStatus = $audit->general_status;
         
         // 1. Update Space
@@ -61,6 +62,7 @@ class AuditActionController extends Controller
      */
     public function uploadRevision(Request $request, Audit $audit)
     {
+        $this->authorize('audit.upload_fixes');
         $request->validate([
             'revision_photo' => 'required|image|max:10240', // Max 10MB
             'revision_comment' => 'nullable|string',
@@ -151,6 +153,7 @@ class AuditActionController extends Controller
      */
     public function updateAudit(Request $request, Audit $audit)
     {
+        $this->authorize('audit.close_with_error');
         $request->validate([
             'revision_comment' => 'required|string|min:3', // Required edit note
             'criteria' => 'nullable|array',

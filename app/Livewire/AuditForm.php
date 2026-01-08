@@ -33,6 +33,10 @@ class AuditForm extends Component
 
     public function mount()
     {
+        if (!auth()->user()->hasAnyAccess(['audit.can_audit'])) {
+            abort(403);
+        }
+
         // Load active criteria once
         $this->criteria = AuditCriterion::where('is_active', true)
             ->orderBy('order_index')
@@ -151,6 +155,10 @@ class AuditForm extends Component
 
     public function save()
     {
+        if (!auth()->user()->hasAnyAccess(['audit.can_audit'])) {
+            abort(403);
+        }
+
         $this->validate([
             'space' => 'required',
             'photos.*' => 'image|max:10240', // 10MB Max per image

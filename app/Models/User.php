@@ -22,6 +22,7 @@ class User extends Authenticatable
         'is_active', // Added
         'must_change_password', // Added
         'avatar_path', // Added
+        'is_superuser', // Added
     ];
 
     /**
@@ -45,7 +46,38 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
         'must_change_password' => 'boolean',
+        'is_superuser' => 'boolean',
     ];
+
+    /**
+     * @param string $permit
+     * @param bool   $cache
+     *
+     * @return bool
+     */
+    public function hasAccess(string $permit, bool $cache = true): bool
+    {
+        if ($this->is_superuser) {
+            return true;
+        }
+
+        return parent::hasAccess($permit, $cache);
+    }
+
+    /**
+     * @param mixed $permissions
+     * @param bool  $cache
+     *
+     * @return bool
+     */
+    public function hasAnyAccess($permissions, bool $cache = true): bool
+    {
+        if ($this->is_superuser) {
+            return true;
+        }
+
+        return parent::hasAnyAccess($permissions, $cache);
+    }
 
     /**
      * The attributes for which you can use filters in url.
@@ -57,6 +89,7 @@ class User extends Authenticatable
         'name' => Like::class,
         'email' => Like::class,
         'username' => Like::class,
+        'is_superuser' => Where::class,
         'updated_at' => WhereDateStartEnd::class,
         'created_at' => WhereDateStartEnd::class,
     ];

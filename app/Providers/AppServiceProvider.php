@@ -14,11 +14,12 @@ class AppServiceProvider extends ServiceProvider
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        //
+        \Illuminate\Support\Facades\Gate::before(static function ($user) {
+            if (method_exists($user, 'hasAccess') && $user->is_superuser) {
+                return true;
+            }
+        });
     }
 }

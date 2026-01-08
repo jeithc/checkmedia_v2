@@ -50,6 +50,11 @@ class UserEditLayout extends Rows
                 ->title(__('Force Password Change'))
                 ->help(__('If checked, the user will be forced to change their password upon next login.')),
 
+            CheckBox::make('user.is_superuser')
+                ->sendTrueOrFalse()
+                ->title('Super Usuario')
+                ->help('Los súper usuarios tienen acceso total a todas las secciones del sistema, ignorando los permisos granulares.'),
+
             Cropper::make('user.avatar_path')
                 ->title(__('Avatar'))
                 ->width(500)

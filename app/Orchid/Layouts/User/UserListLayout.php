@@ -38,6 +38,24 @@ class UserListLayout extends Table
                 ->sort()
                 ->filter(Input::make()),
 
+            TD::make('is_superuser', 'Tipo')
+                ->filter(\Orchid\Screen\Fields\Select::make()->options([
+                    '' => 'Todos',
+                    '1' => 'Súper Usuario',
+                    '0' => 'Usuario Regular/Auditor',
+                ]))
+                ->render(function (User $user) {
+                    if ($user->is_superuser) {
+                        return '<span class="badge bg-danger">Super Usuario</span>';
+                    }
+                    
+                    if ($user->hasAccess('audit.can_audit')) {
+                        return '<span class="badge bg-info">Auditor</span>';
+                    }
+
+                    return '<span class="badge bg-secondary">Usuario Regular</span>';
+                }),
+
             TD::make('email', __('Email'))
                 ->sort()
                 ->cantHide()

@@ -114,6 +114,13 @@ class LoginScreen extends Screen
 
             Toast::info(__('Welcome back!'));
 
+            $user = Auth::user();
+
+            // If user only has auditor permission, redirect to spaces
+            if ($user->hasAnyAccess(['audit.can_audit']) && !$user->hasAnyAccess(['platform.index'])) {
+                return redirect()->route('platform.spaces');
+            }
+
             return redirect()->intended(route(config('platform.index')));
         }
 

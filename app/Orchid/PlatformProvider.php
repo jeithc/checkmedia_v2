@@ -40,7 +40,8 @@ class PlatformProvider extends OrchidServiceProvider
             
             Menu::make('Espacios')
                 ->icon('bs.geo-alt')
-                ->route('platform.spaces'),
+                ->route('platform.spaces')
+                ->permission('audit.can_audit'),
 
             Menu::make('Sample Screen')
                 ->icon('bs.collection')
@@ -74,7 +75,7 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make(__('Users'))
                 ->icon('bs.people')
                 ->route('platform.systems.users')
-                ->permission('platform.systems.users')
+                ->permission('system.edit_users')
                 ->title(__('Access Controls')),
 
             Menu::make(__('Roles'))
@@ -107,7 +108,15 @@ class PlatformProvider extends OrchidServiceProvider
         return [
             ItemPermission::group(__('System'))
                 ->addPermission('platform.systems.roles', __('Roles'))
-                ->addPermission('platform.systems.users', __('Users')),
+                ->addPermission('platform.systems.users', __('Users'))
+                ->addPermission('system.create_users', 'Crear usuarios')
+                ->addPermission('system.edit_users', 'Editar usuarios')
+                ->addPermission('system.be_notified', 'Recibir notificaciones'),
+
+            ItemPermission::group('Auditoría')
+                ->addPermission('audit.can_audit', 'Realizar Auditorías')
+                ->addPermission('audit.close_with_error', 'Cerrar estados con error')
+                ->addPermission('audit.upload_fixes', 'Subir arreglos/revisiones'),
         ];
     }
 }

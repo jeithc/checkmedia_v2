@@ -33,11 +33,19 @@ class UserPresenter extends Presenter implements Personable, Searchable
      */
     public function subTitle(): string
     {
+        if ($this->entity->is_superuser) {
+            return 'Super Usuario';
+        }
+
+        if ($this->entity->hasAccess('audit.can_audit')) {
+            return 'Auditor';
+        }
+
         $roles = $this->entity->roles->pluck('name')->implode(' / ');
 
         return (string) Str::of($roles)
             ->limit(20)
-            ->whenEmpty(fn () => __('Regular User'));
+            ->whenEmpty(fn () => 'Usuario regular');
     }
 
     /**

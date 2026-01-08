@@ -73,24 +73,30 @@
 
             <!-- Action Buttons -->
             <div class="d-flex gap-2 mb-3">
-                <!-- Tercero Button (Orange) - Uses fetch API to submit -->
-                <button type="button" class="btn text-white fw-bold px-4"
-                    style="background-color: #FFA500; border: none;"
-                    onclick="submitTercero()">
-                        Tercero
+                @if(auth()->user()->hasAccess('audit.close_with_error'))
+                    <!-- Tercero Button (Orange) - Uses fetch API to submit -->
+                    <button type="button" class="btn text-white fw-bold px-4"
+                        style="background-color: #FFA500; border: none;"
+                        onclick="submitTercero()">
+                            Tercero
+                        </button>
+                @endif
+
+                @if(auth()->user()->hasAccess('audit.upload_fixes'))
+                    <!-- Cargar Revisión (Green) - Triggers Modal -->
+                    <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
+                        data-bs-target="#uploadRevisionModal">
+                        Cargar Revisión
                     </button>
+                @endif
 
-                <!-- Cargar Revisión (Green) - Triggers Modal -->
-                <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
-                    data-bs-target="#uploadRevisionModal">
-                    Cargar Revisión
-                </button>
-
-                <!-- Editar (Green) -->
-                <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
-                    data-bs-target="#editAuditModal">
-                    Editar
-                </button>
+                @if(auth()->user()->hasAccess('audit.close_with_error'))
+                    <!-- Editar (Green) -->
+                    <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
+                        data-bs-target="#editAuditModal">
+                        Editar
+                    </button>
+                @endif
             </div>
             
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

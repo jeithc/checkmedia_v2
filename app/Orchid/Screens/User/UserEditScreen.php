@@ -39,6 +39,7 @@ class UserEditScreen extends Screen
      */
     public function query(User $user): iterable
     {
+        $this->user = $user;
         $user->load(['roles', 'notificationSubscriptions']);
 
         return [
@@ -67,7 +68,7 @@ class UserEditScreen extends Screen
     public function permission(): ?iterable
     {
         return [
-            'platform.systems.users',
+            'system.edit_users',
         ];
     }
 
@@ -103,11 +104,19 @@ class UserEditScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Layout::tabs([
-                __('Profile Information') => UserEditLayout::class,
-                __('Password')            => UserPasswordLayout::class,
-                __('Roles')               => UserRoleLayout::class,
-                __('Notifications')       => Layout::rows([
+            Layout::block(UserEditLayout::class)
+                ->title(__('Profile Information'))
+                ->description(__('Update your account\'s profile information and email address.')),
+
+            Layout::block(UserPasswordLayout::class)
+                ->title(__('Password'))
+                ->description(__('Ensure your account is using a long, random password to stay secure.')),
+
+            Layout::block(UserRoleLayout::class)
+                ->title(__('Roles'))
+                ->description(__('A role defines a set of tasks a user assigned to the role takes on.')),
+
+            Layout::block(Layout::rows([
                     Matrix::make('subscriptions')
                         ->title('Notification Subscriptions')
                         ->columns([
@@ -133,9 +142,13 @@ class UserEditScreen extends Screen
                             ]),
                         ])
                         ->help('Define which events this user should receive notifications for.'),
-                ]),
-                __('Permissions')         => RolePermissionLayout::class,
-            ]),
+                ]))
+                ->title(__('Notifications'))
+                ->description(__('Manage the events for which the user will receive notifications.')),
+
+            Layout::block(RolePermissionLayout::class)
+                ->title(__('Permissions'))
+                ->description(__('Allow the user to perform some actions that are not provided for by his roles.')),
         ];
     }
 
@@ -144,6 +157,12 @@ class UserEditScreen extends Screen
      */
     public function save(User $user, Request $request)
     {
+        if (!$user->exists) {
+            $this->authorize('system.create_users');
+        } else {
+            $this->authorize('system.edit_users');
+        }
+
         $request->validate([
             'user.email' => [
                 'required',
@@ -154,33 +173,41 @@ class UserEditScreen extends Screen
                 'required',
                 'string',
                 Rule::unique(User::class, 'username')->ignore($user),
+            ],
+            'user.password' => [
+                $user->exists ? 'nullable' : 'required',
+                'string',
+                'min:6',
             ]
         ]);
 
-        $permissions = collect($request->get('permissions'))
-            ->map(fn($value, $key) => [base64_decode($key) => $value])
+        $permissions = collect($request->get('permissions', []))
+            ->map(fn($value, $key) => [base64_decode($key) => (bool)$value])
             ->collapse()
             ->toArray();
 
-        $user->when($request->filled('user.password'), function (Builder $builder) use ($request) {
-            $builder->getModel()->password = Hash::make($request->input('user.password'));
-        });
+        $userData = $request->input('user');
+        
+        if (isset($userData['password']) && !empty($userData['password'])) {
+            $userData['password'] = Hash::make($userData['password']);
+        } else {
+            unset($userData['password']);
+        }
 
-        // Save User Core Data
-        $userData = $request->collect('user')->except(['password', 'permissions', 'roles'])->toArray();
-        $user->fill($userData)
-            ->forceFill(['permissions' => $permissions])
-            ->save();
+        // Clean up userData to only contains what's in fillable
+        $user->fill($userData);
+        $user->permissions = $permissions;
+        
+        $user->save();
 
         // Sync Roles
-        $user->replaceRoles($request->input('user.roles'));
+        $user->replaceRoles($request->input('user.roles', []));
 
         // Save Notification Subscriptions
         $subscriptions = $request->input('subscriptions', []);
-        $user->notificationSubscriptions()->delete(); // Clear old to easy sync
+        $user->notificationSubscriptions()->delete(); 
 
         foreach ($subscriptions as $sub) {
-            // Matrix might return partial rows if empty? usually not if validated but simple foreach is safe
             if (!empty($sub['event_type'])) {
                 $user->notificationSubscriptions()->create($sub);
             }

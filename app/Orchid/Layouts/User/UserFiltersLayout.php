@@ -15,6 +15,7 @@ class UserFiltersLayout extends Selection
     {
         return [
             RoleFilter::class,
+            \App\Orchid\Filters\UserTypeFilter::class,
         ];
     }
 }
