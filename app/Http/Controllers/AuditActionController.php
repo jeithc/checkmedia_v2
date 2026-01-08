@@ -187,9 +187,13 @@ class AuditActionController extends Controller
             }
         }
 
-        // 3. Update Audit Observation
-        if ($request->has('revision_comment')) {
-            $audit->observation = $request->input('revision_comment');
+        // 3. Add Edit Note as Comment (Do not overwrite initial observation)
+        if ($request->filled('revision_comment')) {
+            $audit->comments()->create([
+                'user_id' => auth()->id(),
+                'message' => $request->input('revision_comment'),
+                'type' => 'edit_note',
+            ]);
         }
         
         $audit->general_status = $newGeneralStatus;
@@ -204,7 +208,7 @@ class AuditActionController extends Controller
             metadata: [
                 'old_status' => $oldStatus,
                 'new_status' => $newGeneralStatus,
-                'observation' => $audit->observation,
+                'added_comment' => $request->input('revision_comment'),
                 'criteria_changes' => $criteriaChanges,
                 'user_name' => auth()->user()->name,
             ],

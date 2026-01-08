@@ -145,77 +145,26 @@
                 }
             </script>
 
-            <!-- Observation -->
+            <!-- Observation (sin título) -->
             @if($audit->observation)
-                <div class="mb-3">
-                    <h6 class="text-muted text-uppercase mb-2">Observaciones</h6>
-                    <div class="p-2 bg-light border rounded">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="bg-secondary rounded-circle me-2"
-                                style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                                <i class="icon-user text-white"></i>
-                            </div>
-                            <div>
-                                <span class="fw-bold text-danger">{{ $audit->user->name ?? 'Auditor' }}</span>
-                                <br>
+                <div class="mb-3 p-3 bg-light border rounded">
+                    <div class="d-flex align-items-start">
+                        <div class="bg-secondary bg-opacity-25 rounded-circle me-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                            style="width: 36px; height: 36px;">
+                            <i class="icon-bubble text-secondary"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-1">
+                                <span class="fw-bold text-dark me-2">{{ $audit->user->name ?? 'Auditor' }}</span>
                                 <small class="text-muted" title="{{ $audit->created_at->format('d/m/Y g:i a') }}">
                                     {{ $audit->created_at->diffForHumans() }}
                                 </small>
                             </div>
-                        </div>
-                        <p class="mb-0">{{ $audit->observation }}</p>
-                    </div>
-                </div>
-            @endif
-
-            @if($audit->resolved_at)
-                <div class="mb-4">
-                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; letter-spacing: 0.5px;">
-                        <i class="icon-check me-1"></i> Resolución
-                    </h6>
-                    <div class="p-3 bg-white border border-success border-opacity-25 rounded shadow-sm position-relative overflow-hidden">
-                        <!-- Green strip on left -->
-                        <div class="position-absolute top-0 start-0 bottom-0 bg-success" style="width: 4px;"></div>
-                        
-                        <div class="d-flex align-items-start ps-2">
-                            <!-- Icon -->
-                            <div class="bg-success bg-opacity-10 rounded-circle me-3 d-flex align-items-center justify-content-center flex-shrink-0"
-                                style="width: 42px; height: 42px;">
-                                <i class="icon-check text-success" style="font-size: 1.2rem;"></i>
-                            </div>
-                            
-                            <div class="flex-grow-1">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <div>
-                                        <span class="fw-bold text-dark">Revisión Realizada</span>
-                                        <span class="text-muted mx-1">•</span>
-                                        <small class="text-muted" title="{{ $audit->resolved_at->format('d/m/Y g:i a') }}">
-                                            {{ $audit->resolved_at->diffForHumans() }}
-                                        </small>
-                                    </div>
-                                    
-                                    @if($audit->resolution_photo_path)
-                                        <a href="{{ asset('storage/' . $audit->resolution_photo_path) }}" target="_blank"
-                                            class="btn btn-sm btn-success text-white px-3 shadow-sm rounded-pill"
-                                            style="font-size: 0.85rem;">
-                                            <i class="icon-camera me-1"></i> Ver Evidencia
-                                        </a>
-                                    @endif
-                                </div>
-                                
-                                @if($audit->resolution_comment)
-                                    <div class="mt-2 p-2 bg-light rounded border border-light">
-                                        <p class="mb-0 text-dark small text-muted">
-                                            <i class="icon-bubble me-1"></i> {{ $audit->resolution_comment }}
-                                        </p>
-                                    </div>
-                                @endif
-                            </div>
+                            <p class="mb-0 text-muted">{{ $audit->observation }}</p>
                         </div>
                     </div>
                 </div>
             @endif
-
 
 
             <!-- Gallery -->
@@ -327,19 +276,29 @@
                                             </div>
                                         </div>
                                         <p class="text-muted mb-1 small">{{ $log->description }}</p>
-                                        <div class="d-flex align-items-center">
+                                        <div class="d-flex align-items-center flex-wrap gap-2">
                                             <small class="text-muted">
                                                 <i class="icon-user me-1"></i>
                                                 {{ $log->user->name ?? ($log->metadata['user_name'] ?? 'Sistema') }}
                                             </small>
-                                            <small class="text-muted ms-3" title="{{ $log->created_at->format('d/m/Y g:i a') }}">
+                                            <small class="text-muted" title="{{ $log->created_at->format('d/m/Y g:i a') }}">
                                                 <i class="icon-clock me-1"></i>
                                                 {{ $log->created_at->diffForHumans() }}
                                             </small>
+                                            
+                                            {{-- Botón para ver foto si existe --}}
+                                            @if(isset($log->metadata['photo_path']) && $log->metadata['photo_path'])
+                                                <a href="{{ asset('storage/' . $log->metadata['photo_path']) }}" target="_blank"
+                                                    class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 0.75rem;">
+                                                    <i class="icon-camera me-1"></i> Ver Foto
+                                                </a>
+                                            @endif
                                         </div>
+                                        
                                         @if($log->metadata)
+                                            {{-- Cambio de estado --}}
                                             @if(isset($log->metadata['old_status']) && isset($log->metadata['new_status']))
-                                                <div class="mt-1">
+                                                <div class="mt-2">
                                                     <small class="text-muted">
                                                         Estado: 
                                                         <span class="badge {{ $log->metadata['old_status'] === 'bad' ? 'bg-danger' : ($log->metadata['old_status'] === 'acceptable' ? 'bg-warning' : 'bg-success') }}">
@@ -350,6 +309,37 @@
                                                             {{ ucfirst($log->metadata['new_status']) }}
                                                         </span>
                                                     </small>
+                                                </div>
+                                            @endif
+                                            
+                                            {{-- Comentario/Observación --}}
+                                            @if(isset($log->metadata['comment']) && $log->metadata['comment'])
+                                                <div class="mt-2 p-2 bg-light rounded border-start border-3 border-secondary">
+                                                    <small class="text-muted d-block mb-1"><i class="icon-bubble me-1"></i> Observación:</small>
+                                                    <p class="mb-0 small text-dark">{{ $log->metadata['comment'] }}</p>
+                                                </div>
+                                            @endif
+                                            @if(isset($log->metadata['added_comment']) && $log->metadata['added_comment'])
+                                                <div class="mt-2 p-2 bg-light rounded border-start border-3 border-info">
+                                                    <small class="text-muted d-block mb-1"><i class="icon-pencil me-1"></i> Nota:</small>
+                                                    <p class="mb-0 small text-dark">{{ $log->metadata['added_comment'] }}</p>
+                                                </div>
+                                            @endif
+                                            
+                                            {{-- Cambios de criterios --}}
+                                            @if(isset($log->metadata['criteria_changes']) && count($log->metadata['criteria_changes']) > 0)
+                                                <div class="mt-2">
+                                                    <small class="text-muted d-block mb-1"><i class="icon-list me-1"></i> Criterios modificados:</small>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        @foreach($log->metadata['criteria_changes'] as $change)
+                                                            <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                                                                {{ $change['criterion'] }}:
+                                                                <span class="{{ $change['old'] === 'bad' ? 'text-danger' : ($change['old'] === 'acceptable' ? 'text-warning' : 'text-success') }}">{{ ucfirst($change['old']) }}</span>
+                                                                →
+                                                                <span class="{{ $change['new'] === 'bad' ? 'text-danger' : ($change['new'] === 'acceptable' ? 'text-warning' : 'text-success') }}">{{ ucfirst($change['new']) }}</span>
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
                                                 </div>
                                             @endif
                                         @endif
@@ -632,9 +622,9 @@
                         
                         <!-- Observación -->
                         <div class="col-12">
-                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Observación</label>
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Nota de Edición (Opcional)</label>
                             <textarea class="form-control form-control-sm bg-white" name="revision_comment" rows="2"
-                                placeholder="Descripción breve...">{{ $audit->observation }}</textarea>
+                                placeholder="Agregar nota sobre el cambio..."></textarea>
                         </div>
                     </div>
                 </div>
