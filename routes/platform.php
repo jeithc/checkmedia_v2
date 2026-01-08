@@ -44,6 +44,8 @@ Route::post('audit-action/{audit}/third-party', [AuditActionController::class, '
     ->name('platform.audit.action.third-party');
 Route::post('audit-action/{audit}/upload-revision', [AuditActionController::class, 'uploadRevision'])
     ->name('platform.audit.action.upload-revision');
+Route::post('audit-action/{audit}/update', [AuditActionController::class, 'updateAudit'])
+    ->name('platform.audit.action.update');
 
 // Audit Detail Screen
 use App\Orchid\Screens\Audit\AuditDetailScreen;
@@ -51,7 +53,7 @@ use App\Models\Audit;
 Route::screen('audit/{audit}', AuditDetailScreen::class)
     ->name('platform.audit.detail')
     ->breadcrumbs(function(Trail $trail, $audit) {
-        // Ensure $audit is loaded as a model
+        // Ensure $audit is loaded as a model  
         if (!$audit instanceof Audit) {
             $audit = Audit::with('space')->find($audit);
         }

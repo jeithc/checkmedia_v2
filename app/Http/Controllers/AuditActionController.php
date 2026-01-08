@@ -145,4 +145,75 @@ class AuditActionController extends Controller
 
         return back();
     }
+
+    /**
+     * Handle "Editar Auditoría" - Update criteria and observation.
+     */
+    public function updateAudit(Request $request, Audit $audit)
+    {
+        $request->validate([
+            'revision_comment' => 'nullable|string', // Used for observation
+            'criteria' => 'nullable|array',
+            'criteria.*' => 'in:good,acceptable,bad',
+        ]);
+
+        $oldStatus = $audit->general_status;
+        $criteriaChanges = [];
+
+        // 1. Update Criteria Values if provided
+        if ($request->has('criteria')) {
+            foreach ($request->input('criteria') as $valueId => $newValue) {
+                $auditValue = $audit->values()->find($valueId);
+                if ($auditValue && $auditValue->value !== $newValue) {
+                    $criteriaChanges[] = [
+                        'criterion' => $auditValue->criterion->name,
+                        'old' => $auditValue->value,
+                        'new' => $newValue,
+                    ];
+                    $auditValue->value = $newValue;
+                    $auditValue->save();
+                }
+            }
+        }
+
+        // 2. Recalculate General Status based on criteria
+        $newGeneralStatus = 'good';
+        foreach ($audit->values()->get() as $value) {
+            if ($value->value === 'bad') {
+                $newGeneralStatus = 'bad';
+                break;
+            } elseif ($value->value === 'acceptable' && $newGeneralStatus !== 'bad') {
+                $newGeneralStatus = 'acceptable';
+            }
+        }
+
+        // 3. Update Audit Observation
+        if ($request->has('revision_comment')) {
+            $audit->observation = $request->input('revision_comment');
+        }
+        
+        $audit->general_status = $newGeneralStatus;
+        $audit->save();
+
+        // 4. Log Activity
+        SpaceActivityLog::log(
+            spaceId: $audit->advertising_space_id,
+            type: SpaceActivityLog::TYPE_AUDIT_UPDATED,
+            description: 'Auditoría editada manualmente. Estado: ' . ucfirst($newGeneralStatus),
+            auditId: $audit->id,
+            metadata: [
+                'old_status' => $oldStatus,
+                'new_status' => $newGeneralStatus,
+                'observation' => $audit->observation,
+                'criteria_changes' => $criteriaChanges,
+                'user_name' => auth()->user()->name,
+            ],
+            year: $audit->year,
+            week: $audit->week
+        );
+
+        Toast::success('Auditoría actualizada exitosamente.');
+
+        return back();
+    }
 }

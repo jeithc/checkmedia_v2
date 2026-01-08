@@ -87,9 +87,10 @@
                 </button>
 
                 <!-- Editar (Green) -->
-                <a href="{{ route('audit.form', ['external_code' => $audit->space->external_code]) }}" class="btn btn-success text-white fw-bold px-4">
+                <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
+                    data-bs-target="#editAuditModal">
                     Editar
-                </a>
+                </button>
             </div>
             
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -459,84 +460,187 @@
     aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="revision-container"> <!-- Reemplaza form tag -->
-            <div class="modal-content border shadow-lg" style="border-radius: 0.5rem; overflow: hidden;">
-                <div class="modal-header border-0 py-2 px-3 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #198754 0%, #157347 100%);">
-                    <h6 class="modal-title text-white mb-0 fw-semibold" id="uploadRevisionModalLabel">
+            <div class="modal-content border-0 shadow" style="border-radius: 6px;">
+                <div class="modal-header border-bottom py-3 px-4 bg-white">
+                    <h5 class="modal-title text-dark fw-light" id="uploadRevisionModalLabel">
                         Cargar Revisión
-                    </h6>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
-                <div class="modal-body p-3">
+                <div class="modal-body p-4 bg-light bg-opacity-10">
                     <!-- Criterios con radio buttons -->
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="small fw-semibold text-secondary">ESTADO DE CRITERIOS</span>
-                            <button type="button" class="btn btn-sm btn-outline-success py-0 px-2" onclick="markAllGood()" style="font-size: 0.75rem;">
-                                <i class="icon-check me-1"></i>Todos OK
+                            <span class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Estado de Criterios</span>
+                            <button type="button" class="btn btn-link btn-sm text-success text-decoration-none p-0 fw-bold" onclick="markAllGoodInModal('uploadRevisionModal')" style="font-size: 0.8rem;">
+                                Marcar todo OK
                             </button>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-0">
-                                <thead class="table-light">
-                                    <tr class="text-center small text-secondary">
-                                        <th class="text-start" style="width: 50%;">Criterio</th>
-                                        <th style="width: 50px;">Bueno</th>
-                                        <th style="width: 50px;">Regular</th>
-                                        <th style="width: 50px;">Malo</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($audit->values as $val)
-                                        <tr>
-                                            <td class="small text-dark align-middle">{{ $val->criterion->name }}</td>
-                                            <td class="text-center align-middle">
-                                                <input type="radio" name="criteria[{{ $val->id }}]" value="good"
-                                                    class="form-check-input modal-radio {{ $val->value === 'good' ? 'border-success bg-success' : '' }}"
-                                                    {{ $val->value === 'good' ? 'checked' : '' }}
-                                                    onchange="updateRadioStyle(this, 'success')">
-                                            </td>
-                                            <td class="text-center align-middle">
-                                                <input type="radio" name="criteria[{{ $val->id }}]" value="acceptable"
-                                                    class="form-check-input modal-radio {{ $val->value === 'acceptable' ? 'border-warning bg-warning' : '' }}"
-                                                    {{ $val->value === 'acceptable' ? 'checked' : '' }}
-                                                    onchange="updateRadioStyle(this, 'warning')">
-                                            </td>
-                                            <td class="text-center align-middle">
-                                                <input type="radio" name="criteria[{{ $val->id }}]" value="bad"
-                                                    class="form-check-input modal-radio {{ $val->value === 'bad' ? 'border-danger bg-danger' : '' }}"
-                                                    {{ $val->value === 'bad' ? 'checked' : '' }}
-                                                    onchange="updateRadioStyle(this, 'danger')">
-                                            </td>
+                        <div class="card border-0 shadow-sm">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-borderless mb-0 align-middle">
+                                    <thead class="border-bottom bg-light">
+                                        <tr class="text-center text-muted text-uppercase" style="font-size: 0.7rem;">
+                                            <th class="text-start py-2 ps-3 fw-normal">Criterio</th>
+                                            <th class="fw-normal" style="width: 60px;">Bueno</th>
+                                            <th class="fw-normal" style="width: 60px;">Regular</th>
+                                            <th class="fw-normal" style="width: 60px;">Malo</th>
                                         </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody class="bg-white">
+                                        @foreach($audit->values as $val)
+                                            <tr class="border-bottom-light">
+                                                <td class="ps-3 py-2 text-dark small">{{ $val->criterion->name }}</td>
+                                                <td class="text-center">
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input type="radio" name="criteria[{{ $val->id }}]" value="good"
+                                                            class="form-check-input shadow-none cursor-pointer {{ $val->value === 'good' ? 'bg-success border-success' : '' }}"
+                                                            style="width: 1.2em; height: 1.2em;"
+                                                            {{ $val->value === 'good' ? 'checked' : '' }}
+                                                            onchange="updateRadioStyle(this, 'success')">
+                                                    </div>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input type="radio" name="criteria[{{ $val->id }}]" value="acceptable"
+                                                            class="form-check-input shadow-none cursor-pointer {{ $val->value === 'acceptable' ? 'bg-warning border-warning' : '' }}"
+                                                            style="width: 1.2em; height: 1.2em;"
+                                                            {{ $val->value === 'acceptable' ? 'checked' : '' }}
+                                                            onchange="updateRadioStyle(this, 'warning')">
+                                                    </div>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input type="radio" name="criteria[{{ $val->id }}]" value="bad"
+                                                            class="form-check-input shadow-none cursor-pointer {{ $val->value === 'bad' ? 'bg-danger border-danger' : '' }}"
+                                                            style="width: 1.2em; height: 1.2em;"
+                                                            {{ $val->value === 'bad' ? 'checked' : '' }}
+                                                            onchange="updateRadioStyle(this, 'danger')">
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Foto -->
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary mb-1">FOTO DE REVISIÓN *</label>
-                        <input type="file" class="form-control form-control-sm" name="revision_photo" accept="image/*" required>
-                    </div>
-                    
-                    <!-- Observación -->
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-secondary mb-1">OBSERVACIÓN</label>
-                        <textarea class="form-control form-control-sm" name="revision_comment" rows="2"
-                            placeholder="Descripción breve de la reparación..."></textarea>
-                    </div>
-                    
-                    <!-- Emails -->
-                    <div class="mb-0">
-                        <label class="form-label small fw-semibold text-secondary mb-1">NOTIFICAR A (OPCIONAL)</label>
-                        <input type="text" class="form-control form-control-sm" name="client_emails" 
-                            placeholder="correos separados por coma">
+                    <div class="row g-3">
+                        <!-- Foto -->
+                        <div class="col-12">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Foto de Revisión *</label>
+                            <input type="file" class="form-control form-control-sm bg-white" name="revision_photo" accept="image/*" required>
+                        </div>
+                        
+                        <!-- Observación -->
+                        <div class="col-12">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Observación</label>
+                            <textarea class="form-control form-control-sm bg-white" name="revision_comment" rows="2"
+                                placeholder="Descripción breve..."></textarea>
+                        </div>
+                        
+                        <!-- Emails -->
+                        <div class="col-12">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Notificar a (Opcional)</label>
+                            <input type="text" class="form-control form-control-sm bg-white" name="client_emails" 
+                                placeholder="correos separados por coma">
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer border-top py-2 px-3">
-                    <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-sm btn-success px-3" onclick="submitRevisionForm()">Guardar</button>
+                <div class="modal-footer border-top bg-white py-2 px-4">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success px-4" onclick="submitRevisionForm()">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Auditoría -->
+<div class="modal fade" id="editAuditModal" tabindex="-1" aria-labelledby="editAuditModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="revision-container"> <!-- Reemplaza form tag -->
+            <div class="modal-content border-0 shadow" style="border-radius: 6px;">
+                <div class="modal-header border-bottom py-3 px-4 bg-white">
+                    <h5 class="modal-title text-dark fw-light" id="uploadRevisionModalLabel">
+                        Editar Auditoría
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body p-4 bg-light bg-opacity-10">
+                    <!-- Criterios con radio buttons -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Estado de Criterios</span>
+                            <button type="button" class="btn btn-link btn-sm text-success text-decoration-none p-0 fw-bold" onclick="markAllGoodInModal('editAuditModal')" style="font-size: 0.8rem;">
+                                Marcar todo OK
+                            </button>
+                        </div>
+                        <div class="card border-0 shadow-sm">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-borderless mb-0 align-middle">
+                                    <thead class="border-bottom bg-light">
+                                        <tr class="text-center text-muted text-uppercase" style="font-size: 0.7rem;">
+                                            <th class="text-start py-2 ps-3 fw-normal">Criterio</th>
+                                            <th class="fw-normal" style="width: 60px;">Bueno</th>
+                                            <th class="fw-normal" style="width: 60px;">Regular</th>
+                                            <th class="fw-normal" style="width: 60px;">Malo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white">
+                                        @foreach($audit->values as $val)
+                                            <tr class="border-bottom-light">
+                                                <td class="ps-3 py-2 text-dark small">{{ $val->criterion->name }}</td>
+                                                <td class="text-center">
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input type="radio" name="criteria[{{ $val->id }}]" value="good"
+                                                            class="form-check-input shadow-none cursor-pointer {{ $val->value === 'good' ? 'bg-success border-success' : '' }}"
+                                                            style="width: 1.2em; height: 1.2em;"
+                                                            {{ $val->value === 'good' ? 'checked' : '' }}
+                                                            onchange="updateRadioStyle(this, 'success')">
+                                                    </div>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input type="radio" name="criteria[{{ $val->id }}]" value="acceptable"
+                                                            class="form-check-input shadow-none cursor-pointer {{ $val->value === 'acceptable' ? 'bg-warning border-warning' : '' }}"
+                                                            style="width: 1.2em; height: 1.2em;"
+                                                            {{ $val->value === 'acceptable' ? 'checked' : '' }}
+                                                            onchange="updateRadioStyle(this, 'warning')">
+                                                    </div>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input type="radio" name="criteria[{{ $val->id }}]" value="bad"
+                                                            class="form-check-input shadow-none cursor-pointer {{ $val->value === 'bad' ? 'bg-danger border-danger' : '' }}"
+                                                            style="width: 1.2em; height: 1.2em;"
+                                                            {{ $val->value === 'bad' ? 'checked' : '' }}
+                                                            onchange="updateRadioStyle(this, 'danger')">
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        
+                        <!-- Observación -->
+                        <div class="col-12">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Observación</label>
+                            <textarea class="form-control form-control-sm bg-white" name="revision_comment" rows="2"
+                                placeholder="Descripción breve...">{{ $audit->observation }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-white py-2 px-4">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success px-4" onclick="submitEditAuditForm()">Guardar</button>
                 </div>
             </div>
         </div>
@@ -545,11 +649,13 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Mover el modal al final del body para evitar conflictos de formularios anidados
-        const modal = document.getElementById('uploadRevisionModal');
-        if (modal && modal.parentElement !== document.body) {
-            document.body.appendChild(modal);
-        }
+        // Mover los modales al final del body para evitar conflictos de formularios anidados
+        ['uploadRevisionModal', 'editAuditModal'].forEach(id => {
+            const modal = document.getElementById(id);
+            if (modal && modal.parentElement !== document.body) {
+                document.body.appendChild(modal);
+            }
+        });
     });
 
     function submitRevisionForm() {
@@ -648,11 +754,68 @@
     function updateRadioStyle(radio, color) {
         // Clear all radios in the same row
         const row = radio.closest('tr');
-        row.querySelectorAll('.modal-radio').forEach(r => {
-            r.classList.remove('border-success', 'bg-success', 'border-warning', 'bg-warning', 'border-danger', 'bg-danger');
+        row.querySelectorAll('input[type="radio"]').forEach(r => {
+            r.classList.remove('bg-success', 'border-success', 'bg-warning', 'border-warning', 'bg-danger', 'border-danger');
         });
         // Add style to selected
-        radio.classList.add('border-' + color, 'bg-' + color);
+        radio.classList.add('bg-' + color, 'border-' + color);
+    }
+
+    function submitEditAuditForm() {
+        const modal = document.getElementById('editAuditModal');
+        const commentInput = modal.querySelector('textarea[name="revision_comment"]');
+        
+        // Construir FormData
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('revision_comment', commentInput.value || '');
+        
+        // Agregar criterios
+        modal.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+            formData.append(radio.name, radio.value);
+        });
+
+        const actionUrl = '{{ url("/admin/audit-action/" . $audit->id . "/update") }}';
+
+        // Mostrar loading
+        Swal.fire({
+            title: 'Actualizando...',
+            text: 'Guardando cambios de la auditoría',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        // Enviar
+        fetch(actionUrl, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => {
+            if (response.redirected) window.location.href = response.url;
+            else if (response.ok) {
+                 Swal.fire({
+                    icon: 'success',
+                    title: '¡Actualizado!',
+                    text: 'Los datos han sido guardados.',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => window.location.reload());
+            } else {
+                return response.text().then(text => { throw new Error(text) });
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            Swal.fire('Error', 'No se pudo actualizar la auditoría', 'error');
+        });
+    }
+
+    function markAllGoodInModal(modalId) {
+        document.querySelectorAll('#' + modalId + ' input[type="radio"][value="good"]').forEach(radio => {
+            radio.checked = true;
+            updateRadioStyle(radio, 'success');
+        });
     }
 </script>
 
@@ -713,42 +876,9 @@
     }
     
     /* Estilos para el modal de revisión */
-    #uploadRevisionModal .modal-content {
-        border-radius: 0.5rem;
-        overflow: hidden;
-    }
-    
-    #uploadRevisionModal .form-control {
-        border: 1px solid #ced4da;
-        border-radius: 0.375rem;
-        background-color: #fff;
-    }
-    
     #uploadRevisionModal .form-control:focus {
         border-color: #198754;
         box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.15);
-    }
-    
-    #uploadRevisionModal .table {
-        margin-bottom: 0;
-    }
-    
-    #uploadRevisionModal .table th,
-    #uploadRevisionModal .table td {
-        padding: 0.4rem;
-        vertical-align: middle;
-    }
-    
-    #uploadRevisionModal .modal-radio {
-        width: 1.1rem;
-        height: 1.1rem;
-        cursor: pointer;
-        opacity: 1 !important;
-    }
-    
-    #uploadRevisionModal .modal-radio:not(:checked) {
-        border: 2px solid #dee2e6;
-        background-color: transparent;
     }
 </style>
 </style>
