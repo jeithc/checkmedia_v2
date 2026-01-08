@@ -37,6 +37,7 @@
                 <thead class="bg-light text-muted small text-uppercase font-weight-bold">
                     <tr>
                         <th class="px-4 py-3">Espacio</th>
+                        <th class="px-4 py-3">Tipo</th>
                         <th class="px-4 py-3 text-center">Semana</th>
                         <th class="px-4 py-3 text-center">Estado</th>
                         <th class="px-4 py-3 text-right">Fecha</th>
@@ -58,11 +59,11 @@
                                 <a href="{{ route('platform.audit.detail', $audit) }}"
                                     class="font-weight-bold {{ $audit->general_status === 'bad' ? 'text-danger' : ($audit->general_status === 'acceptable' ? 'text-warning' : 'text-primary') }}">
                                     {{ $audit->space->external_code }}
-                                    @if($audit->general_status === 'bad' && !$isResolved)
-                                        <span class="badge bg-danger ms-2">URGENTE</span>
-                                    @endif
                                 </a>
-                                <div class="text-muted small">{{ $audit->space->type }}</div>
+                                <div class="text-muted small">{{ $audit->space->category ?? '—' }}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="text-dark">{{ $audit->space->type }}</span>
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <span class="bg-light px-2 py-1 rounded text-xs font-mono">
@@ -101,7 +102,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-5 text-center text-muted italic">
+                            <td colspan="6" class="px-4 py-5 text-center text-muted italic">
                                 No se encontraron auditorías recientes.
                             </td>
                         </tr>

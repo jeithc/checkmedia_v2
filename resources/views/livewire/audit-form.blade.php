@@ -97,7 +97,6 @@
                                 <tr>
                                     <th class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Concepto</th>
                                     <th class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">Estado</th>
-                                    <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Observación</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 bg-white">
@@ -107,11 +106,12 @@
                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-center">
                                             @if($val->value === 'good')
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Bueno</span>
+                                            @elseif($val->value === 'acceptable')
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Aceptable</span>
                                             @else
                                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Malo</span>
                                             @endif
                                         </td>
-                                        <td class="px-3 py-4 text-sm text-gray-500 italic">{{ $val->comment ?? '-' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -241,15 +241,6 @@
                                         </button>
                                     </div>
                                 </div>
-
-                                <!-- Comment Slide Down -->
-                                @if(isset($values[$criterion->id]['value']) && $values[$criterion->id]['value'] === 'bad')
-                                    <div class="mt-3 pl-0 sm:pl-[33%] transition-all duration-300">
-                                        <textarea wire:model="values.{{ $criterion->id }}.comment"
-                                            class="shadow-sm focus:ring-red-500 focus:border-red-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                                            rows="2" placeholder="Detalle el daño encontrado..."></textarea>
-                                    </div>
-                                @endif
                             </div>
                     @endforeach
                 </div>

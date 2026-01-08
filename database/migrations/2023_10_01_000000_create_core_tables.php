@@ -102,8 +102,6 @@ return new class extends Migration {
             $table->foreignId('audit_criterion_id')->constrained('audit_criteria')->onDelete('cascade');
 
             $table->string('value'); // "good", "bad", "1", "5"
-            $table->text('comment')->nullable();
-
             $table->timestamps();
         });
 

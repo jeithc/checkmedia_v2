@@ -23,7 +23,7 @@ class AuditForm extends Component
     public $criteria;
 
     // Form Inputs
-    public $values = []; // [criterion_id => ['value' => 'good', 'comment' => '']]
+    public $values = []; // [criterion_id => ['value' => 'good']]
     public $photos = [];
     public $observation;
 
@@ -41,8 +41,7 @@ class AuditForm extends Component
         // Initialize default values
         foreach ($this->criteria as $criterion) {
             $this->values[$criterion->id] = [
-                'value' => 'good',
-                'comment' => ''
+                'value' => 'good'
             ];
         }
     }
@@ -118,7 +117,6 @@ class AuditForm extends Component
         foreach ($this->existingAudit->values as $val) {
             if (isset($this->values[$val->audit_criterion_id])) {
                 $this->values[$val->audit_criterion_id]['value'] = $val->value;
-                $this->values[$val->audit_criterion_id]['comment'] = $val->comment;
             }
         }
 
@@ -147,7 +145,7 @@ class AuditForm extends Component
         $this->showExistingDetails = false;
 
         foreach ($this->criteria as $c) {
-            $this->values[$c->id] = ['value' => 'good', 'comment' => ''];
+            $this->values[$c->id] = ['value' => 'good'];
         }
     }
 
@@ -207,8 +205,7 @@ class AuditForm extends Component
             AuditValue::create([
                 'audit_id' => $audit->id,
                 'audit_criterion_id' => $criterionId,
-                'value' => $data['value'],
-                'comment' => $data['comment'] ?? null
+                'value' => $data['value']
             ]);
 
             if ($data['value'] === 'bad') {

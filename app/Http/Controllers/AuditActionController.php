@@ -64,47 +64,84 @@ class AuditActionController extends Controller
         $request->validate([
             'revision_photo' => 'required|image|max:10240', // Max 10MB
             'revision_comment' => 'nullable|string',
+            'criteria' => 'nullable|array',
+            'criteria.*' => 'in:good,acceptable,bad',
         ]);
 
         $oldStatus = $audit->general_status;
+        $criteriaChanges = [];
 
-        // 1. Upload Photo
+        // 1. Update Criteria Values if provided
+        if ($request->has('criteria')) {
+            foreach ($request->input('criteria') as $valueId => $newValue) {
+                $auditValue = $audit->values()->find($valueId);
+                if ($auditValue && $auditValue->value !== $newValue) {
+                    $criteriaChanges[] = [
+                        'criterion' => $auditValue->criterion->name,
+                        'old' => $auditValue->value,
+                        'new' => $newValue,
+                    ];
+                    $auditValue->value = $newValue;
+                    $auditValue->comment = 'Actualizado en revisión';
+                    $auditValue->save();
+                }
+            }
+        }
+
+        // 2. Upload Photo
         if ($request->hasFile('revision_photo')) {
             $path = $request->file('revision_photo')->store('audit_resolutions', 'public');
             $audit->resolution_photo_path = $path;
         }
 
-        // 2. Update Audit
+        // 3. Recalculate General Status based on criteria
+        $newGeneralStatus = 'good';
+        foreach ($audit->values()->get() as $value) {
+            if ($value->value === 'bad') {
+                $newGeneralStatus = 'bad';
+                break;
+            } elseif ($value->value === 'acceptable' && $newGeneralStatus !== 'bad') {
+                $newGeneralStatus = 'acceptable';
+            }
+        }
+
+        // 4. Update Audit
         $audit->resolution_comment = $request->input('revision_comment');
         $audit->resolved_at = now();
-        $audit->general_status = 'good';
+        $audit->general_status = $newGeneralStatus;
         $audit->save();
 
-        // 3. Log Comment
+        // 5. Log Comment
         $audit->comments()->create([
             'user_id' => auth()->id(),
             'message' => "Cargó revisión: " . ($request->input('revision_comment') ?: 'Sin comentario'),
             'type' => 'resolution',
         ]);
 
-        // 4. Log Activity
+        // 6. Log Activity
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_RESOLUTION_UPLOADED,
-            description: 'Revisión cargada. Auditoría marcada como resuelta.',
+            description: 'Revisión cargada. Estado actualizado a: ' . ucfirst($newGeneralStatus),
             auditId: $audit->id,
             metadata: [
                 'old_status' => $oldStatus,
-                'new_status' => 'good',
+                'new_status' => $newGeneralStatus,
                 'comment' => $request->input('revision_comment'),
                 'photo_path' => $audit->resolution_photo_path,
+                'criteria_changes' => $criteriaChanges,
                 'user_name' => auth()->user()->name,
             ],
             year: $audit->year,
             week: $audit->week
         );
 
-        Toast::success('Revisión cargada exitosamente. La auditoría ha sido marcada como resuelta.');
+        $message = 'Revisión cargada exitosamente.';
+        if (count($criteriaChanges) > 0) {
+            $message .= ' Se actualizaron ' . count($criteriaChanges) . ' criterio(s).';
+        }
+        
+        Toast::success($message);
 
         return back();
     }
