@@ -170,7 +170,7 @@
                             // Create and submit form dynamically
                             var form = document.createElement('form');
                             form.method = 'POST';
-                            form.action = '{{ url("/admin/audit/" . $audit->id . "/action/third-party") }}';
+                            form.action = '{{ url("/admin/audit-action/" . $audit->id . "/third-party") }}';
                             
                             var csrf = document.createElement('input');
                             csrf.type = 'hidden';
@@ -426,9 +426,7 @@
 <div class="modal fade" id="uploadRevisionModal" tabindex="-1" aria-labelledby="uploadRevisionModalLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form action="{{ url('/admin/audit/' . $audit->id . '/action/upload-revision') }}" method="POST"
-            enctype="multipart/form-data" class="revision-form">
-            @csrf
+        <div class="revision-container"> <!-- Reemplaza form tag -->
             <div class="modal-content border shadow-lg" style="border-radius: 0.5rem; overflow: hidden;">
                 <div class="modal-header border-0 py-2 px-3 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #198754 0%, #157347 100%);">
                     <h6 class="modal-title text-white mb-0 fw-semibold" id="uploadRevisionModalLabel">
@@ -506,14 +504,108 @@
                 </div>
                 <div class="modal-footer border-top py-2 px-3">
                     <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-sm btn-success px-3">Guardar</button>
+                    <button type="button" class="btn btn-sm btn-success px-3" onclick="submitRevisionForm()">Guardar</button>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Mover el modal al final del body para evitar conflictos de formularios anidados
+        const modal = document.getElementById('uploadRevisionModal');
+        if (modal && modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+    });
+
+    function submitRevisionForm() {
+        const modal = document.getElementById('uploadRevisionModal');
+        const fileInput = modal.querySelector('input[name="revision_photo"]');
+        const commentInput = modal.querySelector('textarea[name="revision_comment"]');
+        const emailsInput = modal.querySelector('input[name="client_emails"]');
+        
+        // Validación
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Falta imagen',
+                text: 'Por favor selecciona una foto de la revisión.',
+                confirmButtonColor: '#198754'
+            });
+            return;
+        }
+
+        // Construir FormData
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('revision_photo', fileInput.files[0]);
+        formData.append('revision_comment', commentInput.value || '');
+        formData.append('client_emails', emailsInput.value || '');
+        
+        // Agregar criterios
+        modal.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+            formData.append(radio.name, radio.value);
+        });
+
+        const actionUrl = '{{ url("/admin/audit-action/" . $audit->id . "/upload-revision") }}';
+
+        // Mostrar loading
+        Swal.fire({
+            title: 'Guardando...',
+            text: 'Subiendo revisión y actualizando estado',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // Enviar
+        fetch(actionUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else if (response.ok) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Guardado!',
+                    text: 'La revisión se ha cargado correctamente.',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                return response.text().then(text => {
+                    // Try to parse JSON error if available
+                    try {
+                        const json = JSON.parse(text);
+                        throw new Error(json.message || 'Error al guardar');
+                    } catch(e) {
+                        throw new Error('Error en el servidor al guardar la revisión');
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message,
+                confirmButtonColor: '#dc3545'
+            });
+        });
+    }
+
     function markAllGood() {
         document.querySelectorAll('#uploadRevisionModal input[type="radio"][value="good"]').forEach(radio => {
             radio.checked = true;
@@ -626,4 +718,5 @@
         border: 2px solid #dee2e6;
         background-color: transparent;
     }
+</style>
 </style>

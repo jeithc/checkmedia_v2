@@ -25,7 +25,7 @@ class AuditActionController extends Controller
         // 2. Update Audit Values
         foreach ($audit->values as $value) {
             $value->value = 'good';
-            $value->comment = 'Marcado como Tercero - Automático';
+            // Comment removed from audit_values table
             $value->save();
         }
 
@@ -82,7 +82,7 @@ class AuditActionController extends Controller
                         'new' => $newValue,
                     ];
                     $auditValue->value = $newValue;
-                    $auditValue->comment = 'Actualizado en revisión';
+                    // Comment removed from audit_values table
                     $auditValue->save();
                 }
             }

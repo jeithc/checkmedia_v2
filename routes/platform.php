@@ -38,7 +38,14 @@ Route::screen('/main', PlatformScreen::class)
         ->parent('platform.index')
         ->push(__('Panel de Control'), route('platform.main')));
 
-// Audit Detail
+// Audit Actions - Using distinct path to avoid Orchid screen route conflict
+use App\Http\Controllers\AuditActionController;
+Route::post('audit-action/{audit}/third-party', [AuditActionController::class, 'markAsThirdParty'])
+    ->name('platform.audit.action.third-party');
+Route::post('audit-action/{audit}/upload-revision', [AuditActionController::class, 'uploadRevision'])
+    ->name('platform.audit.action.upload-revision');
+
+// Audit Detail Screen
 use App\Orchid\Screens\Audit\AuditDetailScreen;
 use App\Models\Audit;
 Route::screen('audit/{audit}', AuditDetailScreen::class)
@@ -53,12 +60,6 @@ Route::screen('audit/{audit}', AuditDetailScreen::class)
             ->parent('platform.main')
             ->push('Auditoría ' . $code, route('platform.audit.detail', $audit));
     });
-
-use App\Http\Controllers\AuditActionController;
-Route::post('audit/{audit}/action/third-party', [AuditActionController::class, 'markAsThirdParty'])
-    ->name('platform.audit.action.third-party');
-Route::post('audit/{audit}/action/upload-revision', [AuditActionController::class, 'uploadRevision'])
-    ->name('platform.audit.action.upload-revision');
 
 // Platform > Profile
 Route::screen('profile', UserProfileScreen::class)
