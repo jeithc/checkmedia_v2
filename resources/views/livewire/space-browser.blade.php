@@ -3,6 +3,36 @@
         .input-group-sm .input-group-text, .input-group-sm .form-control {
             min-height: 31px; /* Force consistent height for sm inputs */
         }
+        
+        /* Space Browser Redesign Styles from space-browser.css */
+        .filter-group {
+            min-width: 150px;
+        }
+        .filter-group label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+        .table thead th {
+            font-weight: 600;
+            color: #6b7280;
+            border-bottom-width: 1px;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .table tbody td {
+            vertical-align: middle;
+            font-size: 0.9em;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        .badge {
+            font-weight: 500;
+            letter-spacing: 0.025em;
+        }
     </style>
 @endpush
 

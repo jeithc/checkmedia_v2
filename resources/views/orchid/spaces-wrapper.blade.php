@@ -1,5 +1,8 @@
 @push('head')
     @livewireStyles
+@endpush
+
+@push('scripts')
     @livewireScripts
 @endpush
 
