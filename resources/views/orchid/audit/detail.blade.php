@@ -49,21 +49,21 @@
                                 <td class="fw-bold text-dark">{{ $val->criterion->name }}</td>
                                 <!-- Option 1: Bueno -->
                                 <td class="text-center">
-                                    <input type="radio" disabled {{ $val->value === 'good' ? 'checked' : '' }}
+                                        <input type="radio" disabled {{ $val->value === 'good' ? 'checked' : '' }}
                                         class="form-check-input @if($val->value === 'good') border-success bg-success @else border-gray-300 @endif"
-                                        style="opacity: 1;">
+                                            style="opacity: 1;">
                                 </td>
                                 <!-- Option 2: Aceptable -->
                                 <td class="text-center">
-                                    <input type="radio" disabled {{ $val->value === 'acceptable' ? 'checked' : '' }}
+                                        <input type="radio" disabled {{ $val->value === 'acceptable' ? 'checked' : '' }}
                                         class="form-check-input @if($val->value === 'acceptable') border-warning bg-warning @else border-gray-300 @endif"
-                                        style="opacity: 1;">
+                                            style="opacity: 1;">
                                 </td>
                                 <!-- Option 3: Malo -->
                                 <td class="text-center">
-                                    <input type="radio" disabled {{ $val->value === 'bad' ? 'checked' : '' }}
+                                        <input type="radio" disabled {{ $val->value === 'bad' ? 'checked' : '' }}
                                         class="form-check-input @if($val->value === 'bad') border-danger bg-danger @else border-gray-300 @endif"
-                                        style="opacity: 1;">
+                                            style="opacity: 1;">
                                 </td>
                             </tr>
                         @endforeach
@@ -71,14 +71,14 @@
                 </table>
             </div>
 
-                        <!-- Action Buttons -->
-                        <div class="d-flex gap-2 mb-3">
+            <!-- Action Buttons -->
+            <div class="d-flex gap-2 mb-3">
                 <!-- Tercero Button (Orange) - Uses fetch API to submit -->
                 <button type="button" class="btn text-white fw-bold px-4"
                     style="background-color: #FFA500; border: none;"
                     onclick="submitTercero()">
-                    Tercero
-                </button>
+                        Tercero
+                    </button>
 
                 <!-- Cargar Revisión (Green) - Triggers Modal -->
                 <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
@@ -288,10 +288,13 @@
                                             
                                             {{-- Botón para ver foto si existe --}}
                                             @if(isset($log->metadata['photo_path']) && $log->metadata['photo_path'])
-                                                <a href="{{ asset('storage/' . $log->metadata['photo_path']) }}" target="_blank"
-                                                    class="btn btn-sm btn-outline-success py-0 px-2" style="font-size: 0.75rem;">
+                                                <button type="button" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#singlePhotoModal"
+                                                    data-photo-url="{{ asset('storage/' . $log->metadata['photo_path']) }}"
+                                                    class="btn btn-sm btn-outline-success py-0 px-2 btn-view-photo" style="font-size: 0.75rem;">
                                                     <i class="icon-camera me-1"></i> Ver Foto
-                                                </a>
+                                                </button>
                                             @endif
                                         </div>
                                         
@@ -668,7 +671,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         // Mover los modales al final del body para evitar conflictos de formularios anidados
-        ['uploadRevisionModal', 'editAuditModal'].forEach(id => {
+        ['uploadRevisionModal', 'editAuditModal', 'singlePhotoModal', 'galleryModal'].forEach(id => {
             const modal = document.getElementById(id);
             if (modal && modal.parentElement !== document.body) {
                 document.body.appendChild(modal);
@@ -852,6 +855,7 @@
         })
         .then(response => {
             if (response.redirected) {
+                window.onbeforeunload = null;
                 window.location.href = response.url;
             } else if (response.ok) {
                 Swal.fire({
@@ -861,6 +865,9 @@
                     timer: 1500,
                     showConfirmButton: false
                 }).then(() => {
+                    // Limpiar para evitar advertencia de Chrome
+                    window.onbeforeunload = null;
+                    clearModalInputs('uploadRevisionModal');
                     window.location.reload();
                 });
             } else {
@@ -953,15 +960,22 @@
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(response => {
-            if (response.redirected) window.location.href = response.url;
-            else if (response.ok) {
+            if (response.redirected) {
+                window.onbeforeunload = null;
+                window.location.href = response.url;
+            } else if (response.ok) {
                  Swal.fire({
                     icon: 'success',
                     title: '¡Actualizado!',
                     text: 'Los datos han sido guardados.',
                     timer: 1500,
                     showConfirmButton: false
-                }).then(() => window.location.reload());
+                }).then(() => {
+                    // Limpiar para evitar advertencia de Chrome
+                    window.onbeforeunload = null;
+                    clearModalInputs('editAuditModal');
+                    window.location.reload();
+                });
             } else {
                 return response.text().then(text => { throw new Error(text) });
             }
@@ -978,7 +992,64 @@
             updateRadioStyle(radio, 'success');
         });
     }
+    
+    // Listener para cargar foto en el modal cuando se hace clic en "Ver Foto"
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-view-photo');
+        if (btn) {
+            const photoUrl = btn.getAttribute('data-photo-url');
+            const img = document.getElementById('singlePhotoImg');
+            if (img && photoUrl) {
+                img.src = photoUrl;
+            }
+        }
+    });
+    
+    // Limpiar inputs del modal para evitar advertencia de Chrome al recargar
+    function clearModalInputs(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        
+        // Limpiar textareas
+        modal.querySelectorAll('textarea').forEach(ta => {
+            ta.value = '';
+            ta.defaultValue = '';
+        });
+        
+        // Limpiar inputs de texto
+        modal.querySelectorAll('input[type="text"], input[type="email"]').forEach(input => {
+            input.value = '';
+            input.defaultValue = '';
+        });
+        
+        // Limpiar file inputs
+        modal.querySelectorAll('input[type="file"]').forEach(input => {
+            input.value = '';
+        });
+        
+        // Cerrar el modal
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal) {
+            bsModal.hide();
+        }
+    }
 </script>
+
+<!-- Modal para foto individual (de actividad) -->
+<div class="modal fade" id="singlePhotoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen-md-down modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark border-0">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 d-flex align-items-center justify-content-center" style="min-height: 500px;">
+                <div class="d-flex justify-content-center align-items-center" style="height: 80vh;">
+                    <img id="singlePhotoImg" src="" class="mw-100 mh-100" alt="Foto de revisión" style="object-fit: contain;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Modal Galería (Carousel Lightbox) -->
 <div class="modal fade" id="galleryModal" tabindex="-1" aria-hidden="true">

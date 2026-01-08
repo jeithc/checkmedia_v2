@@ -348,7 +348,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <label class="block text-sm font-semibold text-gray-700 mb-2">Observación General</label>
                 <textarea wire:model="observation"
-                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    class="block w-full rounded-lg border border-gray-300 bg-gray-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:bg-white sm:text-sm p-3 transition-colors"
                     rows="3" placeholder="Comentarios adicionales sobre el espacio o la visita..."></textarea>
                 @error('observation')
                     <p class="mt-2 text-sm text-red-600 flex items-center">
