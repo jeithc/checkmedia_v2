@@ -3,9 +3,6 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Nueva Auditoría</h2>
-        <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold uppercase tracking-wide">
-            v2.0 Beta
-        </span>
     </div>
 
     <!-- 1. Search Section (Card) -->
