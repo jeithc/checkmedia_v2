@@ -72,6 +72,12 @@ class PlatformProvider extends OrchidServiceProvider
                 ->route('platform.example.cards')
                 ->divider(),
 
+            Menu::make('Reportes de Auditoría')
+                ->icon('bs.file-earmark-spreadsheet')
+                ->route('platform.reports.audit-builder')
+                ->permission('audit.can_audit')
+                ->divider(),
+
             Menu::make(__('Users'))
                 ->icon('bs.people')
                 ->route('platform.systems.users')

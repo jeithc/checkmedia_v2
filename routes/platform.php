@@ -78,6 +78,22 @@ Route::screen('audit/{audit}', AuditDetailScreen::class)
             ->push('Auditoría ' . $code, route('platform.audit.detail', $audit));
     });
 
+// Audit Report Builder
+use App\Orchid\Screens\Reports\AuditReportBuilderScreen;
+Route::screen('reports/audit-builder', AuditReportBuilderScreen::class)
+    ->name('platform.reports.audit-builder')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.main')
+        ->push('Constructor de Reportes', route('platform.reports.audit-builder')));
+
+// Report Builder Actions
+Route::post('reports/audit-builder/update-columns', [AuditReportBuilderScreen::class, 'updateColumns'])
+    ->name('platform.reports.update-columns');
+Route::post('reports/audit-builder/generate-preview', [AuditReportBuilderScreen::class, 'generatePreview'])
+    ->name('platform.reports.generate-preview');
+Route::post('reports/audit-builder/download-excel', [AuditReportBuilderScreen::class, 'downloadExcel'])
+    ->name('platform.reports.download-excel');
+
 // Platform > Profile
 Route::screen('profile', UserProfileScreen::class)
     ->name('platform.profile')
