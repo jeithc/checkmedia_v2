@@ -56,6 +56,19 @@ class AuditForm extends Component
             'external_code' => 'required'
         ]);
 
+        // Reset duplicate state before new search
+        $this->duplicateFound = false;
+        $this->existingAudit = null;
+        $this->showExistingDetails = false;
+        $this->space = null;
+        
+        // Clear form data for the new search
+        $this->photos = [];
+        $this->observation = '';
+        foreach ($this->criteria as $criterion) {
+            $this->values[$criterion->id] = ['value' => 'good'];
+        }
+
         // 1. Try Local Search
         $this->space = AdvertisingSpace::where('external_code', $this->external_code)->first();
 
