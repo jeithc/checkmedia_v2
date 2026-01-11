@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Audit;
 use App\Models\AuditCriterion;
+use App\Models\SavedReport;
 use App\Exports\AuditsExport;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -20,6 +21,21 @@ class AuditReportBuilder extends Component
     // Preview data
     public $previewData = null;
     public $showPreview = false;
+
+    // Saved reports
+    public $sharedReports = [];
+    public $myReports = [];
+    public $currentReportId = null;
+    public $currentReportName = null;
+
+    // Save modal
+    public $showSaveModal = false;
+    public $newReportName = '';
+    public $newReportDescription = '';
+    public $newReportIsShared = false;
+
+    // Active tab
+    public $activeTab = 'builder'; // builder, shared, personal, advanced
 
     public function mount()
     {
@@ -49,6 +65,178 @@ class AuditReportBuilder extends Component
             'external_code',
             'general_status',
         ];
+
+        // Load saved reports
+        $this->loadSavedReports();
+    }
+
+    /**
+     * Load saved reports (shared and personal)
+     */
+    public function loadSavedReports()
+    {
+        $userId = auth()->id();
+
+        // Shared reports (available to everyone)
+        $this->sharedReports = SavedReport::shared()
+            ->standard()
+            ->with('user:id,name')
+            ->orderBy('name')
+            ->get()
+            ->toArray();
+
+        // Personal reports (only current user's)
+        $this->myReports = SavedReport::personal($userId)
+            ->standard()
+            ->orderBy('name')
+            ->get()
+            ->toArray();
+    }
+
+    /**
+     * Load a saved report configuration
+     */
+    public function loadReport($reportId)
+    {
+        $report = SavedReport::find($reportId);
+
+        if (!$report) {
+            $this->addError('report', 'El reporte no existe.');
+            return;
+        }
+
+        // Check access: shared reports are accessible to all, personal only to owner
+        if (!$report->is_shared && $report->user_id !== auth()->id()) {
+            $this->addError('report', 'No tienes acceso a este reporte.');
+            return;
+        }
+
+        $this->selectedColumns = $report->selected_columns;
+        $this->currentReportId = $report->id;
+        $this->currentReportName = $report->name;
+        $this->activeTab = 'builder';
+        $this->showPreview = false;
+        $this->previewData = null;
+
+        session()->flash('message', "Reporte '{$report->name}' cargado.");
+    }
+
+    /**
+     * Open save modal
+     */
+    public function openSaveModal()
+    {
+        $this->newReportName = '';
+        $this->newReportDescription = '';
+        $this->newReportIsShared = false;
+        $this->showSaveModal = true;
+    }
+
+    /**
+     * Close save modal
+     */
+    public function closeSaveModal()
+    {
+        $this->showSaveModal = false;
+        $this->resetValidation();
+    }
+
+    /**
+     * Save current configuration as a new report
+     */
+    public function saveReport()
+    {
+        $this->validate([
+            'newReportName' => 'required|min:3|max:100',
+            'newReportDescription' => 'nullable|max:255',
+            'selectedColumns' => 'required|array|min:1',
+        ], [
+            'newReportName.required' => 'El nombre del reporte es requerido.',
+            'newReportName.min' => 'El nombre debe tener al menos 3 caracteres.',
+            'selectedColumns.required' => 'Debe seleccionar al menos una columna.',
+            'selectedColumns.min' => 'Debe seleccionar al menos una columna.',
+        ]);
+
+        // Check permission for shared reports
+        if ($this->newReportIsShared && !auth()->user()->hasAccess('reports.create_shared')) {
+            $this->addError('newReportIsShared', 'No tienes permiso para crear reportes compartidos.');
+            return;
+        }
+
+        // Check for duplicate name
+        $exists = SavedReport::where('user_id', auth()->id())
+            ->where('name', $this->newReportName)
+            ->where('is_shared', $this->newReportIsShared)
+            ->exists();
+
+        if ($exists) {
+            $this->addError('newReportName', 'Ya tienes un reporte con este nombre.');
+            return;
+        }
+
+        $report = SavedReport::create([
+            'user_id' => auth()->id(),
+            'name' => $this->newReportName,
+            'description' => $this->newReportDescription,
+            'selected_columns' => $this->selectedColumns,
+            'is_shared' => $this->newReportIsShared,
+            'is_advanced' => false,
+        ]);
+
+        $this->currentReportId = $report->id;
+        $this->currentReportName = $report->name;
+        $this->closeSaveModal();
+        $this->loadSavedReports();
+
+        session()->flash('message', "Reporte '{$report->name}' guardado exitosamente.");
+    }
+
+    /**
+     * Delete a saved report
+     */
+    public function deleteReport($reportId)
+    {
+        $report = SavedReport::find($reportId);
+
+        if (!$report) {
+            return;
+        }
+
+        // Only owner can delete
+        if ($report->user_id !== auth()->id()) {
+            $this->addError('report', 'No puedes eliminar este reporte.');
+            return;
+        }
+
+        $reportName = $report->name;
+        $report->delete();
+
+        // Clear current if it was the deleted one
+        if ($this->currentReportId === $reportId) {
+            $this->currentReportId = null;
+            $this->currentReportName = null;
+        }
+
+        $this->loadSavedReports();
+        session()->flash('message', "Reporte '{$reportName}' eliminado.");
+    }
+
+    /**
+     * Clear current report selection
+     */
+    public function clearCurrentReport()
+    {
+        $this->currentReportId = null;
+        $this->currentReportName = null;
+        $this->selectedColumns = [
+            'audit_date',
+            'auditor',
+            'city',
+            'external_code',
+            'general_status',
+        ];
+        $this->showPreview = false;
+        $this->previewData = null;
     }
 
     /**
@@ -155,6 +343,14 @@ class AuditReportBuilder extends Component
             'bad' => 'Malo',
             default => $status ?? 'N/A',
         };
+    }
+
+    /**
+     * Check if user can create shared reports
+     */
+    public function canCreateSharedReports(): bool
+    {
+        return auth()->user()->hasAccess('reports.create_shared');
     }
 
     public function render()

@@ -109,9 +109,7 @@ class AuditReportBuilderScreen extends Screen
     public function layout(): iterable
     {
         return [
-            
-            
-            Layout::view('orchid.reports.report-form-wrapper'),
+            Layout::view('orchid.audit-report-builder-wrapper'),
         ];
     }
 

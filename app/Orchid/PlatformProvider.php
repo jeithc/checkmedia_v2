@@ -118,6 +118,9 @@ class PlatformProvider extends OrchidServiceProvider
                 ->addPermission('audit.can_audit', 'Realizar Auditorías')
                 ->addPermission('audit.close_with_error', 'Cerrar estados con error')
                 ->addPermission('audit.upload_fixes', 'Subir arreglos/revisiones'),
+
+            ItemPermission::group('Reportes')
+                ->addPermission('reports.create_shared', 'Crear reportes compartidos'),
         ];
     }
 }
