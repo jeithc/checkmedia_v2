@@ -24,18 +24,62 @@ class PlatformScreen extends Screen
     public function query(): iterable
     {
         $now = now();
+        $weekData = Audit::getCalendarYearAndWeek($now);
+        
+        // Line Chart: Last 30 days audit trends by status
+        $thirtyDaysAgo = $now->copy()->subDays(30);
+        
+        $goodAudits = Audit::where('audit_date', '>=', $thirtyDaysAgo)
+            ->where('general_status', 'good')
+            ->countByDays(null, null, 'audit_date')
+            ->toChart('Bueno');
+            
+        $acceptableAudits = Audit::where('audit_date', '>=', $thirtyDaysAgo)
+            ->where('general_status', 'acceptable')
+            ->countByDays(null, null, 'audit_date')
+            ->toChart('Aceptable');
+            
+        $badAudits = Audit::where('audit_date', '>=', $thirtyDaysAgo)
+            ->where('general_status', 'bad')
+            ->countByDays(null, null, 'audit_date')
+            ->toChart('Malo');
+        
+        // Pie Chart: Current week audit status distribution
+        $goodCount = Audit::where('year', $weekData['year'])
+            ->where('week', $weekData['week'])
+            ->where('general_status', 'good')
+            ->count();
+            
+        $acceptableCount = Audit::where('year', $weekData['year'])
+            ->where('week', $weekData['week'])
+            ->where('general_status', 'acceptable')
+            ->count();
+            
+        $badCount = Audit::where('year', $weekData['year'])
+            ->where('week', $weekData['week'])
+            ->where('general_status', 'bad')
+            ->count();
+        
+        
         return [
             'metrics' => [
                 'total_spaces' => ['value' => number_format(AdvertisingSpace::count()), 'diff' => 'Total Activos'],
-                'audits_week' => ['value' => number_format(Audit::where('year', $now->year)->where('week', $now->weekOfYear)->count()), 'diff' => 'Esta Semana'],
+                'audits_week' => ['value' => number_format($goodCount + $acceptableCount + $badCount), 'diff' => 'Esta Semana'],
                 'pending_maint' => ['value' => number_format(Maintenance::where('status', '!=', 'completed')->count()), 'diff' => 'Por Atender'],
                 'active_bookings' => ['value' => number_format(CommercialBooking::where('year', $now->year)->where('week', $now->weekOfYear)->count()), 'diff' => 'Con Cliente'],
             ],
             'recent_audits' => Audit::with('space')->latest()->limit(5)->get(),
-            'audit_charts' => [
-                Audit::where('audit_date', '>=', $now->subDays(7))
-                    ->countByDays(null, null, 'audit_date')
-                    ->toChart('Auditorías Realizadas'),
+            'audit_line_chart' => [
+                $goodAudits,
+                $acceptableAudits,
+                $badAudits,
+            ],
+            'audit_pie_chart' => [
+                [
+                    'name' => 'Estado de Auditorías',
+                    'values' => [$goodCount, $acceptableCount, $badCount],
+                    'labels' => ['Bueno', 'Aceptable', 'Malo'],
+                ],
             ],
         ];
     }
@@ -80,8 +124,13 @@ class PlatformScreen extends Screen
         return [
             Layout::view('orchid.admin-dashboard-wrapper'),
 
-            // Still keep the chart as it's separate and might not need real-time polling
-            Layout::chart('audit_charts'),
+            // Charts: Line Chart (Trends) and Pie Chart (Distribution)
+            Layout::columns([
+                \App\Orchid\Layouts\Charts\AuditLineChart::make('audit_line_chart', 'Tendencia de Auditorías (Últimos 30 Días)')
+                    ->description('Seguimiento diario de auditorías por estado de calidad.'),
+                \App\Orchid\Layouts\Charts\AuditStatusPieChart::make('audit_pie_chart', 'Distribución por Estado (Semana Actual)')
+                    ->description('Porcentaje de auditorías según su calidad en la semana actual.'),
+            ]),
         ];
     }
 }
