@@ -33,7 +33,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
-        'permissions',
+        'orchid_permissions',
     ];
 
     /**
@@ -42,12 +42,33 @@ class User extends Authenticatable
      * @var array
      */
     protected $casts = [
-        'permissions' => 'array',
+        'orchid_permissions' => 'array',
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
         'must_change_password' => 'boolean',
         'is_superuser' => 'boolean',
     ];
+
+    /**
+     * Name of columns to which http sorting can be applied
+     *
+     * @var string
+     */
+    /**
+     * Get the permissions attribute (maps to orchid_permissions column).
+     */
+    public function getPermissionsAttribute()
+    {
+        return $this->orchid_permissions;
+    }
+
+    /**
+     * Set the permissions attribute (maps to orchid_permissions column).
+     */
+    public function setPermissionsAttribute($value)
+    {
+        $this->attributes['orchid_permissions'] = $value;
+    }
 
     /**
      * @param string $permit

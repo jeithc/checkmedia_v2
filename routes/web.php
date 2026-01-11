@@ -4,6 +4,17 @@ use Illuminate\Support\Facades\Route;
 use App\Livewire\AuditForm;
 
 Route::get('/', function () {
+    if (auth()->check()) {
+        $user = auth()->user();
+
+        // If user is an auditor (has audit permission but not admin access), redirect to audit form
+        if ($user->hasAnyAccess(['audit.can_audit']) && !$user->hasAnyAccess(['platform.index'])) {
+            return redirect()->route('audit.form');
+        }
+
+        // Otherwise, redirect to dashboard
+        return redirect()->route('platform.main');
+    }
     return redirect()->route('platform.login');
 });
 
