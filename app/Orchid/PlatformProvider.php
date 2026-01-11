@@ -43,34 +43,7 @@ class PlatformProvider extends OrchidServiceProvider
                 ->route('platform.spaces')
                 ->permission('audit.can_audit'),
 
-            Menu::make('Sample Screen')
-                ->icon('bs.collection')
-                ->route('platform.example')
-                ->badge(fn() => 6),
 
-            Menu::make('Form Elements')
-                ->icon('bs.card-list')
-                ->route('platform.example.fields')
-                ->active('*/examples/form/*'),
-
-            Menu::make('Layouts Overview')
-                ->icon('bs.window-sidebar')
-                ->route('platform.example.layouts'),
-
-            Menu::make('Grid System')
-                ->icon('bs.columns-gap')
-                ->route('platform.example.grid'),
-
-            Menu::make('Charts')
-                ->icon('bs.bar-chart')
-                ->route('platform.example.charts'),
-
-            
-
-            Menu::make('Cards')
-                ->icon('bs.card-text')
-                ->route('platform.example.cards')
-                ->divider(),
 
             Menu::make('Reportes de Auditoría')
                 ->icon('bs.file-earmark-spreadsheet')
