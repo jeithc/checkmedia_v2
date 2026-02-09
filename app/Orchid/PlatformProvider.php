@@ -37,13 +37,11 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make('Dashboard')
                 ->icon('bs.collection')
                 ->route(config('platform.index')),
-            
+
             Menu::make('Espacios')
                 ->icon('bs.geo-alt')
                 ->route('platform.spaces')
                 ->permission('audit.can_audit'),
-
-
 
             Menu::make('Reportes de Auditoría')
                 ->icon('bs.file-earmark-spreadsheet')
@@ -57,13 +55,18 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('system.edit_users')
                 ->title(__('Admin Zone')),
 
+            Menu::make('Criterios de Auditoría')
+                ->icon('bs.list-check')
+                ->route('platform.audit.criteria')
+                ->permission('audit.manage_criteria'),
+
             Menu::make(__('Roles'))
                 ->icon('bs.shield')
                 ->route('platform.systems.roles')
                 ->permission('platform.systems.roles')
                 ->divider(),
 
-           
+
 
             Menu::make('Cerrar Sesión')
                 ->icon('bs.box-arrow-left')
@@ -89,6 +92,7 @@ class PlatformProvider extends OrchidServiceProvider
 
             ItemPermission::group('Auditoría')
                 ->addPermission('audit.can_audit', 'Realizar Auditorías')
+                ->addPermission('audit.manage_criteria', 'Gestionar Criterios de Auditoría')
                 ->addPermission('audit.close_with_error', 'Cerrar estados con error')
                 ->addPermission('audit.upload_fixes', 'Subir arreglos/revisiones'),
 

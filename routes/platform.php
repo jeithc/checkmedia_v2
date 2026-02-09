@@ -27,6 +27,7 @@ use Tabuna\Breadcrumbs\Trail;
 
 // Spaces
 use App\Orchid\Screens\Spaces\SpacesScreen;
+
 Route::screen('/spaces', SpacesScreen::class)
     ->name('platform.spaces')
     ->breadcrumbs(fn(Trail $trail) => $trail
@@ -34,6 +35,7 @@ Route::screen('/spaces', SpacesScreen::class)
         ->push('Espacios Publicitarios', route('platform.spaces')));
 
 use App\Orchid\Screens\Spaces\SpaceViewScreen;
+
 Route::screen('/spaces/{space}', SpaceViewScreen::class)
     ->name('platform.spaces.view')
     ->breadcrumbs(fn(Trail $trail, $space) => $trail
@@ -49,6 +51,7 @@ Route::screen('/main', PlatformScreen::class)
 
 // Audit Actions - Using distinct path to avoid Orchid screen route conflict
 use App\Http\Controllers\AuditActionController;
+
 Route::post('audit-action/{audit}/third-party', [AuditActionController::class, 'markAsThirdParty'])
     ->name('platform.audit.action.third-party');
 Route::post('audit-action/{audit}/upload-revision', [AuditActionController::class, 'uploadRevision'])
@@ -59,9 +62,10 @@ Route::post('audit-action/{audit}/update', [AuditActionController::class, 'updat
 // Audit Detail Screen
 use App\Orchid\Screens\Audit\AuditDetailScreen;
 use App\Models\Audit;
+
 Route::screen('audit/{audit}', AuditDetailScreen::class)
     ->name('platform.audit.detail')
-    ->breadcrumbs(function(Trail $trail, $audit) {
+    ->breadcrumbs(function (Trail $trail, $audit) {
         // Ensure $audit is loaded as a model  
         if (!$audit instanceof Audit) {
             $audit = Audit::with('space')->find($audit);
@@ -74,6 +78,7 @@ Route::screen('audit/{audit}', AuditDetailScreen::class)
 
 // Audit Report Builder
 use App\Orchid\Screens\Reports\AuditReportBuilderScreen;
+
 Route::screen('reports/audit-builder', AuditReportBuilderScreen::class)
     ->name('platform.reports.audit-builder')
     ->breadcrumbs(fn(Trail $trail) => $trail
@@ -153,6 +158,29 @@ Route::screen('roles', RoleListScreen::class)
 // Route::screen('/examples/grid', ExampleGridScreen::class)->name('platform.example.grid');
 // Route::screen('/examples/charts', ExampleChartsScreen::class)->name('platform.example.charts');
 // Route::screen('/examples/cards', ExampleCardsScreen::class)->name('platform.example.cards');
+
+
+// Audit Criteria Management
+use App\Orchid\Screens\AuditCriterion\AuditCriterionListScreen;
+use App\Orchid\Screens\AuditCriterion\AuditCriterionEditScreen;
+
+Route::screen('audit-criteria/{criterion}/edit', AuditCriterionEditScreen::class)
+    ->name('platform.audit.criteria.edit')
+    ->breadcrumbs(fn(Trail $trail, $criterion) => $trail
+        ->parent('platform.audit.criteria')
+        ->push($criterion->name, route('platform.audit.criteria.edit', $criterion)));
+
+Route::screen('audit-criteria/create', AuditCriterionEditScreen::class)
+    ->name('platform.audit.criteria.create')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.audit.criteria')
+        ->push(__('Create'), route('platform.audit.criteria.create')));
+
+Route::screen('audit-criteria', AuditCriterionListScreen::class)
+    ->name('platform.audit.criteria')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.index')
+        ->push('Criterios de Auditoría', route('platform.audit.criteria')));
 
 Route::get('logout-quick', function () {
     auth()->logout();
