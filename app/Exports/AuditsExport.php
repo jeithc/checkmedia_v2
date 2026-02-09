@@ -17,7 +17,7 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
     {
         $this->selectedColumns = $selectedColumns;
         $this->criteria = $criteria;
-        
+
         // Define all available static columns
         $this->staticColumnDefinitions = [
             'audit_date' => 'Fecha de Auditoría',
@@ -76,16 +76,16 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
             if (str_starts_with($column, 'criterion_')) {
                 // Dynamic criterion column - pivot logic
                 $criterionId = (int) str_replace('criterion_', '', $column);
-                
+
                 // Find the value for this criterion in the audit's values collection
                 $auditValue = $audit->values->firstWhere('audit_criterion_id', $criterionId);
-                
+
                 // If found, use the value, otherwise N/A
                 $row[] = $auditValue ? $this->formatValue($auditValue->value) : 'N/A';
             } else {
                 // Static column - direct mapping
-                $row[] = match($column) {
-                    'audit_date' => $audit->audit_date?->format('Y-m-d H:i'),
+                $row[] = match ($column) {
+                    'audit_date' => $audit->audit_date?->format('Y-m-d'),
                     'auditor' => $audit->user?->name ?? 'N/A',
                     'city' => $audit->space?->city ?? 'N/A',
                     'provider' => $audit->space?->provider ?? 'N/A',
@@ -107,7 +107,7 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
      */
     protected function formatValue(?string $value): string
     {
-        return match($value) {
+        return match ($value) {
             'good' => 'Bueno',
             'acceptable' => 'Aceptable',
             'bad' => 'Malo',
@@ -120,7 +120,7 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
      */
     protected function formatStatus(?string $status): string
     {
-        return match($status) {
+        return match ($status) {
             'good' => 'Bueno',
             'acceptable' => 'Aceptable',
             'bad' => 'Malo',

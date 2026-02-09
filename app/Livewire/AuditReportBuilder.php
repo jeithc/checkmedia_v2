@@ -291,8 +291,8 @@ class AuditReportBuilder extends Component
         }
 
         // Static column
-        return match($column) {
-            'audit_date' => $audit->audit_date?->format('Y-m-d H:i'),
+        return match ($column) {
+            'audit_date' => $audit->audit_date?->format('Y-m-d'),
             'auditor' => $audit->user?->name ?? 'N/A',
             'city' => $audit->space?->city ?? 'N/A',
             'provider' => $audit->space?->provider ?? 'N/A',
@@ -324,7 +324,7 @@ class AuditReportBuilder extends Component
      */
     protected function formatValue(?string $value): string
     {
-        return match($value) {
+        return match ($value) {
             'good' => 'Bueno',
             'acceptable' => 'Aceptable',
             'bad' => 'Malo',
@@ -337,7 +337,7 @@ class AuditReportBuilder extends Component
      */
     protected function formatStatus(?string $status): string
     {
-        return match($status) {
+        return match ($status) {
             'good' => 'Bueno',
             'acceptable' => 'Aceptable',
             'bad' => 'Malo',
