@@ -25,6 +25,24 @@ Route::group(['middleware' => 'web'], function () {
         return view('vendor.platform.auth.login');
     })->name('platform.login');
 
+    Route::get('/test-email', function () {
+        try {
+            // Force debug mode
+            config(['mail.mailers.smtp.local_domain' => 'localhost']);
+
+            \Illuminate\Support\Facades\Log::info('Attempting to send email to jeith2@gmail.com');
+
+            Illuminate\Support\Facades\Mail::to('jeith2@gmail.com')->send(new App\Mail\TestEmail());
+
+            \Illuminate\Support\Facades\Log::info('Email sent command executed successfully');
+
+            return 'Correo enviado correctamente a jeith2@gmail.com. Revisa tu carpeta de spam.';
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Mail Error: ' . $e->getMessage());
+            return 'Error al enviar el correo: ' . $e->getMessage();
+        }
+    });
+
     Route::post('/login', [LoginController::class, 'authenticate'])
         ->name('platform.login.auth');
 
