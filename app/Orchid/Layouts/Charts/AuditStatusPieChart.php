@@ -31,7 +31,6 @@ class AuditStatusPieChart extends Chart
      */
     protected $colors = [
         '#28a745', // green for 'good'
-        '#ffc107', // yellow for 'acceptable'
         '#dc3545', // red for 'bad'
     ];
 }

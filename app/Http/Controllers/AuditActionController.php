@@ -16,7 +16,7 @@ class AuditActionController extends Controller
     {
         $this->authorize('audit.close_with_error');
         $oldStatus = $audit->general_status;
-        
+
         // 1. Update Space
         $audit->space->is_third_party = true;
         $audit->space->third_party_user_id = auth()->id();
@@ -67,7 +67,7 @@ class AuditActionController extends Controller
             'revision_photo' => 'required|image|max:10240', // Max 10MB
             'revision_comment' => 'nullable|string',
             'criteria' => 'nullable|array',
-            'criteria.*' => 'in:good,acceptable,bad',
+            'criteria.*' => 'in:good,bad',
         ]);
 
         $oldStatus = $audit->general_status;
@@ -102,9 +102,7 @@ class AuditActionController extends Controller
             if ($value->value === 'bad') {
                 $newGeneralStatus = 'bad';
                 break;
-            } elseif ($value->value === 'acceptable' && $newGeneralStatus !== 'bad') {
-                $newGeneralStatus = 'acceptable';
-            }
+        }
         }
 
         // 4. Update Audit
@@ -142,7 +140,7 @@ class AuditActionController extends Controller
         if (count($criteriaChanges) > 0) {
             $message .= ' Se actualizaron ' . count($criteriaChanges) . ' criterio(s).';
         }
-        
+
         Toast::success($message);
 
         return back();
@@ -157,7 +155,7 @@ class AuditActionController extends Controller
         $request->validate([
             'revision_comment' => 'required|string|min:3', // Required edit note
             'criteria' => 'nullable|array',
-            'criteria.*' => 'in:good,acceptable,bad',
+            'criteria.*' => 'in:good,bad',
         ], [
             'revision_comment.required' => 'La nota de edición es obligatoria.',
             'revision_comment.min' => 'La nota debe tener al menos 3 caracteres.',
@@ -188,9 +186,7 @@ class AuditActionController extends Controller
             if ($value->value === 'bad') {
                 $newGeneralStatus = 'bad';
                 break;
-            } elseif ($value->value === 'acceptable' && $newGeneralStatus !== 'bad') {
-                $newGeneralStatus = 'acceptable';
-            }
+        }
         }
 
         // 3. Add Edit Note as Comment (Do not overwrite initial observation)
@@ -201,7 +197,7 @@ class AuditActionController extends Controller
                 'type' => 'edit_note',
             ]);
         }
-        
+
         $audit->general_status = $newGeneralStatus;
         $audit->save();
 

@@ -76,17 +76,18 @@ class Audit extends Model
     {
         $date = $date ? \Carbon\Carbon::parse($date) : now();
 
-        // Use ISO week number (1-53, weeks start Monday)
-        $weekNumber = (int) $date->format('W'); // ISO-8601 week number
-        $isoYear = (int) $date->format('o');    // ISO-8601 week-numbering year
+        // Use simple week numbering (Day 1-7 = Week 1) to match business rules/tests
+        $dayOfYear = $date->dayOfYear;
+        $weekNumber = (int) ceil($dayOfYear / 7);
+        $year = $date->year;
 
-        // Cap at 52 weeks maximum (business requirement)
+        // Cap at 52 weeks maximum
         if ($weekNumber > 52) {
             $weekNumber = 52;
         }
 
         return [
-            'year' => $isoYear,
+            'year' => $year,
             'week' => $weekNumber
         ];
     }

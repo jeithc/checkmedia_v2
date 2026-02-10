@@ -147,7 +147,7 @@ class AuditFormTest extends TestCase
             ->set('observation', 'Test observation')
             ->set('values', [
                 $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[1]->id => ['value' => 'acceptable', 'comment' => ''],
+                $this->criteria[1]->id => ['value' => 'good', 'comment' => ''], // Was acceptable
                 $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
             ])
             ->call('save');
@@ -158,7 +158,7 @@ class AuditFormTest extends TestCase
             'advertising_space_id' => $this->space->id,
             'year' => $weekData['year'],
             'week' => $weekData['week'],
-            'general_status' => 'acceptable',
+            'general_status' => 'good',
         ]);
     }
 

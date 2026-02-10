@@ -34,7 +34,7 @@ class AuditLineChart extends Chart
         'regionFill' => 1,
         'hideDots'   => 0,
         'hideLine'   => 0,
-        'heatline'   => 0,
+        'heatline'   => 1,
         'dotSize'    => 3,
     ];
 
@@ -45,7 +45,6 @@ class AuditLineChart extends Chart
      */
     protected $colors = [
         '#28a745', // green for 'good'
-        '#ffc107', // yellow for 'acceptable'
         '#dc3545', // red for 'bad'
     ];
 }

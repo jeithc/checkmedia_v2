@@ -109,7 +109,6 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
     {
         return match ($value) {
             'good' => 'Bueno',
-            'acceptable' => 'Aceptable',
             'bad' => 'Malo',
             default => $value ?? 'N/A',
         };

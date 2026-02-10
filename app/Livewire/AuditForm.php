@@ -61,7 +61,7 @@ class AuditForm extends Component
         $this->existingAudit = null;
         $this->showExistingDetails = false;
         $this->space = null;
-        
+
         // Clear form data for the new search
         $this->photos = [];
         $this->observation = '';
@@ -231,8 +231,6 @@ class AuditForm extends Component
 
             if ($data['value'] === 'bad') {
                 $generalStatus = 'bad';
-            } elseif ($data['value'] === 'acceptable' && $generalStatus !== 'bad') {
-                $generalStatus = 'acceptable';
             }
         }
 
@@ -241,14 +239,14 @@ class AuditForm extends Component
         // 3. Save Photos with watermark
         $watermarkService = new ImageWatermarkService();
         $photoDateTime = $audit->audit_date ?? now();
-        
+
         foreach ($this->photos as $photo) {
             // Add watermark with audit date/time
             $watermarkedPhoto = $watermarkService->addWatermark(
-                $photo, 
+                $photo,
                 $photoDateTime->format('Y-m-d g:i a')
             );
-            
+
             $path = $watermarkedPhoto->store('audit-photos', 'public'); // Store in storage/app/public/audit-photos
 
             AuditPhoto::create([
@@ -263,8 +261,8 @@ class AuditForm extends Component
         SpaceActivityLog::log(
             spaceId: $this->space->id,
             type: $isNew ? SpaceActivityLog::TYPE_AUDIT_CREATED : SpaceActivityLog::TYPE_AUDIT_UPDATED,
-            description: $isNew 
-                ? "Auditoría creada con estado: {$generalStatus}" 
+            description: $isNew
+                ? "Auditoría creada con estado: {$generalStatus}"
                 : "Auditoría actualizada. Estado: {$generalStatus}",
             auditId: $audit->id,
             metadata: [

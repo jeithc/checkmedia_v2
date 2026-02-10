@@ -18,7 +18,7 @@ class AdminDashboard extends Component
         // Auditorías con errores (bad o acceptable) de la semana actual
         $auditsWithIssues = Audit::where('year', $weekData['year'])
             ->where('week', $weekData['week'])
-            ->whereIn('general_status', ['bad', 'acceptable'])
+            ->where('general_status', 'bad')
             ->count();
 
         // Auditorías críticas (bad) sin resolver
@@ -63,7 +63,7 @@ class AdminDashboard extends Component
         $recentAudits = Audit::with('space')
             ->where('year', $weekData['year'])
             ->where('week', $weekData['week'])
-            ->orderByRaw("CASE WHEN general_status = 'bad' THEN 1 WHEN general_status = 'acceptable' THEN 2 ELSE 3 END")
+            ->orderByRaw("CASE WHEN general_status = 'bad' THEN 1 ELSE 2 END")
             ->orderBy('audit_date', 'desc')
             ->limit(10)
             ->get();
