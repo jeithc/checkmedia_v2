@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\Attributes\Computed;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\AuditCriterion;
@@ -18,9 +19,15 @@ class AuditForm extends Component
     use WithFileUploads;
 
     public $external_code;
-    public $space;
-    public $booking;
-    public $criteria;
+
+    // Store only IDs for Livewire serialization
+    public ?int $spaceId = null;
+    public ?int $existingAuditId = null;
+
+    // These are arrays/scalars — safe for Livewire
+    public $criteriaIds = [];
+    public $criteriaList = []; // Array of ['id' => ..., 'name' => ..., 'key' => ...]
+    public $bookingData = null; // Array or null
 
     // Form Inputs
     public $values = []; // [criterion_id => ['value' => 'good']]
@@ -28,8 +35,37 @@ class AuditForm extends Component
     public $observation;
 
     public $duplicateFound = false;
-    public $existingAudit = null;
     public $showExistingDetails = false;
+
+    #[Computed]
+    public function space()
+    {
+        return $this->spaceId ? AdvertisingSpace::find($this->spaceId) : null;
+    }
+
+    #[Computed]
+    public function existingAudit()
+    {
+        return $this->existingAuditId ? Audit::find($this->existingAuditId) : null;
+    }
+
+    #[Computed]
+    public function criteria()
+    {
+        return AuditCriterion::where('is_active', true)
+            ->orderBy('order_index')
+            ->get();
+    }
+
+    #[Computed]
+    public function booking()
+    {
+        if ($this->spaceId) {
+            $space = $this->space;
+            return $space ? $space->getBookingForDate(now()) : null;
+        }
+        return null;
+    }
 
     public function mount()
     {
@@ -37,82 +73,94 @@ class AuditForm extends Component
             abort(403);
         }
 
-        // Load active criteria once
-        $this->criteria = AuditCriterion::where('is_active', true)
-            ->orderBy('order_index')
-            ->get();
-
-        // Initialize default values
-        foreach ($this->criteria as $criterion) {
+        // Load active criteria and initialize values
+        $criteria = $this->criteria;
+        foreach ($criteria as $criterion) {
+            $this->criteriaList[] = [
+                'id' => $criterion->id,
+                'name' => $criterion->name,
+                'key' => $criterion->key,
+            ];
+            $this->criteriaIds[] = $criterion->id;
             $this->values[$criterion->id] = [
                 'value' => 'good'
             ];
         }
     }
 
-    public function searchSpace(\App\Services\AdvisualSyncService $syncService)
+    public function searchSpace()
     {
+        $syncService = app(\App\Services\AdvisualSyncService::class);
+
         $this->validate([
             'external_code' => 'required'
         ]);
 
         // Reset duplicate state before new search
         $this->duplicateFound = false;
-        $this->existingAudit = null;
+        $this->existingAuditId = null;
         $this->showExistingDetails = false;
-        $this->space = null;
+        $this->spaceId = null;
+        $this->bookingData = null;
 
         // Clear form data for the new search
         $this->photos = [];
         $this->observation = '';
-        foreach ($this->criteria as $criterion) {
-            $this->values[$criterion->id] = ['value' => 'good'];
+        foreach ($this->criteriaIds as $criterionId) {
+            $this->values[$criterionId] = ['value' => 'good'];
         }
 
         // 1. Try Local Search
-        $this->space = AdvertisingSpace::where('external_code', $this->external_code)->first();
+        $space = AdvertisingSpace::where('external_code', $this->external_code)->first();
 
         // 2. If not found, try External Sync
-        if (!$this->space) {
+        if (!$space) {
             try {
-                $this->space = $syncService->syncSpaceByCcde($this->external_code);
+                $space = $syncService->syncSpaceByCcde($this->external_code);
             } catch (\Exception $e) {
                 // Log error but treat as not found for UI
             }
         }
 
-        if (!$this->space) {
+        if (!$space) {
             $this->addError('external_code', 'Espacio no encontrado ni en local ni en remoto.');
             return;
         }
 
-        // 3. Setup context (Booking)
-        // If we just synced, the booking might have been created too. 
-        // Or if it was local, we might need to Refresh booking from remote? 
-        // For now, let's assume if it exists locally we trust it, OR we could force sync every time.
-        // User Requirement: "buscardata2.php ... servia para buscar los ultimos datos ... importarlo para que tenga un mejor uso"
-        // Better approach: ALWAYS try sync to get latest client data if connected.
-
+        // Always try sync to get latest client data
         try {
             $syncedSpace = $syncService->syncSpaceByCcde($this->external_code);
-            if ($syncedSpace)
-                $this->space = $syncedSpace;
+            if ($syncedSpace) {
+                $space = $syncedSpace;
+            }
         } catch (\Exception $e) {
             // Fail silently if remote is down, use local cache
         }
 
-        // Load Booking for current week
-        $this->booking = $this->space->getBookingForDate(now());
+        // Store only the ID
+        $this->spaceId = $space->id;
+
+        // Load Booking for current week as array data
+        $booking = $space->getBookingForDate(now());
+        if ($booking) {
+            $this->bookingData = [
+                'id' => $booking->id,
+                'client_name' => $booking->client_name,
+                'contract_code' => $booking->contract_code,
+                'product_name' => $booking->product_name,
+            ];
+        }
 
         // DUPLICATE CHECK
         $now = now();
         $weekData = Audit::getCalendarYearAndWeek($now);
-        $this->existingAudit = Audit::where('advertising_space_id', $this->space->id)
+        $existingAudit = Audit::where('advertising_space_id', $space->id)
             ->where('year', $weekData['year'])
             ->where('week', $weekData['week'])
             ->first();
 
-        if ($this->existingAudit) {
+        if ($existingAudit) {
+            $this->existingAuditId = $existingAudit->id;
             $this->duplicateFound = true;
         }
     }
@@ -124,14 +172,14 @@ class AuditForm extends Component
 
     public function complementAudit()
     {
-        if (!$this->existingAudit)
-            return;
+        $existingAudit = $this->existingAudit;
+        if (!$existingAudit) return;
 
         $this->showExistingDetails = false;
-        $this->observation = $this->existingAudit->observation;
+        $this->observation = $existingAudit->observation;
 
         // Load existing values
-        foreach ($this->existingAudit->values as $val) {
+        foreach ($existingAudit->values as $val) {
             if (isset($this->values[$val->audit_criterion_id])) {
                 $this->values[$val->audit_criterion_id]['value'] = $val->value;
             }
@@ -150,20 +198,23 @@ class AuditForm extends Component
     protected function resetForm($resetSpace = true)
     {
         if ($resetSpace) {
-            $this->space = null;
-            $this->booking = null;
+            $this->spaceId = null;
+            $this->bookingData = null;
             $this->external_code = '';
         }
 
         $this->photos = [];
         $this->observation = '';
         $this->duplicateFound = false;
-        $this->existingAudit = null;
+        $this->existingAuditId = null;
         $this->showExistingDetails = false;
 
-        foreach ($this->criteria as $c) {
-            $this->values[$c->id] = ['value' => 'good'];
+        foreach ($this->criteriaIds as $criterionId) {
+            $this->values[$criterionId] = ['value' => 'good'];
         }
+
+        // Clear computed property caches so the template re-evaluates them
+        unset($this->space, $this->existingAudit, $this->booking, $this->criteria);
     }
 
     public function save()
@@ -173,14 +224,17 @@ class AuditForm extends Component
         }
 
         $this->validate([
-            'space' => 'required',
+            'spaceId' => 'required',
             'photos.*' => 'image|max:10240', // 10MB Max per image
         ]);
 
+        $space = $this->space;
+        $existingAudit = $this->existingAudit;
+
         // Custom Validation: Photos
         $totalPhotos = count($this->photos);
-        if ($this->existingAudit) {
-            $totalPhotos += $this->existingAudit->photos->count();
+        if ($existingAudit) {
+            $totalPhotos += $existingAudit->photos->count();
         }
 
         if ($totalPhotos === 0) {
@@ -200,24 +254,21 @@ class AuditForm extends Component
         $weekData = Audit::getCalendarYearAndWeek($date);
         $audit = Audit::updateOrCreate(
             [
-                'advertising_space_id' => $this->space->id,
+                'advertising_space_id' => $space->id,
                 'year' => $weekData['year'],
                 'week' => $weekData['week'],
             ],
             [
                 'user_id' => auth()->id() ?? 1,
-                'audit_date' => $this->existingAudit ? $this->existingAudit->audit_date : $date,
+                'audit_date' => $existingAudit ? $existingAudit->audit_date : $date,
                 'observation' => $this->observation,
                 'general_status' => 'good'
             ]
         );
 
         // Clear existing values if updating
-        if ($this->existingAudit) {
+        if ($existingAudit) {
             $audit->values()->delete();
-            // Note: Photos are tricky. For now we append new ones, 
-            // but normally re-upload might mean replacing.
-            // Leaving photos as is for now.
         }
 
         // 2. Save Values & Calculate Status
@@ -247,7 +298,7 @@ class AuditForm extends Component
                 $photoDateTime->format('Y-m-d g:i a')
             );
 
-            $path = $watermarkedPhoto->store('audit-photos', 'public'); // Store in storage/app/public/audit-photos
+            $path = $watermarkedPhoto->store('audit-photos', 'public');
 
             AuditPhoto::create([
                 'audit_id' => $audit->id,
@@ -257,9 +308,9 @@ class AuditForm extends Component
         }
 
         // 4. Log Activity
-        $isNew = !$this->existingAudit;
+        $isNew = !$existingAudit;
         SpaceActivityLog::log(
-            spaceId: $this->space->id,
+            spaceId: $space->id,
             type: $isNew ? SpaceActivityLog::TYPE_AUDIT_CREATED : SpaceActivityLog::TYPE_AUDIT_UPDATED,
             description: $isNew
                 ? "Auditoría creada con estado: {$generalStatus}"
@@ -287,16 +338,6 @@ class AuditForm extends Component
 
     public function render()
     {
-        try {
-            return view('livewire.audit-form');
-        } catch (\Exception $e) {
-            dd([
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw $e;
-        }
+        return view('livewire.audit-form');
     }
 }

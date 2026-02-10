@@ -47,7 +47,7 @@
         </div>
     </div>
 
-    @if($space)
+    @if($this->space)
     <!-- DUPLICATE WARNING -->
     @if($duplicateFound)
     <div class="bg-white rounded-xl shadow-lg border-2 border-red-100 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
@@ -96,21 +96,21 @@
     </div>
     @endif
 
-    @if($showExistingDetails && $existingAudit)
+    @if($showExistingDetails && $this->existingAudit)
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
         <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
             <div class="flex items-center">
-                @if($existingAudit->user)
-                <img src="{{ $existingAudit->user->presenter()->image() }}"
+                @if($this->existingAudit->user)
+                <img src="{{ $this->existingAudit->user->presenter()->image() }}"
                     class="h-8 w-8 rounded-full object-cover mr-3 border border-gray-200"
-                    alt="{{ $existingAudit->user->name }}">
+                    alt="{{ $this->existingAudit->user->name }}">
                 @endif
                 <div>
                     <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Detalles de Auditoría Existente</h3>
                     <p class="text-xs text-gray-500">
-                        Realizada por {{ $existingAudit->user->name ?? 'Auditor' }}
-                        @if($existingAudit->audit_date)
-                        el {{ \Carbon\Carbon::parse($existingAudit->audit_date)->format('d/m/Y H:i') }}
+                        Realizada por {{ $this->existingAudit->user->name ?? 'Auditor' }}
+                        @if($this->existingAudit->audit_date)
+                        el {{ \Carbon\Carbon::parse($this->existingAudit->audit_date)->format('d/m/Y H:i') }}
                         @endif
                     </p>
                 </div>
@@ -133,7 +133,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
-                        @foreach($existingAudit->values as $val)
+                        @foreach($this->existingAudit->values as $val)
                         <tr>
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">{{ $val->criterion->name }}</td>
                             <td class="whitespace-nowrap px-3 py-4 text-sm text-center">
@@ -153,7 +153,7 @@
             <div>
                 <h4 class="text-sm font-bold text-gray-700 mb-4">Fotos registradas</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    @foreach($existingAudit->photos as $photo)
+                    @foreach($this->existingAudit->photos as $photo)
                     <a href="{{ asset('storage/'.$photo->file_path) }}" target="_blank" class="block aspect-square rounded-lg overflow-hidden border border-gray-200 group">
                         <img src="{{ asset('storage/'.$photo->file_path) }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                     </a>
@@ -170,11 +170,11 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-900">{{ $space->external_code }}</h3>
-                    <p class="text-sm font-semibold text-gray-700 uppercase tracking-tight">{{ $space->category ?? 'Sin Categoría' }}</p>
+                    <h3 class="text-lg font-bold text-gray-900">{{ $this->space->external_code }}</h3>
+                    <p class="text-sm font-semibold text-gray-700 uppercase tracking-tight">{{ $this->space->category ?? 'Sin Categoría' }}</p>
                 </div>
                 <div class="bg-white px-3 py-1 rounded border border-gray-200 text-xs font-mono text-gray-500">
-                    ID: {{ $space->id }}
+                    ID: {{ $this->space->id }}
                 </div>
             </div>
 
@@ -182,19 +182,19 @@
                 <!-- Location Code -->
                 <div>
                     <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ubicación</label>
-                    <p class="mt-1 text-sm font-medium text-gray-900">{{ $space->city }} - {{ $space->location_name }}</p>
-                    <p class="text-xs text-gray-500">{{ $space->address }} - {{ $space->zone }}</p>
+                    <p class="mt-1 text-sm font-medium text-gray-900">{{ $this->space->city }} - {{ $this->space->location_name }}</p>
+                    <p class="text-xs text-gray-500">{{ $this->space->address }} - {{ $this->space->zone }}</p>
                 </div>
 
                 <!-- Provider -->
                 <div>
                     <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Proveedor</label>
-                    <p class="mt-1 text-sm font-medium text-gray-900">{{ $space->provider }}</p>
+                    <p class="mt-1 text-sm font-medium text-gray-900">{{ $this->space->provider }}</p>
                 </div>
 
                 <!-- Client Alert -->
                 <div class="md:col-span-2 mt-2">
-                    @if($booking)
+                    @if($this->booking)
                     <div class="bg-green-50 border border-green-100 rounded-lg p-4 flex items-start">
                         <div class="flex-shrink-0">
                             <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
@@ -205,12 +205,12 @@
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm font-bold text-green-800">
-                                Cliente: {{ $booking->client_name }}
+                                Cliente: {{ $this->booking->client_name }}
                             </h3>
                             <div class="mt-1 text-sm text-green-700">
-                                <p>{{ $space->type }}</p>
-                                <p class="text-xs opacity-75 mt-0.5">Contrato: {{ $booking->contract_code }} (Semana
-                                    {{ $booking->week }})
+                                <p>{{ $this->space->type }}</p>
+                                <p class="text-xs opacity-75 mt-0.5">Contrato: {{ $this->booking->contract_code }} (Semana
+                                    {{ $this->booking->week }})
                                 </p>
                             </div>
                         </div>
@@ -236,7 +236,7 @@
                 <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Estado del Elemento</h3>
             </div>
             <div class="divide-y divide-gray-100">
-                @foreach($criteria as $criterion)
+                @foreach($this->criteria as $criterion)
                 <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <label class="text-sm font-medium text-gray-900 w-1/3">{{ $criterion->name }}</label>

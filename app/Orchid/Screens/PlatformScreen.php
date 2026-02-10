@@ -32,12 +32,12 @@ class PlatformScreen extends Screen
         $goodAudits = Audit::where('audit_date', '>=', $thirtyDaysAgo)
             ->where('general_status', 'good')
             ->countByDays(null, null, 'audit_date')
-            ->toChart('Bueno');
+            ->toChart('Bueno', fn($label) => \Carbon\Carbon::parse($label)->format('d/m'));
 
         $badAudits = Audit::where('audit_date', '>=', $thirtyDaysAgo)
             ->where('general_status', 'bad')
             ->countByDays(null, null, 'audit_date')
-            ->toChart('Malo');
+            ->toChart('Malo', fn($label) => \Carbon\Carbon::parse($label)->format('d/m'));
 
         // Pie Chart: Current week audit status distribution
         $goodCount = Audit::where('year', $weekData['year'])

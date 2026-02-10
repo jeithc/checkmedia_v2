@@ -1,329 +1,295 @@
 <?php
 
-namespace Tests\Feature;
-
-use Tests\TestCase;
 use App\Models\User;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\AuditCriterion;
 use App\Models\AuditValue;
 use App\Models\CommercialBooking;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use App\Livewire\AuditForm;
-use Carbon\Carbon;
-use Mockery;
 use App\Services\AdvisualSyncService;
 
-class AuditFormTest extends TestCase
-{
-    use RefreshDatabase;
+uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-    protected $user;
-    protected $space;
-    protected $criteria;
-    protected $syncServiceMock;
+beforeEach(function () {
+    // Create test user manually
+    $this->user = User::create([
+        'name' => 'Test User',
+        'email' => 'test@example.com',
+        'password' => bcrypt('password'),
+        'permissions' => ['audit.can_audit' => true],
+    ]);
+    $this->actingAs($this->user);
 
-    protected function setUp(): void
-    {
-        parent::setUp();
+    // Mock AdvisualSyncService
+    $this->syncServiceMock = Mockery::mock(AdvisualSyncService::class);
+    $this->syncServiceMock->shouldReceive('syncSpaceByCcde')->andReturn(null);
+    $this->app->instance(AdvisualSyncService::class, $this->syncServiceMock);
 
-        // Create test user manually
-        $this->user = User::create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-            'password' => bcrypt('password'),
-        ]);
-        $this->actingAs($this->user);
+    // Create test advertising space
+    $this->space = AdvertisingSpace::create([
+        'external_code' => 'TEST001',
+        'provider' => 'Test Provider',
+        'type' => 'Billboard',
+        'city' => 'Bogotá',
+        'category' => 'Premium',
+    ]);
 
-        // Mock AdvisualSyncService
-        $this->syncServiceMock = Mockery::mock(AdvisualSyncService::class);
-        $this->syncServiceMock->shouldReceive('syncSpaceByCcde')->andReturn(null);
-        $this->app->instance(AdvisualSyncService::class, $this->syncServiceMock);
+    // Create test criteria
+    $this->criteria = collect([
+        AuditCriterion::create([
+            'name' => 'Estado General',
+            'key' => 'general_state',
+            'order_index' => 1,
+            'is_active' => true,
+        ]),
+        AuditCriterion::create([
+            'name' => 'Iluminación',
+            'key' => 'illumination',
+            'order_index' => 2,
+            'is_active' => true,
+        ]),
+        AuditCriterion::create([
+            'name' => 'Limpieza',
+            'key' => 'cleaning',
+            'order_index' => 3,
+            'is_active' => true,
+        ]),
+    ]);
 
-        // Create test advertising space
-        $this->space = AdvertisingSpace::create([
-            'external_code' => 'TEST001',
-            'provider' => 'Test Provider',
-            'type' => 'Billboard',
-            'city' => 'Bogotá',
-            'category' => 'Premium',
-        ]);
+    // Create commercial booking for current week
+    $weekData = Audit::getCalendarYearAndWeek(now());
+    CommercialBooking::create([
+        'advertising_space_id' => $this->space->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+        'client_name' => 'Test Client',
+        'contract_code' => 'CONTRACT001',
+        'product_name' => 'Test Product',
+    ]);
 
-        // Create test criteria
-        $this->criteria = collect([
-            AuditCriterion::create([
-                'name' => 'Estado General',
-                'key' => 'general_state',
-                'order_index' => 1,
-                'is_active' => true
-            ]),
-            AuditCriterion::create([
-                'name' => 'Iluminación',
-                'key' => 'illumination',
-                'order_index' => 2,
-                'is_active' => true
-            ]),
-            AuditCriterion::create([
-                'name' => 'Limpieza',
-                'key' => 'cleaning',
-                'order_index' => 3,
-                'is_active' => true
-            ]),
-        ]);
+    Storage::fake('public');
+});
 
-        // Create commercial booking for current week
-        $weekData = Audit::getCalendarYearAndWeek(now());
-        CommercialBooking::create([
-            'advertising_space_id' => $this->space->id,
-            'year' => $weekData['year'],
-            'week' => $weekData['week'],
-            'client_name' => 'Test Client',
-            'contract_code' => 'CONTRACT001',
-            'product_name' => 'Test Product',
-        ]);
+test('it creates audit with correct week and year', function () {
+    $weekData = Audit::getCalendarYearAndWeek(now());
 
-        Storage::fake('public');
-    }
+    $audit = Audit::create([
+        'advertising_space_id' => $this->space->id,
+        'user_id' => $this->user->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+        'audit_date' => now(),
+        'general_status' => 'good',
+        'observation' => 'Test observation',
+    ]);
 
-    /** @test */
-    public function it_creates_audit_with_correct_week_and_year()
-    {
-        $weekData = Audit::getCalendarYearAndWeek(now());
+    $this->assertDatabaseHas('audits', [
+        'id' => $audit->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+    ]);
+});
 
-        $audit = Audit::create([
-            'advertising_space_id' => $this->space->id,
-            'user_id' => $this->user->id,
-            'year' => $weekData['year'],
-            'week' => $weekData['week'],
-            'audit_date' => now(),
-            'general_status' => 'good',
-            'observation' => 'Test observation',
-        ]);
+test('it detects duplicate audits for same week', function () {
+    $weekData = Audit::getCalendarYearAndWeek(now());
 
-        $this->assertDatabaseHas('audits', [
-            'id' => $audit->id,
-            'year' => $weekData['year'],
-            'week' => $weekData['week'],
-        ]);
-    }
+    // Create first audit
+    Audit::create([
+        'advertising_space_id' => $this->space->id,
+        'user_id' => $this->user->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+        'audit_date' => now(),
+        'general_status' => 'good',
+    ]);
 
-    /** @test */
-    public function it_detects_duplicate_audits_for_same_week()
-    {
-        $weekData = Audit::getCalendarYearAndWeek(now());
+    // Check for duplicate
+    $duplicate = Audit::where('advertising_space_id', $this->space->id)
+        ->where('year', $weekData['year'])
+        ->where('week', $weekData['week'])
+        ->exists();
 
-        // Create first audit
-        Audit::create([
-            'advertising_space_id' => $this->space->id,
-            'user_id' => $this->user->id,
-            'year' => $weekData['year'],
-            'week' => $weekData['week'],
-            'audit_date' => now(),
-            'general_status' => 'good',
-        ]);
+    expect($duplicate)->toBeTrue();
+});
 
-        // Check for duplicate
-        $duplicate = Audit::where('advertising_space_id', $this->space->id)
-            ->where('year', $weekData['year'])
-            ->where('week', $weekData['week'])
-            ->exists();
+test('it creates new audit with correct week and year', function () {
+    $photo = UploadedFile::fake()->image('test.jpg');
 
-        $this->assertTrue($duplicate);
-    }
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [$photo])
+        ->set('observation', 'Test observation')
+        ->set('values', [
+            $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ])
+        ->call('save');
 
-    /** @test */
-    public function it_creates_new_audit_with_correct_week_and_year()
-    {
-        $photo = UploadedFile::fake()->image('test.jpg');
+    $weekData = Audit::getCalendarYearAndWeek(now());
 
-        $component = Livewire::test(AuditForm::class)
-            ->set('external_code', 'TEST001')
-            ->call('searchSpace')
-            ->set('photos', [$photo])
-            ->set('observation', 'Test observation')
-            ->set('values', [
-                $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[1]->id => ['value' => 'good', 'comment' => ''], // Was acceptable
-                $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
-            ])
-            ->call('save');
+    $this->assertDatabaseHas('audits', [
+        'advertising_space_id' => $this->space->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+        'general_status' => 'good',
+    ]);
+});
 
-        $weekData = Audit::getCalendarYearAndWeek(now());
+test('it requires at least one photo', function () {
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [])
+        ->set('values', [
+            $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ])
+        ->call('save')
+        ->assertHasErrors('photos');
+});
 
-        $this->assertDatabaseHas('audits', [
-            'advertising_space_id' => $this->space->id,
-            'year' => $weekData['year'],
-            'week' => $weekData['week'],
-            'general_status' => 'good',
-        ]);
-    }
+test('it requires observation when status is bad', function () {
+    $photo = UploadedFile::fake()->image('test.jpg');
 
-    /** @test */
-    public function it_requires_at_least_one_photo()
-    {
-        Livewire::test(AuditForm::class)
-            ->set('external_code', 'TEST001')
-            ->call('searchSpace')
-            ->set('photos', [])
-            ->set('values', [
-                $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
-            ])
-            ->call('save')
-            ->assertHasErrors('photos');
-    }
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [$photo])
+        ->set('observation', '')
+        ->set('values', [
+            $this->criteria[0]->id => ['value' => 'bad', 'comment' => ''],
+            $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ])
+        ->call('save')
+        ->assertHasErrors('observation');
+});
 
-    /** @test */
-    public function it_requires_observation_when_status_is_bad()
-    {
-        $photo = UploadedFile::fake()->image('test.jpg');
+test('it allows saving without observation when all good', function () {
+    $photo = UploadedFile::fake()->image('test.jpg');
 
-        Livewire::test(AuditForm::class)
-            ->set('external_code', 'TEST001')
-            ->call('searchSpace')
-            ->set('photos', [$photo])
-            ->set('observation', '') // Empty observation
-            ->set('values', [
-                $this->criteria[0]->id => ['value' => 'bad', 'comment' => ''], // Bad status
-                $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
-            ])
-            ->call('save')
-            ->assertHasErrors('observation');
-    }
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [$photo])
+        ->set('observation', '')
+        ->set('values', [
+            $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ])
+        ->call('save')
+        ->assertHasNoErrors();
 
-    /** @test */
-    public function it_allows_saving_without_observation_when_all_good()
-    {
-        $photo = UploadedFile::fake()->image('test.jpg');
+    $this->assertDatabaseHas('audits', [
+        'advertising_space_id' => $this->space->id,
+        'general_status' => 'good',
+    ]);
+});
 
-        Livewire::test(AuditForm::class)
-            ->set('external_code', 'TEST001')
-            ->call('searchSpace')
-            ->set('photos', [$photo])
-            ->set('observation', '') // Empty observation is OK when all good
-            ->set('values', [
-                $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
-            ])
-            ->call('save')
-            ->assertHasNoErrors();
+test('it can complement existing audit', function () {
+    // Create existing audit
+    $weekData = Audit::getCalendarYearAndWeek(now());
+    $existingAudit = Audit::create([
+        'advertising_space_id' => $this->space->id,
+        'user_id' => $this->user->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+        'audit_date' => now(),
+        'general_status' => 'bad',
+        'observation' => 'Original observation',
+    ]);
 
-        $this->assertDatabaseHas('audits', [
-            'advertising_space_id' => $this->space->id,
-            'general_status' => 'good',
-        ]);
-    }
+    // Add existing values
+    AuditValue::create([
+        'audit_id' => $existingAudit->id,
+        'audit_criterion_id' => $this->criteria[0]->id,
+        'value' => 'bad',
+    ]);
 
-    /** @test */
-    public function it_can_complement_existing_audit()
-    {
-        // Create existing audit
-        $weekData = Audit::getCalendarYearAndWeek(now());
-        $existingAudit = Audit::create([
-            'advertising_space_id' => $this->space->id,
-            'user_id' => $this->user->id,
-            'year' => $weekData['year'],
-            'week' => $weekData['week'],
-            'audit_date' => now(),
-            'general_status' => 'bad',
-            'observation' => 'Original observation',
-        ]);
+    $photo = UploadedFile::fake()->image('new_photo.jpg');
 
-        // Add existing values
-        AuditValue::create([
-            'audit_id' => $existingAudit->id,
-            'audit_criterion_id' => $this->criteria[0]->id,
-            'value' => 'bad',
-        ]);
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->assertSet('duplicateFound', true)
+        ->call('complementAudit')
+        ->assertSet('duplicateFound', false)
+        ->assertSet('observation', 'Original observation')
+        ->set('photos', [$photo])
+        ->call('save');
 
-        $photo = UploadedFile::fake()->image('new_photo.jpg');
+    // Verify audit was updated
+    $this->assertDatabaseHas('audits', [
+        'id' => $existingAudit->id,
+        'advertising_space_id' => $this->space->id,
+    ]);
 
-        Livewire::test(AuditForm::class)
-            ->set('external_code', 'TEST001')
-            ->call('searchSpace')
-            ->assertSet('duplicateFound', true)
-            ->call('complementAudit')
-            ->assertSet('duplicateFound', false)
-            ->assertSet('observation', 'Original observation')
-            ->set('photos', [$photo])
-            ->call('save');
+    // Verify new photo was added
+    $this->assertDatabaseHas('audit_photos', [
+        'audit_id' => $existingAudit->id,
+    ]);
+});
 
-        // Verify audit was updated
-        $this->assertDatabaseHas('audits', [
-            'id' => $existingAudit->id,
-            'advertising_space_id' => $this->space->id,
-        ]);
+test('it can reupload audit', function () {
+    // Create existing audit
+    $weekData = Audit::getCalendarYearAndWeek(now());
+    $existingAudit = Audit::create([
+        'advertising_space_id' => $this->space->id,
+        'user_id' => $this->user->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+        'audit_date' => now(),
+        'general_status' => 'bad',
+    ]);
 
-        // Verify new photo was added
-        $this->assertDatabaseHas('audit_photos', [
-            'audit_id' => $existingAudit->id,
-        ]);
-    }
+    $photo = UploadedFile::fake()->image('new_photo.jpg');
 
-    /** @test */
-    public function it_can_reupload_audit()
-    {
-        // Create existing audit
-        $weekData = Audit::getCalendarYearAndWeek(now());
-        $existingAudit = Audit::create([
-            'advertising_space_id' => $this->space->id,
-            'user_id' => $this->user->id,
-            'year' => $weekData['year'],
-            'week' => $weekData['week'],
-            'audit_date' => now(),
-            'general_status' => 'bad',
-        ]);
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->assertSet('duplicateFound', true)
+        ->call('reuploadAudit')
+        ->assertSet('duplicateFound', false)
+        ->set('photos', [$photo])
+        ->set('values', [
+            $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ])
+        ->call('save');
 
-        $photo = UploadedFile::fake()->image('new_photo.jpg');
+    // Verify values were replaced
+    $this->assertDatabaseHas('audit_values', [
+        'audit_id' => $existingAudit->id,
+        'value' => 'good',
+    ]);
+});
 
-        Livewire::test(AuditForm::class)
-            ->set('external_code', 'TEST001')
-            ->call('searchSpace')
-            ->assertSet('duplicateFound', true)
-            ->call('reuploadAudit')
-            ->assertSet('duplicateFound', false)
-            ->set('photos', [$photo])
-            ->set('values', [
-                $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
-            ])
-            ->call('save');
+test('it sets general status to bad when any criterion is bad', function () {
+    $photo = UploadedFile::fake()->image('test.jpg');
 
-        // Verify values were replaced
-        $this->assertDatabaseHas('audit_values', [
-            'audit_id' => $existingAudit->id,
-            'value' => 'good',
-        ]);
-    }
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [$photo])
+        ->set('observation', 'Has issues')
+        ->set('values', [
+            $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[1]->id => ['value' => 'bad', 'comment' => 'Broken light'],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ])
+        ->call('save');
 
-    /** @test */
-    public function it_sets_general_status_to_bad_when_any_criterion_is_bad()
-    {
-        $photo = UploadedFile::fake()->image('test.jpg');
-
-        Livewire::test(AuditForm::class)
-            ->set('external_code', 'TEST001')
-            ->call('searchSpace')
-            ->set('photos', [$photo])
-            ->set('observation', 'Has issues')
-            ->set('values', [
-                $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
-                $this->criteria[1]->id => ['value' => 'bad', 'comment' => 'Broken light'],
-                $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
-            ])
-            ->call('save');
-
-        $this->assertDatabaseHas('audits', [
-            'advertising_space_id' => $this->space->id,
-            'general_status' => 'bad',
-        ]);
-    }
-}
+    $this->assertDatabaseHas('audits', [
+        'advertising_space_id' => $this->space->id,
+        'general_status' => 'bad',
+    ]);
+});
