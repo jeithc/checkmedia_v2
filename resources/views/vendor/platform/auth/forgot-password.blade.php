@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Check Media - EFECTIMEDIOS</title>
+    <title>Recuperar Clave - Check Media - EFECTIMEDIOS</title>
     <style>
         body.loginpage {
             background: #c60813;
@@ -44,12 +44,6 @@
             font-size: 14px;
         }
 
-        /* Specific fix: Don't let global input styling break the checkbox */
-        .inputwrapper input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-        }
-
         .inputwrapper button {
             width: 100%;
             padding: 12px;
@@ -76,10 +70,9 @@
             font-family: Arial, sans-serif;
         }
 
-        /* Flex container for the bottom row */
         .signin-options {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             color: #fff;
             font-size: 12px;
@@ -91,19 +84,6 @@
             text-decoration: none;
         }
 
-        .signin-options label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            gap: 5px;
-            /* Space between checkbox and text */
-        }
-
-        .signin-options input[type="checkbox"] {
-            margin: 0;
-            width: auto;
-        }
-
         .alert-error {
             color: white;
             background: #ea4145;
@@ -112,6 +92,22 @@
             margin-bottom: 20px;
             text-align: center;
         }
+
+        .alert-success {
+            color: white;
+            background: #28a745;
+            padding: 10px;
+            font-size: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .text-info {
+            color: #fff;
+            font-size: 13px;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 
@@ -119,37 +115,39 @@
 
     <div class="loginpanel">
         <div class="logo">
-            <img src="{{ asset('logo.png') }}" alt="Efectimedios" style="max-width: 220px;">
+            <a href="{{ route('platform.login') }}">
+                <img src="{{ asset('logo.png') }}" alt="Efectimedios" style="max-width: 220px;">
+            </a>
         </div>
 
-        <form action="{{ route('platform.login.auth') }}" method="POST">
+        <div class="text-info">
+            {{ __('¿Olvidaste tu contraseña? No hay problema. Simplemente déjanos saber tu dirección de correo electrónico y te enviaremos un enlace para restablecerla.') }}
+        </div>
+
+        @if (session('status'))
+            <div class="alert-success">
+                {{ session('status') }}
+            </div>
+        @endif
+
+        <form action="{{ route('password.email') }}" method="POST">
             @csrf
 
-            @error('username')
-                <div class="alert-error">{{ $message }}</div>
-            @enderror
-            @error('password')
+            @error('email')
                 <div class="alert-error">{{ $message }}</div>
             @enderror
 
             <div class="inputwrapper">
-                <input type="text" name="username" value="{{ old('username') }}" placeholder="Ingrese su Usuario"
+                <input type="email" name="email" value="{{ old('email') }}" placeholder="Ingrese su Correo Electrónico"
                     required autofocus>
             </div>
-            <div class="inputwrapper">
-                <input type="password" name="password" placeholder="Ingrese su Clave" required>
-            </div>
 
             <div class="inputwrapper">
-                <button type="submit">ENTRAR</button>
+                <button type="submit">{{ __('Enviar enlace de recuperación') }}</button>
             </div>
 
             <div class="signin-options">
-                <label>
-                    <input type="checkbox" name="remember">
-                    Recordarme
-                </label>
-                <a href="{{ route('password.request') }}">No recuerda su Clave?</a>
+                <a href="{{ route('platform.login') }}">Volver al login</a>
             </div>
         </form>
     </div>

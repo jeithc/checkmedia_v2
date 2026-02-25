@@ -47,9 +47,25 @@ Route::group(['middleware' => 'web'], function () {
         ->name('platform.login.auth');
 
     Route::post('/logout', function () {
-        Auth::logout();
+        Illuminate\Support\Facades\Auth::logout();
         return redirect()->route('platform.login');
     })->name('platform.logout');
+
+    Route::get('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetLinkController::class, 'create'])
+        ->middleware('guest')
+        ->name('password.request');
+
+    Route::post('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetLinkController::class, 'store'])
+        ->middleware('guest')
+        ->name('password.email');
+
+    Route::get('/reset-password/{token}', [\App\Http\Controllers\Auth\NewPasswordController::class, 'create'])
+        ->middleware('guest')
+        ->name('password.reset');
+
+    Route::post('/reset-password', [\App\Http\Controllers\Auth\NewPasswordController::class, 'store'])
+        ->middleware('guest')
+        ->name('password.update');
 });
 
 Route::get('/audit', AuditForm::class)->name('audit.form');

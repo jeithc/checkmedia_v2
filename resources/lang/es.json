@@ -45,5 +45,16 @@
     "Notifications": "Notificaciones",
     "Example Screen": "Pantalla de Ejemplo",
     "Dashboard": "Dashboard",
-    "Admin Zone": "Zona de Administración"
+    "Admin Zone": "Zona de Administración",
+    "We have emailed your password reset link.": "Te hemos enviado por correo el enlace para restablecer tu contraseña.",
+    "passwords.sent": "Te hemos enviado por correo el enlace para restablecer tu contraseña.",
+    "Your password has been reset.": "Tu contraseña ha sido restablecida.",
+    "passwords.reset": "Tu contraseña ha sido restablecida.",
+    "Please wait before retrying.": "Por favor espera antes de intentar de nuevo.",
+    "passwords.throttled": "Por favor espera antes de intentar de nuevo.",
+    "This password reset token is invalid.": "El token de restablecimiento de contraseña es inválido.",
+    "passwords.token": "El token de restablecimiento de contraseña es inválido.",
+    "We can't find a user with that email address.": "No podemos encontrar un usuario con esa dirección de correo electrónico.",
+    "passwords.user": "No podemos encontrar un usuario con esa dirección de correo electrónico.",
+    "Reset Password": "Restablecer Clave"
 }

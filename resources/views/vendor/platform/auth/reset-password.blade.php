@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Check Media - EFECTIMEDIOS</title>
+    <title>Restablecer Clave - Check Media - EFECTIMEDIOS</title>
     <style>
         body.loginpage {
             background: #c60813;
@@ -44,12 +44,6 @@
             font-size: 14px;
         }
 
-        /* Specific fix: Don't let global input styling break the checkbox */
-        .inputwrapper input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-        }
-
         .inputwrapper button {
             width: 100%;
             padding: 12px;
@@ -76,34 +70,6 @@
             font-family: Arial, sans-serif;
         }
 
-        /* Flex container for the bottom row */
-        .signin-options {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: #fff;
-            font-size: 12px;
-            margin-top: 15px;
-        }
-
-        .signin-options a {
-            color: #ddd;
-            text-decoration: none;
-        }
-
-        .signin-options label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            gap: 5px;
-            /* Space between checkbox and text */
-        }
-
-        .signin-options input[type="checkbox"] {
-            margin: 0;
-            width: auto;
-        }
-
         .alert-error {
             color: white;
             background: #ea4145;
@@ -119,13 +85,18 @@
 
     <div class="loginpanel">
         <div class="logo">
-            <img src="{{ asset('logo.png') }}" alt="Efectimedios" style="max-width: 220px;">
+            <a href="{{ route('platform.login') }}">
+                <img src="{{ asset('logo.png') }}" alt="Efectimedios" style="max-width: 220px;">
+            </a>
         </div>
 
-        <form action="{{ route('platform.login.auth') }}" method="POST">
+        <form action="{{ route('password.update') }}" method="POST">
             @csrf
 
-            @error('username')
+            <!-- Password Reset Token -->
+            <input type="hidden" name="token" value="{{ $request->route('token') }}">
+
+            @error('email')
                 <div class="alert-error">{{ $message }}</div>
             @enderror
             @error('password')
@@ -133,24 +104,22 @@
             @enderror
 
             <div class="inputwrapper">
-                <input type="text" name="username" value="{{ old('username') }}" placeholder="Ingrese su Usuario"
-                    required autofocus>
-            </div>
-            <div class="inputwrapper">
-                <input type="password" name="password" placeholder="Ingrese su Clave" required>
+                <input type="email" name="email" value="{{ old('email', $request->email) }}"
+                    placeholder="Ingrese su Correo Electrónico" required autofocus>
             </div>
 
             <div class="inputwrapper">
-                <button type="submit">ENTRAR</button>
+                <input type="password" name="password" placeholder="Nueva Clave" required>
             </div>
 
-            <div class="signin-options">
-                <label>
-                    <input type="checkbox" name="remember">
-                    Recordarme
-                </label>
-                <a href="{{ route('password.request') }}">No recuerda su Clave?</a>
+            <div class="inputwrapper">
+                <input type="password" name="password_confirmation" placeholder="Confirmar Nueva Clave" required>
             </div>
+
+            <div class="inputwrapper">
+                <button type="submit">{{ __('Restablecer Clave') }}</button>
+            </div>
+
         </form>
     </div>
 

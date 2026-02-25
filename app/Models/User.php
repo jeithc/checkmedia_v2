@@ -126,4 +126,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(SavedReport::class);
     }
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token)
+    {
+        $this->notify(new \App\Notifications\CustomResetPassword($token));
+    }
 }
