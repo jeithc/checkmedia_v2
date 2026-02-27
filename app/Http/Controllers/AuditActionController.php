@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Audit;
+use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
+use App\Services\AdvisualRequisitionService;
 use Illuminate\Http\Request;
 use Orchid\Support\Facades\Toast;
 
@@ -220,6 +222,141 @@ class AuditActionController extends Controller
 
         Toast::success('Auditoría actualizada exitosamente.');
 
+        return back();
+    }
+
+    /**
+     * Request maintenance from audit detail.
+     */
+    public function requestMaintenance(Request $request, Audit $audit)
+    {
+        $this->authorize('audit.request_maintenance');
+
+        $request->validate([
+            'maintenance_category' => 'required|in:estructural,electrico,ambiental,material',
+            'maintenance_priority' => 'required|in:alta,media,baja',
+            'maintenance_description' => 'required|string|min:5',
+        ], [
+            'maintenance_category.required' => 'La categoría es requerida.',
+            'maintenance_priority.required' => 'La prioridad es requerida.',
+            'maintenance_description.required' => 'La descripción es requerida.',
+            'maintenance_description.min' => 'La descripción debe tener al menos 5 caracteres.',
+        ]);
+
+        // Validate audit has bad status
+        if ($audit->general_status !== 'bad') {
+            Toast::error('Solo se pueden solicitar mantenimientos para auditorías con errores.');
+            return back();
+        }
+
+        // Check no open maintenance exists for this audit
+        if ($audit->hasOpenMaintenance()) {
+            Toast::error('Ya existe un mantenimiento abierto para esta auditoría.');
+            return back();
+        }
+
+        // Create maintenance record
+        $maintenance = Maintenance::create([
+            'advertising_space_id' => $audit->advertising_space_id,
+            'audit_id' => $audit->id,
+            'requested_by' => auth()->id(),
+            'requested_at' => now(),
+            'type' => 'corrective',
+            'category' => $request->input('maintenance_category'),
+            'status' => Maintenance::STATUS_REPORTED,
+            'priority' => $request->input('maintenance_priority'),
+            'description' => $request->input('maintenance_description'),
+        ]);
+
+        // Try to create requisition in Advisual
+        $advisualService = app(AdvisualRequisitionService::class);
+        $synced = $advisualService->createRequisition($maintenance);
+
+        // Log activity
+        SpaceActivityLog::log(
+            spaceId: $audit->advertising_space_id,
+            type: SpaceActivityLog::TYPE_MAINTENANCE_REQUESTED,
+            description: 'Mantenimiento solicitado. Categoría: ' . $request->input('maintenance_category') . '. Prioridad: ' . $request->input('maintenance_priority'),
+            auditId: $audit->id,
+            metadata: [
+                'maintenance_id' => $maintenance->id,
+                'category' => $request->input('maintenance_category'),
+                'priority' => $request->input('maintenance_priority'),
+                'advisual_synced' => $synced,
+                'user_name' => auth()->user()->name,
+            ],
+            year: $audit->year,
+            week: $audit->week
+        );
+
+        $message = 'Mantenimiento solicitado exitosamente.';
+        if (!$synced) {
+            $message .= ' (Error al sincronizar con Advisual - se reintentará)';
+        }
+
+        Toast::success($message);
+        return back();
+    }
+
+    /**
+     * Close maintenance from audit detail (with PDF/image upload).
+     */
+    public function closeMaintenanceFromAudit(Request $request, Audit $audit)
+    {
+        $this->authorize('maintenance.close');
+
+        $request->validate([
+            'closure_document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'closure_comment' => 'nullable|string|max:1000',
+        ], [
+            'closure_document.required' => 'El documento de cierre es requerido.',
+            'closure_document.mimes' => 'El archivo debe ser PDF o imagen (JPG, PNG).',
+            'closure_document.max' => 'El archivo no debe superar 10MB.',
+        ]);
+
+        // Find the open maintenance for this audit
+        $maintenance = $audit->maintenances()
+            ->whereNotIn('status', [Maintenance::STATUS_CLOSED])
+            ->first();
+
+        if (!$maintenance) {
+            Toast::error('No se encontró un mantenimiento abierto para esta auditoría.');
+            return back();
+        }
+
+        if (!$maintenance->canBeClosed()) {
+            Toast::error('Este mantenimiento no puede ser cerrado.');
+            return back();
+        }
+
+        // Store document
+        $path = $request->file('closure_document')->store('maintenance-closures', 'public');
+
+        // Close the maintenance
+        $maintenance->update([
+            'status' => Maintenance::STATUS_CLOSED,
+            'closed_by' => auth()->id(),
+            'closed_at' => now(),
+            'closure_document_path' => $path,
+            'closure_comment' => $request->input('closure_comment'),
+        ]);
+
+        // Log activity
+        SpaceActivityLog::log(
+            spaceId: $audit->advertising_space_id,
+            type: SpaceActivityLog::TYPE_MAINTENANCE_CLOSED,
+            description: 'Mantenimiento cerrado desde detalle de auditoría.',
+            auditId: $audit->id,
+            metadata: [
+                'maintenance_id' => $maintenance->id,
+                'closed_by' => auth()->user()->name,
+                'document_path' => $path,
+            ],
+            year: $audit->year,
+            week: $audit->week
+        );
+
+        Toast::success('Mantenimiento cerrado exitosamente.');
         return back();
     }
 }

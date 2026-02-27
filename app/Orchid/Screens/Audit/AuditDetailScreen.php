@@ -24,7 +24,7 @@ class AuditDetailScreen extends Screen
      */
     public function query(Audit $audit): iterable
     {
-        $audit->load(['space', 'values.criterion', 'photos', 'user', 'comments.user']);
+        $audit->load(['space', 'values.criterion', 'photos', 'user', 'comments.user', 'maintenances.requestedBy', 'maintenances.closedBy']);
 
         // Fetch Booking for Client Name
         $booking = $audit->space->bookings()

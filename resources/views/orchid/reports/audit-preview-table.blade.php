@@ -31,7 +31,6 @@
                                             $value = $auditValue ? $auditValue->value : null;
                                             $displayValue = match($value) {
                                                 'good' => 'Bueno',
-                                                'acceptable' => 'Aceptable',
                                                 'bad' => 'Malo',
                                                 default => 'N/A',
                                             };
@@ -45,9 +44,9 @@
                                                 'city' => $audit->space?->city ?? 'N/A',
                                                 'provider' => $audit->space?->provider ?? 'N/A',
                                                 'external_code' => $audit->space?->external_code ?? 'N/A',
+                                                'audit_type' => $audit->audit_type === 'structural' ? 'Estructural' : 'General',
                                                 'general_status' => match($audit->general_status) {
                                                     'good' => 'Bueno',
-                                                    'acceptable' => 'Aceptable',
                                                     'bad' => 'Malo',
                                                     default => 'N/A',
                                                 },

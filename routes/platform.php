@@ -58,6 +58,10 @@ Route::post('audit-action/{audit}/upload-revision', [AuditActionController::clas
     ->name('platform.audit.action.upload-revision');
 Route::post('audit-action/{audit}/update', [AuditActionController::class, 'updateAudit'])
     ->name('platform.audit.action.update');
+Route::post('audit-action/{audit}/request-maintenance', [AuditActionController::class, 'requestMaintenance'])
+    ->name('platform.audit.action.request-maintenance');
+Route::post('audit-action/{audit}/close-maintenance', [AuditActionController::class, 'closeMaintenanceFromAudit'])
+    ->name('platform.audit.action.close-maintenance');
 
 // Audit Detail Screen
 use App\Orchid\Screens\Audit\AuditDetailScreen;
@@ -181,6 +185,25 @@ Route::screen('audit-criteria', AuditCriterionListScreen::class)
     ->breadcrumbs(fn(Trail $trail) => $trail
         ->parent('platform.index')
         ->push('Criterios de Auditoría', route('platform.audit.criteria')));
+
+// Maintenance Screens
+use App\Orchid\Screens\Maintenance\MaintenanceListScreen;
+use App\Orchid\Screens\Maintenance\MaintenanceDetailScreen;
+
+Route::screen('maintenances', MaintenanceListScreen::class)
+    ->name('platform.maintenances')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.index')
+        ->push('Mantenimientos', route('platform.maintenances')));
+
+Route::screen('maintenances/{maintenance}', MaintenanceDetailScreen::class)
+    ->name('platform.maintenances.detail')
+    ->breadcrumbs(fn(Trail $trail, $maintenance) => $trail
+        ->parent('platform.maintenances')
+        ->push("Mantenimiento #{$maintenance->id}", route('platform.maintenances.detail', $maintenance)));
+
+Route::post('maintenances/{maintenance}/close', [MaintenanceDetailScreen::class, 'close'])
+    ->name('platform.maintenances.close');
 
 Route::get('logout-quick', function () {
     auth()->logout();

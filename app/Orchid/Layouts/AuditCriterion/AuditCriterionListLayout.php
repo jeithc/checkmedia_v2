@@ -46,6 +46,13 @@ class AuditCriterionListLayout extends Table
                     };
                 }),
 
+            TD::make('category', 'Categoría')
+                ->sort()
+                ->render(fn(AuditCriterion $criterion) => match ($criterion->category) {
+                    'structural' => '<span class="badge" style="background-color: #7c3aed;">Estructural</span>',
+                    default => '<span class="badge bg-primary">General</span>',
+                }),
+
             TD::make('is_active', 'Estado')
                 ->sort()
                 ->render(fn(AuditCriterion $criterion) => $criterion->is_active

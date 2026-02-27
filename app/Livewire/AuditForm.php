@@ -36,6 +36,7 @@ class AuditForm extends Component
 
     public $duplicateFound = false;
     public $showExistingDetails = false;
+    public $auditType = 'general';
 
     #[Computed]
     public function space()
@@ -53,6 +54,7 @@ class AuditForm extends Component
     public function criteria()
     {
         return AuditCriterion::where('is_active', true)
+            ->forCategory($this->auditType)
             ->orderBy('order_index')
             ->get();
     }
@@ -69,8 +71,18 @@ class AuditForm extends Component
 
     public function mount()
     {
-        if (!auth()->user()->hasAnyAccess(['audit.can_audit'])) {
+        $user = auth()->user();
+        $isStructural = $user->hasAccess('audit.can_audit_structural');
+        $isGeneral = $user->hasAnyAccess(['audit.can_audit']);
+
+        if (!$isStructural && !$isGeneral) {
             abort(403);
+        }
+
+        // Determine audit type based on user permissions
+        // If user only has structural permission, set type to structural
+        if ($isStructural && !$isGeneral) {
+            $this->auditType = Audit::TYPE_STRUCTURAL;
         }
 
         // Load active criteria and initialize values
@@ -151,12 +163,13 @@ class AuditForm extends Component
             ];
         }
 
-        // DUPLICATE CHECK
+        // DUPLICATE CHECK (by space + year + week + audit_type)
         $now = now();
         $weekData = Audit::getCalendarYearAndWeek($now);
         $existingAudit = Audit::where('advertising_space_id', $space->id)
             ->where('year', $weekData['year'])
             ->where('week', $weekData['week'])
+            ->where('audit_type', $this->auditType)
             ->first();
 
         if ($existingAudit) {
@@ -219,7 +232,7 @@ class AuditForm extends Component
 
     public function save()
     {
-        if (!auth()->user()->hasAnyAccess(['audit.can_audit'])) {
+        if (!auth()->user()->hasAnyAccess(['audit.can_audit', 'audit.can_audit_structural'])) {
             abort(403);
         }
 
@@ -257,6 +270,7 @@ class AuditForm extends Component
                 'advertising_space_id' => $space->id,
                 'year' => $weekData['year'],
                 'week' => $weekData['week'],
+                'audit_type' => $this->auditType,
             ],
             [
                 'user_id' => auth()->id() ?? 1,

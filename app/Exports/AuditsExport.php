@@ -12,11 +12,13 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
     protected array $selectedColumns;
     protected array $staticColumnDefinitions;
     protected $criteria;
+    protected array $filters;
 
-    public function __construct(array $selectedColumns, $criteria)
+    public function __construct(array $selectedColumns, $criteria, array $filters = [])
     {
         $this->selectedColumns = $selectedColumns;
         $this->criteria = $criteria;
+        $this->filters = $filters;
 
         // Define all available static columns
         $this->staticColumnDefinitions = [
@@ -25,6 +27,7 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
             'city' => 'Ciudad',
             'provider' => 'Proveedor',
             'external_code' => 'Código Externo',
+            'audit_type' => 'Tipo de Auditoría',
             'general_status' => 'Estado General',
             'observation' => 'Observación',
             'year' => 'Año',
@@ -37,9 +40,24 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
      */
     public function query()
     {
-        return Audit::query()
+        $query = Audit::query()
             ->with(['values.criterion', 'user', 'space'])
             ->orderBy('audit_date', 'desc');
+
+        if (!empty($this->filters['dateFrom'])) {
+            $query->whereDate('audit_date', '>=', $this->filters['dateFrom']);
+        }
+        if (!empty($this->filters['dateTo'])) {
+            $query->whereDate('audit_date', '<=', $this->filters['dateTo']);
+        }
+        if (!empty($this->filters['city'])) {
+            $query->whereHas('space', fn($q) => $q->where('city', 'like', "%{$this->filters['city']}%"));
+        }
+        if (!empty($this->filters['auditType'])) {
+            $query->where('audit_type', $this->filters['auditType']);
+        }
+
+        return $query;
     }
 
     /**
@@ -66,7 +84,6 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
 
     /**
      * Map each audit record to a row array
-     * This is where the magic happens - pivoting audit_values to columns
      */
     public function map($audit): array
     {
@@ -76,11 +93,7 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
             if (str_starts_with($column, 'criterion_')) {
                 // Dynamic criterion column - pivot logic
                 $criterionId = (int) str_replace('criterion_', '', $column);
-
-                // Find the value for this criterion in the audit's values collection
                 $auditValue = $audit->values->firstWhere('audit_criterion_id', $criterionId);
-
-                // If found, use the value, otherwise N/A
                 $row[] = $auditValue ? $this->formatValue($auditValue->value) : 'N/A';
             } else {
                 // Static column - direct mapping
@@ -90,6 +103,7 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
                     'city' => $audit->space?->city ?? 'N/A',
                     'provider' => $audit->space?->provider ?? 'N/A',
                     'external_code' => $audit->space?->external_code ?? 'N/A',
+                    'audit_type' => $audit->audit_type === 'structural' ? 'Estructural' : 'General',
                     'general_status' => $this->formatStatus($audit->general_status),
                     'observation' => $audit->observation ?? '',
                     'year' => $audit->year,
@@ -102,9 +116,6 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
         return $row;
     }
 
-    /**
-     * Format criterion values for display
-     */
     protected function formatValue(?string $value): string
     {
         return match ($value) {
@@ -114,14 +125,10 @@ class AuditsExport implements FromQuery, WithHeadings, WithMapping
         };
     }
 
-    /**
-     * Format status for display
-     */
     protected function formatStatus(?string $status): string
     {
         return match ($status) {
             'good' => 'Bueno',
-            'acceptable' => 'Aceptable',
             'bad' => 'Malo',
             default => $status ?? 'N/A',
         };

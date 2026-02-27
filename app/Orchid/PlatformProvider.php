@@ -46,7 +46,12 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make('Reportes de Auditoría')
                 ->icon('bs.file-earmark-spreadsheet')
                 ->route('platform.reports.audit-builder')
-                ->permission('audit.can_audit')
+                ->permission('audit.can_audit'),
+
+            Menu::make('Mantenimientos')
+                ->icon('bs.tools')
+                ->route('platform.maintenances')
+                ->permission('maintenance.view')
                 ->divider(),
 
             Menu::make(__('Users'))
@@ -92,9 +97,15 @@ class PlatformProvider extends OrchidServiceProvider
 
             ItemPermission::group('Auditoría')
                 ->addPermission('audit.can_audit', 'Realizar Auditorías')
+                ->addPermission('audit.can_audit_structural', 'Realizar Auditorías Estructurales')
                 ->addPermission('audit.manage_criteria', 'Gestionar Criterios de Auditoría')
                 ->addPermission('audit.close_with_error', 'Cerrar estados con error')
-                ->addPermission('audit.upload_fixes', 'Subir arreglos/revisiones'),
+                ->addPermission('audit.upload_fixes', 'Subir arreglos/revisiones')
+                ->addPermission('audit.request_maintenance', 'Solicitar mantenimiento desde auditoría'),
+
+            ItemPermission::group('Mantenimientos')
+                ->addPermission('maintenance.view', 'Ver mantenimientos')
+                ->addPermission('maintenance.close', 'Cerrar mantenimientos'),
 
             ItemPermission::group('Reportes')
                 ->addPermission('reports.create_shared', 'Crear reportes compartidos'),

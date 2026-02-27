@@ -31,6 +31,8 @@ class SpaceActivityLog extends Model
     const TYPE_RESOLUTION_UPLOADED = 'resolution_uploaded';
     const TYPE_STATUS_CHANGED = 'status_changed';
     const TYPE_COMMENT_ADDED = 'comment_added';
+    const TYPE_MAINTENANCE_REQUESTED = 'maintenance_requested';
+    const TYPE_MAINTENANCE_CLOSED = 'maintenance_closed';
 
     public function space()
     {
@@ -59,6 +61,8 @@ class SpaceActivityLog extends Model
             self::TYPE_RESOLUTION_UPLOADED => 'Revisión Cargada',
             self::TYPE_STATUS_CHANGED => 'Estado Cambiado',
             self::TYPE_COMMENT_ADDED => 'Comentario Agregado',
+            self::TYPE_MAINTENANCE_REQUESTED => 'Mantenimiento Solicitado',
+            self::TYPE_MAINTENANCE_CLOSED => 'Mantenimiento Cerrado',
             default => ucfirst(str_replace('_', ' ', $this->activity_type)),
         };
     }
@@ -75,6 +79,8 @@ class SpaceActivityLog extends Model
             self::TYPE_RESOLUTION_UPLOADED => 'bs.camera',
             self::TYPE_STATUS_CHANGED => 'bs.arrow-repeat',
             self::TYPE_COMMENT_ADDED => 'bs.chat-dots',
+            self::TYPE_MAINTENANCE_REQUESTED => 'bs.wrench',
+            self::TYPE_MAINTENANCE_CLOSED => 'bs.check-circle',
             default => 'bs.circle',
         };
     }
@@ -91,6 +97,8 @@ class SpaceActivityLog extends Model
             self::TYPE_RESOLUTION_UPLOADED => 'primary',
             self::TYPE_STATUS_CHANGED => 'secondary',
             self::TYPE_COMMENT_ADDED => 'dark',
+            self::TYPE_MAINTENANCE_REQUESTED => 'warning',
+            self::TYPE_MAINTENANCE_CLOSED => 'success',
             default => 'secondary',
         };
     }

@@ -23,9 +23,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'system.edit_users' => true,
             'system.be_notified' => true,
             'audit.can_audit' => true,
+            'audit.can_audit_structural' => true,
             'audit.manage_criteria' => true,
             'audit.close_with_error' => true,
             'audit.upload_fixes' => true,
+            'audit.request_maintenance' => true,
+            'maintenance.view' => true,
+            'maintenance.close' => true,
             'reports.create_shared' => true,
         ];
 
@@ -44,6 +48,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'audit.can_audit' => true,
             'audit.close_with_error' => true,
             'audit.upload_fixes' => true,
+            'audit.request_maintenance' => true,
+            'maintenance.view' => true,
             'reports.create_shared' => true,
         ];
 
@@ -53,6 +59,22 @@ class RolesAndPermissionsSeeder extends Seeder
         );
         $auditorRole->permissions = $auditorPermissions;
         $auditorRole->save();
+
+        // 3. Create Auditor Estructural Role
+        $structuralAuditorPermissions = [
+            'platform.index' => true,
+            'platform.systems.attachment' => true,
+            'audit.can_audit_structural' => true,
+            'audit.upload_fixes' => true,
+            'maintenance.view' => true,
+        ];
+
+        $structuralRole = Role::firstOrCreate(
+            ['slug' => 'auditor-estructural'],
+            ['name' => 'Auditor Estructural']
+        );
+        $structuralRole->permissions = $structuralAuditorPermissions;
+        $structuralRole->save();
 
         // 3. Ensure the super admin user has full explicit access just in case
         $adminUser = User::where('email', 'admin@checkmedia.local')->first();

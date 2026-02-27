@@ -11,34 +11,32 @@ class AuditCriterionSeeder extends Seeder
     {
         $criteria = [
             [
-                'name' => 'Iluminación',
-                'key' => 'illumination',
+                'name' => 'Estructural',
+                'key' => 'structural',
                 'type' => 'boolean', // Good/Bad
                 'order_index' => 1,
+                'category' => 'general',
             ],
             [
-                'name' => 'Estado de Material',
-                'key' => 'material_state',
+                'name' => 'Ambiental',
+                'key' => 'environmental',
                 'type' => 'boolean',
                 'order_index' => 2,
+                'category' => 'general',
             ],
             [
-                'name' => 'Material Sucio',
-                'key' => 'material_dirty',
+                'name' => 'Eléctrico',
+                'key' => 'electrical',
                 'type' => 'boolean',
                 'order_index' => 3,
+                'category' => 'general',
             ],
             [
-                'name' => 'Material Vandalizado',
-                'key' => 'material_vandalized',
+                'name' => 'Material',
+                'key' => 'material',
                 'type' => 'boolean',
                 'order_index' => 4,
-            ],
-            [
-                'name' => 'Entorno Inmediato',
-                'key' => 'immediate_surroundings',
-                'type' => 'boolean',
-                'order_index' => 5,
+                'category' => 'general',
             ],
         ];
 

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /d/laragon/www/checkmedia_v2/app/Orchid/Screens -type f -name \"*.php\" | xargs grep -l \"Maintenance\\\\|maintenance\" 2>/dev/null)",
+      "Bash(head:*)"
+    ]
+  }
+}

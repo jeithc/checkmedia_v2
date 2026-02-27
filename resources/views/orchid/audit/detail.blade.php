@@ -17,6 +17,14 @@
 
             <div class="d-flex align-items-center mb-2">
                 <div class="me-4 text-end">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.7rem;">TIPO</small>
+                    @if($audit->audit_type === 'structural')
+                        <span class="badge bg-purple text-white" style="background-color: #7c3aed;">Estructural</span>
+                    @else
+                        <span class="badge bg-primary">General</span>
+                    @endif
+                </div>
+                <div class="me-4 text-end">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.7rem;">SEMANA</small>
                     <span class="text-dark fw-bold">{{ $audit->week }} / {{ $audit->year }}</span>
                 </div>
@@ -39,7 +47,6 @@
                         <tr class="text-center text-secondary small text-uppercase">
                             <th scope="col" class="text-start">CÓDIGO</th>
                             <th scope="col" style="width: 100px;">BUENO</th>
-                            <th scope="col" style="width: 100px;">ACEPTABLE</th>
                             <th scope="col" style="width: 100px;">MALO</th>
                         </tr>
                     </thead>
@@ -53,13 +60,7 @@
                                         class="form-check-input @if($val->value === 'good') border-success bg-success @else border-gray-300 @endif"
                                             style="opacity: 1;">
                                 </td>
-                                <!-- Option 2: Aceptable -->
-                                <td class="text-center">
-                                        <input type="radio" disabled {{ $val->value === 'acceptable' ? 'checked' : '' }}
-                                        class="form-check-input @if($val->value === 'acceptable') border-warning bg-warning @else border-gray-300 @endif"
-                                            style="opacity: 1;">
-                                </td>
-                                <!-- Option 3: Malo -->
+                                <!-- Option 2: Malo -->
                                 <td class="text-center">
                                         <input type="radio" disabled {{ $val->value === 'bad' ? 'checked' : '' }}
                                         class="form-check-input @if($val->value === 'bad') border-danger bg-danger @else border-gray-300 @endif"
@@ -97,7 +98,58 @@
                         Editar
                     </button>
                 @endif
+
+                @if(auth()->user()->hasAccess('audit.request_maintenance') && $audit->general_status === 'bad' && !$audit->hasOpenMaintenance())
+                    <!-- Solicitar Mantenimiento (Warning) -->
+                    <button type="button" class="btn btn-warning text-dark fw-bold px-4" data-bs-toggle="modal"
+                        data-bs-target="#requestMaintenanceModal">
+                        <i class="icon-wrench me-1"></i> Solicitar Mantenimiento
+                    </button>
+                @endif
+
+                @if(auth()->user()->hasAccess('maintenance.close') && $audit->hasOpenMaintenance())
+                    <!-- Cerrar Mantenimiento -->
+                    <button type="button" class="btn btn-info text-white fw-bold px-4" data-bs-toggle="modal"
+                        data-bs-target="#closeMaintenanceModal">
+                        <i class="icon-check me-1"></i> Cerrar Mantenimiento
+                    </button>
+                @endif
             </div>
+
+            <!-- Maintenance Banner -->
+            @php
+                $openMaintenance = $audit->maintenances()->whereNotIn('status', ['closed'])->first();
+                $closedMaintenance = !$openMaintenance ? $audit->maintenances()->where('status', 'closed')->latest()->first() : null;
+                $displayMaintenance = $openMaintenance ?? $closedMaintenance;
+            @endphp
+            @if($displayMaintenance)
+                <div class="alert {{ $displayMaintenance->status === 'closed' ? 'alert-success' : 'alert-info' }} d-flex align-items-center mb-3">
+                    <i class="icon-wrench me-3" style="font-size: 1.5rem;"></i>
+                    <div class="flex-grow-1">
+                        <strong>Mantenimiento: <span class="badge bg-{{ $displayMaintenance->status_color }}">{{ $displayMaintenance->status_label }}</span></strong>
+                        <div class="small text-muted mt-1">
+                            <span class="me-3"><i class="icon-calendar me-1"></i>Solicitado: {{ $displayMaintenance->requested_at?->format('d/m/Y H:i') ?? $displayMaintenance->created_at->format('d/m/Y H:i') }}</span>
+                            <span class="me-3"><i class="icon-user me-1"></i>Por: {{ $displayMaintenance->requestedBy?->name ?? 'N/A' }}</span>
+                            @if($displayMaintenance->advisual_requisition_id)
+                                <span class="me-3"><i class="icon-tag me-1"></i>Advisual: {{ $displayMaintenance->advisual_requisition_id }}</span>
+                            @endif
+                            @if($displayMaintenance->closed_at)
+                                <span><i class="icon-check me-1"></i>Cerrado: {{ $displayMaintenance->closed_at->format('d/m/Y H:i') }}</span>
+                            @endif
+                        </div>
+                        @if($displayMaintenance->advisual_sync_error)
+                            <div class="small text-danger mt-1">
+                                <i class="icon-exclamation me-1"></i>Error Advisual: {{ $displayMaintenance->advisual_sync_error }}
+                            </div>
+                        @endif
+                    </div>
+                    @if($displayMaintenance->id)
+                        <a href="{{ route('platform.maintenances.detail', $displayMaintenance) }}" class="btn btn-sm btn-outline-dark ms-2">
+                            <i class="icon-eye"></i> Ver Detalle
+                        </a>
+                    @endif
+                </div>
+            @endif
             
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
             <script>
@@ -169,8 +221,8 @@
                         <div class="flex-grow-1">
                             <div class="d-flex align-items-center mb-1">
                                 <span class="fw-bold text-dark me-2">{{ $audit->user->name ?? 'Auditor' }}</span>
-                                <small class="text-muted" title="{{ $audit->created_at->format('d/m/Y g:i a') }}">
-                                    {{ $audit->created_at->diffForHumans() }}
+                                <small class="text-muted">
+                                    {{ $audit->created_at->format('d/m/Y H:i') }}
                                 </small>
                             </div>
                             <p class="mb-0 text-muted">{{ $audit->observation }}</p>
@@ -243,6 +295,8 @@
                                                 'marked_third_party' => 'bg-warning',
                                                 'resolution_uploaded' => 'bg-primary',
                                                 'status_changed' => 'bg-secondary',
+                                                'maintenance_requested' => 'bg-warning',
+                                                'maintenance_closed' => 'bg-success',
                                                 default => 'bg-secondary',
                                             };
                                             $icon = match($log->activity_type) {
@@ -251,6 +305,8 @@
                                                 'marked_third_party' => 'icon-people',
                                                 'resolution_uploaded' => 'icon-camera',
                                                 'status_changed' => 'icon-refresh',
+                                                'maintenance_requested' => 'icon-wrench',
+                                                'maintenance_closed' => 'icon-check',
                                                 default => 'icon-circle',
                                             };
                                         @endphp
@@ -292,6 +348,12 @@
                                                         @case('status_changed')
                                                             Estado Cambiado
                                                             @break
+                                                        @case('maintenance_requested')
+                                                            Mantenimiento Solicitado
+                                                            @break
+                                                        @case('maintenance_closed')
+                                                            Mantenimiento Cerrado
+                                                            @break
                                                         @default
                                                             {{ ucfirst(str_replace('_', ' ', $log->activity_type)) }}
                                                     @endswitch
@@ -307,9 +369,9 @@
                                                 <i class="icon-user me-1"></i>
                                                 {{ $log->user->name ?? ($log->metadata['user_name'] ?? 'Sistema') }}
                                             </small>
-                                            <small class="text-muted" title="{{ $log->created_at->format('d/m/Y g:i a') }}">
+                                            <small class="text-muted">
                                                 <i class="icon-clock me-1"></i>
-                                                {{ $log->created_at->diffForHumans() }}
+                                                {{ $log->created_at->format('d/m/Y H:i') }}
                                             </small>
                                             
                                             {{-- Botón para ver foto si existe --}}
@@ -330,11 +392,11 @@
                                                 <div class="mt-2">
                                                     <small class="text-muted">
                                                         Estado: 
-                                                        <span class="badge {{ $log->metadata['old_status'] === 'bad' ? 'bg-danger' : ($log->metadata['old_status'] === 'acceptable' ? 'bg-warning' : 'bg-success') }}">
+                                                        <span class="badge {{ $log->metadata['old_status'] === 'bad' ? 'bg-danger' : 'bg-success' }}">
                                                             {{ ucfirst($log->metadata['old_status']) }}
                                                         </span>
                                                         →
-                                                        <span class="badge {{ $log->metadata['new_status'] === 'bad' ? 'bg-danger' : ($log->metadata['new_status'] === 'acceptable' ? 'bg-warning' : 'bg-success') }}">
+                                                        <span class="badge {{ $log->metadata['new_status'] === 'bad' ? 'bg-danger' : 'bg-success' }}">
                                                             {{ ucfirst($log->metadata['new_status']) }}
                                                         </span>
                                                     </small>
@@ -363,9 +425,9 @@
                                                         @foreach($log->metadata['criteria_changes'] as $change)
                                                             <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
                                                                 {{ $change['criterion'] }}:
-                                                                <span class="{{ $change['old'] === 'bad' ? 'text-danger' : ($change['old'] === 'acceptable' ? 'text-warning' : 'text-success') }}">{{ ucfirst($change['old']) }}</span>
+                                                                <span class="{{ $change['old'] === 'bad' ? 'text-danger' : 'text-success' }}">{{ ucfirst($change['old']) }}</span>
                                                                 →
-                                                                <span class="{{ $change['new'] === 'bad' ? 'text-danger' : ($change['new'] === 'acceptable' ? 'text-warning' : 'text-success') }}">{{ ucfirst($change['new']) }}</span>
+                                                                <span class="{{ $change['new'] === 'bad' ? 'text-danger' : 'text-success' }}">{{ ucfirst($change['new']) }}</span>
                                                             </span>
                                                         @endforeach
                                                     </div>
@@ -393,6 +455,7 @@
                                 <thead class="table-light sticky-top">
                                     <tr>
                                         <th>Semana/Año</th>
+                                        <th>Tipo</th>
                                         <th>Fecha</th>
                                         <th>Estado</th>
                                         <th>Auditor</th>
@@ -410,14 +473,19 @@
                                                     <span class="badge bg-primary ms-1">Actual</span>
                                                 @endif
                                             </td>
-                                            <td class="text-muted small" title="{{ $histAudit->audit_date ? $histAudit->audit_date->format('d/m/Y g:i a') : '' }}">
-                                                {{ $histAudit->audit_date ? $histAudit->audit_date->diffForHumans() : '-' }}
+                                            <td>
+                                                @if($histAudit->audit_type === 'structural')
+                                                    <span class="badge" style="background-color: #7c3aed; font-size: 0.7rem;">Estructural</span>
+                                                @else
+                                                    <span class="badge bg-primary" style="font-size: 0.7rem;">General</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-muted small">
+                                                {{ $histAudit->audit_date ? $histAudit->audit_date->format('d/m/Y H:i') : '-' }}
                                             </td>
                                             <td>
                                                 @if($histAudit->general_status === 'bad')
                                                     <span class="badge bg-danger">Malo</span>
-                                                @elseif($histAudit->general_status === 'acceptable')
-                                                    <span class="badge bg-warning text-dark">Aceptable</span>
                                                 @else
                                                     <span class="badge bg-success">Bueno</span>
                                                 @endif
@@ -460,8 +528,8 @@
                         <strong>Este espacio está marcado como TERCERO</strong>
                         @if($audit->space->third_party_modified_at)
                             <br>
-                            <small class="text-muted" title="{{ \Carbon\Carbon::parse($audit->space->third_party_modified_at)->format('d/m/Y g:i a') }}">
-                                Marcado {{ \Carbon\Carbon::parse($audit->space->third_party_modified_at)->diffForHumans() }}
+                            <small class="text-muted">
+                                Marcado el {{ \Carbon\Carbon::parse($audit->space->third_party_modified_at)->format('d/m/Y H:i') }}
                                 @if($audit->space->third_party_user_id)
                                     por {{ \App\Models\User::find($audit->space->third_party_user_id)?->name ?? 'Usuario desconocido' }}
                                 @endif
@@ -502,7 +570,6 @@
                                         <tr class="text-center text-muted text-uppercase" style="font-size: 0.7rem;">
                                             <th class="text-start py-2 ps-3 fw-normal">Criterio</th>
                                             <th class="fw-normal" style="width: 60px;">Bueno</th>
-                                            <th class="fw-normal" style="width: 60px;">Regular</th>
                                             <th class="fw-normal" style="width: 60px;">Malo</th>
                                         </tr>
                                     </thead>
@@ -517,15 +584,6 @@
                                                             style="width: 1.2em; height: 1.2em;"
                                                             {{ $val->value === 'good' ? 'checked' : '' }}
                                                             onchange="updateRadioStyle(this, 'success')">
-                                                    </div>
-                                                </td>
-                                                <td class="text-center">
-                                                    <div class="form-check d-flex justify-content-center">
-                                                        <input type="radio" name="criteria[{{ $val->id }}]" value="acceptable"
-                                                            class="form-check-input shadow-none cursor-pointer {{ $val->value === 'acceptable' ? 'bg-warning border-warning' : '' }}"
-                                                            style="width: 1.2em; height: 1.2em;"
-                                                            {{ $val->value === 'acceptable' ? 'checked' : '' }}
-                                                            onchange="updateRadioStyle(this, 'warning')">
                                                     </div>
                                                 </td>
                                                 <td class="text-center">
@@ -618,7 +676,6 @@
                                         <tr class="text-center text-muted text-uppercase" style="font-size: 0.7rem;">
                                             <th class="text-start py-2 ps-3 fw-normal">Criterio</th>
                                             <th class="fw-normal" style="width: 60px;">Bueno</th>
-                                            <th class="fw-normal" style="width: 60px;">Regular</th>
                                             <th class="fw-normal" style="width: 60px;">Malo</th>
                                         </tr>
                                     </thead>
@@ -633,15 +690,6 @@
                                                             style="width: 1.2em; height: 1.2em;"
                                                             {{ $val->value === 'good' ? 'checked' : '' }}
                                                             onchange="updateRadioStyle(this, 'success')">
-                                                    </div>
-                                                </td>
-                                                <td class="text-center">
-                                                    <div class="form-check d-flex justify-content-center">
-                                                        <input type="radio" name="criteria[{{ $val->id }}]" value="acceptable"
-                                                            class="form-check-input shadow-none cursor-pointer {{ $val->value === 'acceptable' ? 'bg-warning border-warning' : '' }}"
-                                                            style="width: 1.2em; height: 1.2em;"
-                                                            {{ $val->value === 'acceptable' ? 'checked' : '' }}
-                                                            onchange="updateRadioStyle(this, 'warning')">
                                                     </div>
                                                 </td>
                                                 <td class="text-center">
@@ -697,7 +745,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         // Mover los modales al final del body para evitar conflictos de formularios anidados
-        ['uploadRevisionModal', 'editAuditModal', 'singlePhotoModal', 'galleryModal'].forEach(id => {
+        ['uploadRevisionModal', 'editAuditModal', 'singlePhotoModal', 'galleryModal', 'requestMaintenanceModal', 'closeMaintenanceModal'].forEach(id => {
             const modal = document.getElementById(id);
             if (modal && modal.parentElement !== document.body) {
                 document.body.appendChild(modal);
@@ -1117,6 +1165,89 @@
     </div>
 </div>
  
+<!-- Modal Solicitar Mantenimiento -->
+<div class="modal fade" id="requestMaintenanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 6px;">
+            <div class="modal-header border-bottom py-3 px-4 bg-white">
+                <h5 class="modal-title text-dark fw-light">
+                    <i class="icon-wrench me-2"></i>Solicitar Mantenimiento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="requestMaintenanceForm" method="POST" action="{{ url('/admin/audit-action/' . $audit->id . '/request-maintenance') }}">
+                @csrf
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Categoría *</label>
+                            <select name="maintenance_category" class="form-select form-select-sm" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="estructural">Estructural</option>
+                                <option value="electrico">Eléctrico</option>
+                                <option value="ambiental">Ambiental</option>
+                                <option value="material">Material</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Prioridad *</label>
+                            <select name="maintenance_priority" class="form-select form-select-sm" required>
+                                <option value="media" selected>Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="baja">Baja</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Descripción del Problema *</label>
+                            <textarea name="maintenance_description" class="form-control form-control-sm" rows="3"
+                                placeholder="Describa el problema encontrado..." required minlength="5"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-white py-2 px-4">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning text-dark px-4 fw-bold">Solicitar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cerrar Mantenimiento -->
+<div class="modal fade" id="closeMaintenanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 6px;">
+            <div class="modal-header border-bottom py-3 px-4 bg-white">
+                <h5 class="modal-title text-dark fw-light">
+                    <i class="icon-check me-2"></i>Cerrar Mantenimiento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="POST" action="{{ url('/admin/audit-action/' . $audit->id . '/close-maintenance') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Documento de Cierre (PDF o Imagen) *</label>
+                            <input type="file" name="closure_document" class="form-control form-control-sm" accept=".pdf,image/*" required>
+                            <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Comentario de Cierre</label>
+                            <textarea name="closure_comment" class="form-control form-control-sm" rows="2"
+                                placeholder="Nota opcional sobre el cierre..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-white py-2 px-4">
+                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info text-white px-4 fw-bold">Cerrar Mantenimiento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
     /* Estilos para los tabs del historial */
     #historyTabs .nav-link {

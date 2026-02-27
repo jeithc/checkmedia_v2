@@ -11,11 +11,15 @@ class Audit extends Model
 {
     use HasFactory, Chartable, AsSource;
 
+    const TYPE_GENERAL = 'general';
+    const TYPE_STRUCTURAL = 'structural';
+
     protected $fillable = [
         'advertising_space_id',
         'user_id',
         'year',
         'week',
+        'audit_type',
         'audit_date',
         'general_status',
         'observation',
@@ -52,6 +56,18 @@ class Audit extends Model
     public function comments()
     {
         return $this->hasMany(AuditComment::class);
+    }
+
+    public function maintenances()
+    {
+        return $this->hasMany(Maintenance::class);
+    }
+
+    public function hasOpenMaintenance(): bool
+    {
+        return $this->maintenances()
+            ->whereNotIn('status', [Maintenance::STATUS_CLOSED])
+            ->exists();
     }
 
     /**

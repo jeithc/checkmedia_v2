@@ -2,7 +2,18 @@
 
     <!-- Header -->
     <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Nueva Auditoría</h2>
+        <div class="flex items-center gap-3">
+            <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Nueva Auditoría</h2>
+            @if($auditType === 'structural')
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                    Estructural
+                </span>
+            @else
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    General
+                </span>
+            @endif
+        </div>
 
         @if(auth()->user()->hasAnyAccess(['platform.index']))
         <a href="{{ route('platform.main') }}"

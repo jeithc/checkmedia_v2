@@ -34,6 +34,12 @@ class AuditReportBuilder extends Component
     public $newReportDescription = '';
     public $newReportIsShared = false;
 
+    // Filters
+    public $filterDateFrom = '';
+    public $filterDateTo = '';
+    public $filterCity = '';
+    public $filterAuditType = '';
+
     // Active tab
     public $activeTab = 'builder'; // builder, shared, personal, advanced
 
@@ -46,6 +52,7 @@ class AuditReportBuilder extends Component
             'city' => 'Ciudad',
             'provider' => 'Proveedor',
             'external_code' => 'Código Externo',
+            'audit_type' => 'Tipo de Auditoría',
             'general_status' => 'Estado General',
             'observation' => 'Observación',
             'year' => 'Año',
@@ -251,12 +258,31 @@ class AuditReportBuilder extends Component
         }
 
         // Load data with eager loading for performance
-        $this->previewData = Audit::with(['values.criterion', 'user', 'space'])
-            ->orderBy('audit_date', 'desc')
-            ->limit(10)
-            ->get();
+        $query = $this->buildFilteredQuery();
+        $this->previewData = $query->limit(10)->get();
 
         $this->showPreview = true;
+    }
+
+    protected function buildFilteredQuery()
+    {
+        $query = Audit::with(['values.criterion', 'user', 'space'])
+            ->orderBy('audit_date', 'desc');
+
+        if ($this->filterDateFrom) {
+            $query->whereDate('audit_date', '>=', $this->filterDateFrom);
+        }
+        if ($this->filterDateTo) {
+            $query->whereDate('audit_date', '<=', $this->filterDateTo);
+        }
+        if ($this->filterCity) {
+            $query->whereHas('space', fn($q) => $q->where('city', 'like', "%{$this->filterCity}%"));
+        }
+        if ($this->filterAuditType) {
+            $query->where('audit_type', $this->filterAuditType);
+        }
+
+        return $query;
     }
 
     /**
@@ -272,8 +298,15 @@ class AuditReportBuilder extends Component
 
         $fileName = 'reporte_auditorias_' . now()->format('Y-m-d_His') . '.xlsx';
 
+        $filters = [
+            'dateFrom' => $this->filterDateFrom,
+            'dateTo' => $this->filterDateTo,
+            'city' => $this->filterCity,
+            'auditType' => $this->filterAuditType,
+        ];
+
         return Excel::download(
-            new AuditsExport($this->selectedColumns, $this->availableCriteria),
+            new AuditsExport($this->selectedColumns, $this->availableCriteria, $filters),
             $fileName
         );
     }
@@ -297,6 +330,7 @@ class AuditReportBuilder extends Component
             'city' => $audit->space?->city ?? 'N/A',
             'provider' => $audit->space?->provider ?? 'N/A',
             'external_code' => $audit->space?->external_code ?? 'N/A',
+            'audit_type' => $audit->audit_type === 'structural' ? 'Estructural' : 'General',
             'general_status' => $this->formatStatus($audit->general_status),
             'observation' => $audit->observation ?? '',
             'year' => $audit->year,
@@ -338,7 +372,6 @@ class AuditReportBuilder extends Component
     {
         return match ($status) {
             'good' => 'Bueno',
-            'acceptable' => 'Aceptable',
             'bad' => 'Malo',
             default => $status ?? 'N/A',
         };
