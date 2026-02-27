@@ -5,9 +5,10 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
+use App\Models\AuditValue;
 use App\Models\Maintenance;
-use App\Models\CommercialBooking;
 use Livewire\Attributes\Url;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboard extends Component
 {
@@ -19,7 +20,6 @@ class AdminDashboard extends Component
 
     public function mount()
     {
-        // Default to current week if no query params
         if (!$this->dateFrom) {
             $this->dateFrom = now()->startOfWeek()->format('Y-m-d');
         }
@@ -30,12 +30,10 @@ class AdminDashboard extends Component
 
     public function filter()
     {
-        // Ensure dateFrom doesn't exceed dateTo
         if ($this->dateFrom && $this->dateTo && $this->dateFrom > $this->dateTo) {
             $this->dateTo = $this->dateFrom;
         }
 
-        // Redirect to reload the full page (so Orchid charts also update)
         return redirect()->route('platform.main', [
             'from' => $this->dateFrom,
             'to' => $this->dateTo,
@@ -61,12 +59,10 @@ class AdminDashboard extends Component
             }
         };
 
-        // Auditorías con errores en el rango
         $auditsWithIssues = Audit::where('general_status', 'bad')
             ->where($dateQuery)
             ->count();
 
-        // Auditorías críticas (bad) sin resolver
         $criticalAudits = Audit::where('general_status', 'bad')
             ->whereNull('resolved_at')
             ->where($dateQuery)
@@ -108,7 +104,7 @@ class AdminDashboard extends Component
             ],
         ];
 
-        // Auditorías recientes con errores primero
+        // Recent audits
         $recentAudits = Audit::with('space')
             ->where($dateQuery)
             ->orderByRaw("CASE WHEN general_status = 'bad' THEN 1 ELSE 2 END")
@@ -116,10 +112,45 @@ class AdminDashboard extends Component
             ->limit(10)
             ->get();
 
+        // --- Chart: Criterios con más fallas ---
+        $auditIds = Audit::where($dateQuery)->pluck('id');
+        $criteriaFailures = AuditValue::whereIn('audit_id', $auditIds)
+            ->where('value', 'bad')
+            ->join('audit_criteria', 'audit_values.audit_criterion_id', '=', 'audit_criteria.id')
+            ->select('audit_criteria.name', DB::raw('COUNT(*) as total'))
+            ->groupBy('audit_criteria.name')
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get();
+
+        // --- Chart: Top espacios con errores ---
+        $topBadSpaces = Audit::where('general_status', 'bad')
+            ->where($dateQuery)
+            ->select('advertising_space_id', DB::raw('COUNT(*) as total'))
+            ->groupBy('advertising_space_id')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->with('space')
+            ->get()
+            ->map(fn($a) => [
+                'code' => $a->space->external_code ?? '—',
+                'city' => $a->space->city ?? '—',
+                'type' => $a->space->type ?? '—',
+                'total' => $a->total,
+            ]);
+
+        // --- Chart: Mantenimientos por estado ---
+        $maintByStatus = Maintenance::select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
         return view('livewire.admin-dashboard', [
             'metrics' => $metrics,
             'recentAudits' => $recentAudits,
             'isDefaultWeek' => $isDefaultWeek,
+            'criteriaFailures' => $criteriaFailures,
+            'topBadSpaces' => $topBadSpaces,
+            'maintByStatus' => $maintByStatus,
         ]);
     }
 }
