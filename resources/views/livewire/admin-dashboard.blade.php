@@ -1,4 +1,25 @@
-<div wire:poll.10s>
+<div>
+    <!-- Date Range Filter -->
+    <div class="bg-white rounded shadow-sm p-3 mb-4 d-flex align-items-center gap-3 flex-wrap">
+        <span class="text-muted small text-uppercase font-weight-bold text-nowrap">Filtrar por fecha:</span>
+        <div class="d-flex align-items-center gap-2">
+            <label for="dateFrom" class="text-muted small mb-0 text-nowrap">Desde</label>
+            <input type="date" id="dateFrom" wire:model="dateFrom" class="form-control form-control-sm" style="width: auto;">
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <label for="dateTo" class="text-muted small mb-0 text-nowrap">Hasta</label>
+            <input type="date" id="dateTo" wire:model="dateTo" class="form-control form-control-sm" style="width: auto;">
+        </div>
+        <button wire:click="filter" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
+            <i class="bs.funnel"></i> Filtrar
+        </button>
+        @unless($isDefaultWeek)
+            <button wire:click="resetDates" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                <i class="bs.arrow-counterclockwise"></i> Semana actual
+            </button>
+        @endunless
+    </div>
+
     <!-- Metrics Section -->
     <div class="row mb-4 g-3">
         @foreach($metrics as $id => $metric)
@@ -29,7 +50,7 @@
     <!-- Recent Audits Table -->
     <div class="bg-white rounded shadow-sm overflow-hidden mb-4">
         <div class="px-4 py-3 border-b border-light d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 font-weight-bold">Auditorías de la Semana Actual</h5>
+            <h5 class="mb-0 font-weight-bold">Auditorías del Período</h5>
             <span class="badge bg-primary-soft text-primary uppercase small">Actualizado en vivo</span>
         </div>
         <div class="table-responsive">
@@ -49,7 +70,6 @@
                         @php
                             $rowClass = match($audit->general_status) {
                                 'bad' => 'table-danger',
-                                'acceptable' => 'table-warning',
                                 default => ''
                             };
                             $isResolved = $audit->resolved_at !== null;
@@ -57,7 +77,7 @@
                         <tr class="align-middle transition-colors hover:bg-light/50 {{ $rowClass }} {{ $isResolved ? 'opacity-75' : '' }}">
                             <td class="px-4 py-3">
                                 <a href="{{ route('platform.audit.detail', $audit) }}"
-                                    class="font-weight-bold {{ $audit->general_status === 'bad' ? 'text-danger' : ($audit->general_status === 'acceptable' ? 'text-warning' : 'text-primary') }}">
+                                    class="font-weight-bold {{ $audit->general_status === 'bad' ? 'text-danger' : 'text-primary' }}">
                                     {{ $audit->space->external_code }}
                                 </a>
                                 <div class="text-muted small">{{ $audit->space->category ?? '—' }}</div>
@@ -75,10 +95,6 @@
                                     <span class="badge bg-success small">
                                         <i class="bs.check-circle me-1"></i> Bueno
                                     </span>
-                                @elseif($audit->general_status === 'acceptable')
-                                    <span class="badge bg-warning text-dark small">
-                                        <i class="bs.exclamation-triangle me-1"></i> Aceptable
-                                    </span>
                                 @else
                                     <span class="badge bg-danger small">
                                         <i class="bs.x-circle me-1"></i> Malo
@@ -95,7 +111,7 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <a href="{{ route('platform.audit.detail', $audit) }}"
-                                    class="btn btn-sm btn-link {{ $audit->general_status === 'bad' ? 'text-danger' : ($audit->general_status === 'acceptable' ? 'text-warning' : 'text-muted') }}">
+                                    class="btn btn-sm btn-link {{ $audit->general_status === 'bad' ? 'text-danger' : 'text-muted' }}">
                                     <i class="bs.chevron-right"></i>
                                 </a>
                             </td>
@@ -120,4 +136,5 @@
             transition: background-color 0.2s;
         }
     </style>
+
 </div>

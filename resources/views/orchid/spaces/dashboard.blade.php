@@ -94,8 +94,18 @@
                         </div>
 
                         <div class="mb-3 border-bottom pb-2">
+                            <div class="info-label">Ubicación</div>
+                            <div class="info-value">{{ $space->location_name }}</div>
+                        </div>
+
+                        <div class="mb-3 border-bottom pb-2">
                             <div class="info-label">Dirección</div>
                             <div class="info-value">{{ $space->address }}</div>
+                        </div>
+
+                        <div class="mb-3 border-bottom pb-2">
+                            <div class="info-label">Zona</div>
+                            <div class="info-value">{{ $space->zone }}</div>
                         </div>
 
                         <div class="mb-3">
@@ -116,6 +126,7 @@
                             <tr class="text-uppercase small text-muted">
                                 <th>Año</th>
                                 <th>Semana</th>
+                                <th>Tipo</th>
                                 <th>Fecha</th>
                                 <th>Estado</th>
                                 <th>Auditor</th>
@@ -127,6 +138,13 @@
                                 <tr>
                                     <td>{{ $audit->year }}</td>
                                     <td>{{ $audit->week }}</td>
+                                    <td>
+                                        @if($audit->audit_type === 'structural')
+                                            <span class="badge" style="background-color: #7c3aed; font-size: 0.7rem;">Estructural</span>
+                                        @else
+                                            <span class="badge bg-primary" style="font-size: 0.7rem;">General</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         @if($audit->audit_date)
                                             {{ $audit->audit_date->format('d M, Y') }}
@@ -165,7 +183,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center py-5 text-muted">
+                                    <td colspan="7" class="text-center py-5 text-muted">
                                         <i class="bi bi-clipboard-x fs-1 d-block opacity-25 mb-2"></i>
                                         No hay auditorías registradas.
                                     </td>

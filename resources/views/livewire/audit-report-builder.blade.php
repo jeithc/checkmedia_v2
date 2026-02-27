@@ -73,6 +73,37 @@
 
     {{-- Tab Content --}}
     @if($activeTab === 'builder')
+        {{-- Filters Section --}}
+        <div class="card mb-4">
+            <div class="card-header bg-light py-2">
+                <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h6>
+            </div>
+            <div class="card-body py-3">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Desde</label>
+                        <input type="date" wire:model.live="filterDateFrom" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Hasta</label>
+                        <input type="date" wire:model.live="filterDateTo" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Ciudad</label>
+                        <input type="text" wire:model.live.debounce.300ms="filterCity" class="form-control form-control-sm" placeholder="Filtrar por ciudad...">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted">Tipo de Auditoría</label>
+                        <select wire:model.live="filterAuditType" class="form-select form-select-sm">
+                            <option value="">Todas</option>
+                            <option value="general">General</option>
+                            <option value="structural">Estructural</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Builder Tab --}}
         <div class="row">
             {{-- Left Column: Column Selection --}}
