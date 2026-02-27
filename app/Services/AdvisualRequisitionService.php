@@ -10,13 +10,17 @@ class AdvisualRequisitionService
 {
     /**
      * Create a requisition in Advisual (SQL Server) for the given maintenance.
-     *
-     * TODO: Jeith must provide the exact INSERT statement with table and field names.
-     * Currently this is a placeholder that simulates the integration.
      */
     public function createRequisition(Maintenance $maintenance): bool
     {
         try {
+            $solicitanteUuid = config('services.advisual.solicitante_uuid');
+
+            if (!$solicitanteUuid) {
+                $this->markError($maintenance, 'ADVISUAL_SOLICITANTE_UUID no está configurado en .env');
+                return false;
+            }
+
             $space = $maintenance->advertisingSpace;
 
             if (!$space) {
@@ -24,31 +28,63 @@ class AdvisualRequisitionService
                 return false;
             }
 
-            // TODO: Replace with actual Advisual INSERT when SQL is provided by Jeith
-            // Example of what the integration will look like:
-            //
-            // $requisitionId = DB::connection('advisual')->table('requisiciones')->insertGetId([
-            //     'espacio_codigo' => $space->external_code,
-            //     'categoria' => $maintenance->category,
-            //     'descripcion' => $maintenance->description,
-            //     'prioridad' => $maintenance->priority,
-            //     'solicitado_por' => $maintenance->requestedBy?->name ?? 'Sistema',
-            //     'fecha_solicitud' => now(),
-            // ]);
+            $now = now();
+            $creaUsuario = config('services.advisual.crea_usuario', 'CheckMedia');
+            $estado = config('services.advisual.requisicion_estado', 1);
+            $tipo = config('services.advisual.requisicion_tipo', 2);
+            $serialProd = config('services.advisual.serial_prod', 1);
+            $serialAdmin = config('services.advisual.serial_admin', 0);
 
-            // Placeholder: Generate a temporary ID
-            $requisitionId = 'REQ-' . strtoupper(substr(md5(uniqid()), 0, 8));
+            $observacion = strtoupper($maintenance->category ?? 'GENERAL')
+                . ' | ' . ($space->external_code ?? 'SIN-CODIGO')
+                . ' - ' . ($maintenance->description ?? '');
+
+            $requisitionId = DB::connection('advisual')->selectOne("
+                INSERT INTO Requisicion (
+                    RequisicionFecha,
+                    RequisicionSolicitanteCodigo,
+                    RequisicionTipo,
+                    RequisicionObservacion,
+                    RequisicionEstado,
+                    RequisicionSerialAdmin,
+                    RequisicionSerialProd,
+                    RequisicionCreaUsuario,
+                    RequisicionCreaFecha,
+                    RequisicionModificaUsuario,
+                    RequisicionModificaFecha,
+                    RequisicionFechaSugerida
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                SELECT SCOPE_IDENTITY() AS id;
+            ", [
+                $now,
+                $solicitanteUuid,
+                $tipo,
+                $observacion,
+                $estado,
+                $serialAdmin,
+                $serialProd,
+                $creaUsuario,
+                $now,
+                $creaUsuario,
+                $now,
+                $now,
+            ]);
+
+            if (!$requisitionId || !$requisitionId->id) {
+                $this->markError($maintenance, 'No se obtuvo el ID de la requisición insertada en Advisual.');
+                return false;
+            }
 
             $maintenance->update([
-                'advisual_requisition_id' => $requisitionId,
-                'advisual_synced_at' => now(),
+                'advisual_requisition_id' => $requisitionId->id,
+                'advisual_synced_at' => $now,
                 'advisual_sync_error' => null,
                 'status' => Maintenance::STATUS_IN_PROGRESS,
             ]);
 
-            Log::info("Advisual requisition created (placeholder)", [
+            Log::info("Advisual requisition created", [
                 'maintenance_id' => $maintenance->id,
-                'requisition_id' => $requisitionId,
+                'requisition_id' => $requisitionId->id,
                 'space_code' => $space->external_code,
             ]);
 

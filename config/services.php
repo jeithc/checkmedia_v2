@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'advisual' => [
+        'solicitante_uuid' => env('ADVISUAL_SOLICITANTE_UUID'),
+        'crea_usuario' => env('ADVISUAL_CREA_USUARIO', 'CheckMedia'),
+        'requisicion_estado' => env('ADVISUAL_REQUISICION_ESTADO', 1),
+        'requisicion_tipo' => env('ADVISUAL_REQUISICION_TIPO', 2),
+        'serial_prod' => env('ADVISUAL_SERIAL_PROD', 1),
+        'serial_admin' => env('ADVISUAL_SERIAL_ADMIN', 0),
+    ],
+
 ];
