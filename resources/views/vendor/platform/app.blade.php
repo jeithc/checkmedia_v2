@@ -70,6 +70,19 @@
 
 @livewireScripts
 
+<script data-turbo-eval="false">
+// Suppress benign frappe-charts errors during Turbo navigation:
+// - removeChild: ResizeObserver fires after chart DOM nodes are removed
+// - Expected number: SVG path NaN from chart redraw during page transition
+window.addEventListener('error', function (e) {
+    if (e.filename && e.filename.includes('vendor.js')) {
+        if (e.message && (e.message.includes('removeChild') || e.message.includes('Expected number'))) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+
 @stack('scripts')
 
 @include('platform::partials.search-modal')

@@ -30,8 +30,8 @@ class AuditLineChart extends Chart
      * @var array
      */
     protected $lineOptions = [
-        'spline'     => 1,
-        'regionFill' => 0,
+        'spline'     => 0,
+        'regionFill' => 1,
         'hideDots'   => 0,
         'hideLine'   => 0,
         'heatline'   => 0,
