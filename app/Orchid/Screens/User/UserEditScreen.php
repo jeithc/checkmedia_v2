@@ -127,18 +127,17 @@ class UserEditScreen extends Screen
                         ])
                         ->fields([
                             'event_type' => Select::make()->options([
-                                'product_issue' => 'Product Issue (Report)',
-                                'system_alert' => 'System Alert',
+                                'audit_bad_created' => 'Auditoría con Error',
+                                'maintenance_requested' => 'Novedades (Mantenimiento Solicitado)',
+                                'maintenance_closed' => 'OC Subsanada (Mantenimiento Cerrado)',
                             ]),
                             'filter_key' => Select::make()->options([
-                                'product_type' => 'Product Type (e.g. VALLAS)',
-                                'city' => 'City',
-                                'all' => 'All Events',
+                                'all' => 'Todas las Notificaciones',
+                                'category' => 'Categoría / Unidad de Negocio',
                             ]),
                             'filter_value' => Input::make()->type('text'),
                             'channel' => Select::make()->options([
                                 'email' => 'Email',
-                                'sms' => 'SMS',
                             ]),
                         ])
                         ->help('Define which events this user should receive notifications for.'),

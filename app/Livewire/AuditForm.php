@@ -12,6 +12,7 @@ use App\Models\AuditValue;
 use App\Models\AuditPhoto;
 use App\Models\SpaceActivityLog;
 use App\Services\ImageWatermarkService;
+use App\Services\MaintenanceNotificationService;
 use Carbon\Carbon;
 
 class AuditForm extends Component
@@ -339,7 +340,12 @@ class AuditForm extends Component
             week: $weekData['week']
         );
 
-        // 5. Reset
+        // 5. Notify if audit has errors
+        if ($generalStatus === 'bad') {
+            app(MaintenanceNotificationService::class)->notify('audit_bad_created', $audit);
+        }
+
+        // 6. Reset
         $this->resetForm(true);
         $this->dispatch('audit-saved');
         session()->flash('message', 'Auditoría guardada exitosamente.');

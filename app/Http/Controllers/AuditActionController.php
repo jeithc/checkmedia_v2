@@ -6,6 +6,7 @@ use App\Models\Audit;
 use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
 use App\Services\AdvisualRequisitionService;
+use App\Services\MaintenanceNotificationService;
 use Illuminate\Http\Request;
 use Orchid\Support\Facades\Toast;
 
@@ -292,6 +293,8 @@ class AuditActionController extends Controller
             week: $audit->week
         );
 
+        app(MaintenanceNotificationService::class)->notify('maintenance_requested', $maintenance);
+
         $message = 'Mantenimiento solicitado exitosamente.';
         if (!$synced) {
             $message .= ' (Error al sincronizar con Advisual - se reintentará)';
@@ -382,6 +385,8 @@ class AuditActionController extends Controller
             year: $audit->year,
             week: $audit->week
         );
+
+        app(MaintenanceNotificationService::class)->notify('maintenance_closed', $maintenance);
 
         Toast::success('Mantenimiento cerrado exitosamente.');
         return back();

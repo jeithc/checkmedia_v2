@@ -2,7 +2,7 @@
 
 > **Cotizacion**: Mejoras Sistema Check Media (CM-2025-011)
 > **Fecha cotizacion**: 04 de Noviembre, 2025
-> **Ultima revision de estado**: 2026-02-28
+> **Ultima revision de estado**: 2026-03-01
 > **Rama de trabajo**: `orchid`
 
 ---
@@ -11,7 +11,7 @@
 
 | # | Componente | Horas Cotiz. | Valor | Progreso | Estado |
 |---|---|---:|---:|---:|---|
-| 1 | Mantenimiento Correctivo | 48h | $3.427.200 | ~55% | Parcial |
+| 1 | Mantenimiento Correctivo | 48h | $3.427.200 | ~70% | Parcial |
 | 2 | Mantenimiento Preventivo | 32h | $2.284.800 | 0% | No iniciado |
 | 3 | Linea de Tiempo por Espacio | 24h | $1.713.600 | ~30% | Parcial |
 | 4 | Informes y Reportes Mejorados | 40h | $2.856.000 | ~25% | Parcial |
@@ -42,16 +42,28 @@
   - `app/Livewire/AuditForm.php` — formulario multi-tipo
   - `database/migrations/*_add_audit_type_*` — migraciones de tipo
 
-### 1.3 Notificaciones por correo
-- **Estado**: PENDIENTE
-- **Lo que hay**: Solo `TestEmail.php` (stub) y `CustomResetPassword.php`. Infraestructura de mail configurada en Laravel.
-- **Falta**: Notificaciones para: novedad reportada, RQ generada, mantenimiento cerrado, OC generada.
-- **Archivos a crear**:
-  - `app/Mail/MaintenanceReported.php`
-  - `app/Mail/MaintenanceRQGenerated.php`
-  - `app/Mail/MaintenanceClosed.php`
-  - `app/Mail/PurchaseOrderCreated.php`
-  - Vistas blade en `resources/views/emails/`
+### 1.3 Notificaciones por correo y dashboard
+- **Estado**: HECHO
+- **Lo que hay**: Sistema completo de notificaciones por suscripcion con doble canal: email (queued) + notificacion in-app Orchid (campanita `DashboardMessage`). Modelo `UserNotificationSubscription` con `event_type`, `filter_key`, `filter_value`, `channel`. Servicio central `MaintenanceNotificationService` que despacha ambos canales. Filtro por categoria/unidad de negocio (`category`) o "todas". Matrix UI en `UserEditScreen` para configurar suscripciones por usuario.
+- **Eventos implementados**:
+  - `audit_bad_created` — Auditoria con Error (al subir auditoria con novedades)
+  - `maintenance_requested` — Novedades (al solicitar mantenimiento)
+  - `maintenance_closed` — OC Subsanada (al cerrar mantenimiento)
+- **Pendiente configuracion**: Falta configurar las suscripciones para los usuarios segun la matriz del cliente por unidad de negocio: DIGITAL, ESTATICO, ST (Street), AU (Aeropuertos). Esto es configuracion administrativa desde la pantalla de edicion de usuario, no requiere codigo.
+- **Eventos futuros (dependen de 1.5 OC)**: RQ generada (`maintenance_rq_generated`), OC generada (`purchase_order_created`).
+- **Archivos creados**:
+  - `app/Services/MaintenanceNotificationService.php` — servicio central de despacho (email + dashboard)
+  - `app/Mail/MaintenanceRequestedMail.php` — Mailable queued "Nueva Novedad"
+  - `app/Mail/MaintenanceClosedMail.php` — Mailable queued "OC Subsanada"
+  - `app/Mail/AuditBadCreatedMail.php` — Mailable queued "Auditoria con Error"
+  - `resources/views/emails/maintenance-requested.blade.php` — vista email novedad
+  - `resources/views/emails/maintenance-closed.blade.php` — vista email cierre
+  - `resources/views/emails/audit-bad-created.blade.php` — vista email auditoria con error
+- **Archivos modificados**:
+  - `app/Orchid/Screens/User/UserEditScreen.php` — opciones Matrix actualizadas (3 event types, filter keys, channel solo email)
+  - `app/Http/Controllers/AuditActionController.php` — triggers en `requestMaintenance()` y `closeMaintenanceFromAudit()`
+  - `app/Orchid/Screens/Maintenance/MaintenanceDetailScreen.php` — trigger en `close()`
+  - `app/Livewire/AuditForm.php` — trigger en `save()` cuando `general_status === 'bad'`
 
 ### 1.4 Boton 'Generar RQ' con integracion Advisual
 - **Estado**: HECHO
@@ -90,13 +102,13 @@
   - `resources/views/orchid/maintenance/detail.blade.php` — input soporte + display archivos
 
 ### 1.8 Notificacion automatica a Compras al cerrar con OC
-- **Estado**: PENDIENTE (depende de 1.5 OC + 1.3 Notificaciones)
-- **Falta**: Trigger al cerrar novedad con OC que envie email a rol "Compras".
+- **Estado**: PENDIENTE (depende de 1.5 OC — infraestructura de notificaciones ya lista en 1.3)
+- **Falta**: Agregar event type `purchase_order_created` en `MaintenanceNotificationService` y crear Mailable correspondiente. Trigger al cerrar novedad con OC.
 
 ### Checklist C1
 - [x] 1.1 Selector tipo Correctivo/Preventivo + bloqueo edicion con mantenimiento abierto
 - [x] 1.2 Sistema evaluacion 4 aspectos
-- [ ] 1.3 Notificaciones email
+- [x] 1.3 Notificaciones email + dashboard Orchid (3 eventos: audit_bad, requested, closed) — **Nota**: Falta configurar suscripciones por usuario para DIGITAL, ESTATICO, ST, AU
 - [x] 1.4 Boton Generar RQ + Advisual INSERT
 - [ ] 1.5 Flujo OC completo
 - [x] 1.6 Tipos archivo ampliados
@@ -363,20 +375,29 @@ Implementado:
 
 ---
 
-### FASE B — Notificaciones Email (transversal)
+### FASE B — Notificaciones Email + Dashboard — COMPLETADA (2026-03-01)
 **Prioridad**: ALTA | **Dependencias**: Ninguna
 **Items**: 1.3
 
-Tareas:
-1. Crear Mailables para cada evento de mantenimiento
-2. Crear vistas blade para emails (con branding Check Media)
-3. Configurar triggers en AuditActionController y donde corresponda
-4. Configurar roles/usuarios destinatarios
+Implementado:
+1. ~~Crear Mailables para cada evento de mantenimiento~~ HECHO — `MaintenanceRequestedMail`, `MaintenanceClosedMail`
+2. ~~Crear vistas blade para emails (con branding Check Media)~~ HECHO — extienden `emails.layout` (brand rojo #c60813)
+3. ~~Configurar triggers en AuditActionController y donde corresponda~~ HECHO — 3 triggers: `requestMaintenance()`, `closeMaintenanceFromAudit()`, `MaintenanceDetailScreen::close()`
+4. ~~Configurar roles/usuarios destinatarios~~ HECHO — Matrix UI en `UserEditScreen` con event types y filtro por categoria
+5. Notificaciones in-app Orchid (campanita `DashboardMessage`) — se envian junto con emails a usuarios suscritos
+6. Servicio central `MaintenanceNotificationService` con filtro por suscripcion (`all` o `category`)
 
-**Archivos clave**:
-- `app/Mail/` — nuevos mailables
-- `resources/views/emails/` — plantillas
-- `app/Http/Controllers/AuditActionController.php` — triggers
+**Archivos creados**:
+- `app/Services/MaintenanceNotificationService.php` — servicio central (email + dashboard Orchid)
+- `app/Mail/MaintenanceRequestedMail.php` — Mailable queued
+- `app/Mail/MaintenanceClosedMail.php` — Mailable queued
+- `resources/views/emails/maintenance-requested.blade.php`
+- `resources/views/emails/maintenance-closed.blade.php`
+
+**Archivos modificados**:
+- `app/Orchid/Screens/User/UserEditScreen.php` — opciones Matrix actualizadas
+- `app/Http/Controllers/AuditActionController.php` — 2 triggers
+- `app/Orchid/Screens/Maintenance/MaintenanceDetailScreen.php` — 1 trigger
 
 ---
 
@@ -491,11 +512,11 @@ Tareas:
 ## Diagrama de Dependencias
 
 ```
-FASE A (correctivo basico)
+FASE A (correctivo basico)  ✅ COMPLETADA
   |
   +---> FASE E (ordenes compra) ---> FASE G (reportes avanzados)
   |         |
-FASE B (notificaciones) --------+
+FASE B (notificaciones)     ✅ COMPLETADA
   |                              |
   +---> FASE F (preventivo) -----+
 
@@ -521,6 +542,8 @@ FASE H (tecnico)          [paralelo a todo]
 | `app/Http/Controllers/AuditActionController.php` | Acciones sobre auditorias |
 | `app/Services/AdvisualRequisitionService.php` | INSERT a Advisual SQL Server |
 | `app/Services/AdvisualSyncService.php` | Sincronizacion de espacios |
+| `app/Services/MaintenanceNotificationService.php` | Despacho notificaciones email + dashboard |
+| `app/Models/UserNotificationSubscription.php` | Suscripciones de notificacion por usuario |
 | `app/Orchid/Screens/Maintenance/` | Pantallas gestion mantenimiento |
 | `routes/platform.php` | Rutas Orchid admin |
 | `routes/web.php` | Rutas Livewire/publicas |
@@ -534,7 +557,7 @@ FASE H (tecnico)          [paralelo a todo]
 | Item | Depende de | Notas |
 |---|---|---|
 | Criterios estructurales | Equipo CM | Deben definir cuales criterios crear desde admin |
-| Notificaciones por rol | Decision negocio | Quien recibe que notificacion |
+| Notificaciones por rol | Decision negocio | Resuelto: sistema basado en suscripcion por usuario con filtro por categoria. Admin configura desde UserEditScreen |
 | Matriz preventiva inicial | Cliente | Deben proveer datos de periodicidad por elemento/region |
 | Presupuesto por valla | Cliente | Datos de presupuesto asignado a cada espacio |
 | S3 credenciales | Infra | Se necesitan credenciales AWS del cliente |

@@ -4,6 +4,7 @@ namespace App\Orchid\Screens\Maintenance;
 
 use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
+use App\Services\MaintenanceNotificationService;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
@@ -126,6 +127,8 @@ class MaintenanceDetailScreen extends Screen
                 'support_files_count' => count($supportFilesPaths),
             ],
         );
+
+        app(MaintenanceNotificationService::class)->notify('maintenance_closed', $maintenance);
 
         Toast::success('Mantenimiento cerrado exitosamente.');
     }
