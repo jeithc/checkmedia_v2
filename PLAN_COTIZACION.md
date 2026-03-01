@@ -2,7 +2,7 @@
 
 > **Cotizacion**: Mejoras Sistema Check Media (CM-2025-011)
 > **Fecha cotizacion**: 04 de Noviembre, 2025
-> **Ultima revision de estado**: 2026-02-27
+> **Ultima revision de estado**: 2026-02-28
 > **Rama de trabajo**: `orchid`
 
 ---
@@ -11,7 +11,7 @@
 
 | # | Componente | Horas Cotiz. | Valor | Progreso | Estado |
 |---|---|---:|---:|---:|---|
-| 1 | Mantenimiento Correctivo | 48h | $3.427.200 | ~40% | Parcial |
+| 1 | Mantenimiento Correctivo | 48h | $3.427.200 | ~55% | Parcial |
 | 2 | Mantenimiento Preventivo | 32h | $2.284.800 | 0% | No iniciado |
 | 3 | Linea de Tiempo por Espacio | 24h | $1.713.600 | ~30% | Parcial |
 | 4 | Informes y Reportes Mejorados | 40h | $2.856.000 | ~25% | Parcial |
@@ -26,13 +26,12 @@
 ## C1 — Gestion de Mantenimiento Correctivo (48h / $3.427.200)
 
 ### 1.1 Seleccion de tipo de mantenimiento (Correctivo/Preventivo)
-- **Estado**: PARCIAL
-- **Lo que hay**: El modelo `Maintenance` tiene campo `type` que acepta valores correctivo/preventivo. La solicitud desde auditorias funciona.
-- **Falta**: UI de selector explicito en el formulario de solicitud. Actualmente se asume correctivo.
+- **Estado**: HECHO
+- **Lo que hay**: Selector Correctivo/Preventivo en modal de solicitud. Constantes `TYPE_CORRECTIVE` / `TYPE_PREVENTIVE` en modelo. Validacion en controller. Activity log incluye tipo. Cuando hay mantenimiento abierto se bloquean botones "Cargar Revision" y "Editar" en detalle de auditoria.
 - **Archivos**:
-  - `app/Models/Maintenance.php` — modelo con campo `type`
-  - `app/Http/Controllers/AuditActionController.php` — metodo `requestMaintenance()`
-  - `resources/views/audit/partials/maintenance-modal.blade.php` — modal de solicitud
+  - `app/Models/Maintenance.php` — constantes de tipo + `hasRequisition()`
+  - `app/Http/Controllers/AuditActionController.php` — validacion `maintenance_type`, permisos con `hasAccess()`
+  - `resources/views/orchid/audit/detail.blade.php` — selector tipo en modal, bloqueo de botones con mantenimiento abierto
 
 ### 1.2 Sistema de evaluacion con 4 aspectos
 - **Estado**: HECHO
@@ -80,24 +79,28 @@
   - `app/Livewire/AuditForm.php` — upload de fotos
 
 ### 1.7 Validacion de cierre obligatorio con archivos cuando existe RQ
-- **Estado**: PARCIAL
-- **Lo que hay**: Cierre con documento PDF funciona (`closeMaintenance` genera PDF).
-- **Falta**: Validacion condicional: si hay RQ asociada, obligar adjuntar archivos de soporte antes de cerrar.
+- **Estado**: HECHO
+- **Lo que hay**: Validacion condicional implementada: si el mantenimiento tiene RQ (Advisual), los archivos de soporte son obligatorios al cerrar. Columna `support_files_paths` (JSON) en tabla `maintenances`. UI muestra alerta roja cuando hay RQ. Archivos de soporte visibles en detalle de mantenimiento cerrado. Implementado tanto en controller (desde auditoria) como en Orchid screen (desde mantenimiento).
 - **Archivos**:
-  - `app/Http/Controllers/AuditActionController.php` — metodo `closeMaintenance()`
+  - `app/Http/Controllers/AuditActionController.php` — `closeMaintenanceFromAudit()` con validacion condicional
+  - `app/Orchid/Screens/Maintenance/MaintenanceDetailScreen.php` — `close()` con misma logica
+  - `app/Models/Maintenance.php` — `hasRequisition()`, `support_files_paths` en fillable/casts
+  - `database/migrations/2026_02_28_000001_add_support_files_paths_to_maintenances.php`
+  - `resources/views/orchid/audit/detail.blade.php` — input soporte en modal cierre
+  - `resources/views/orchid/maintenance/detail.blade.php` — input soporte + display archivos
 
 ### 1.8 Notificacion automatica a Compras al cerrar con OC
 - **Estado**: PENDIENTE (depende de 1.5 OC + 1.3 Notificaciones)
 - **Falta**: Trigger al cerrar novedad con OC que envie email a rol "Compras".
 
 ### Checklist C1
-- [x] 1.1 Modelo con campo `type` (parcial — falta UI selector)
+- [x] 1.1 Selector tipo Correctivo/Preventivo + bloqueo edicion con mantenimiento abierto
 - [x] 1.2 Sistema evaluacion 4 aspectos
 - [ ] 1.3 Notificaciones email
 - [x] 1.4 Boton Generar RQ + Advisual INSERT
 - [ ] 1.5 Flujo OC completo
 - [x] 1.6 Tipos archivo ampliados
-- [ ] 1.7 Validacion cierre condicional con archivos
+- [x] 1.7 Validacion cierre condicional con archivos de soporte (requiere soporte si hay RQ)
 - [ ] 1.8 Notificacion a Compras al cerrar con OC
 
 ---
@@ -333,17 +336,30 @@ Este componente es adicional y se ejecuta de forma independiente tras completar 
 
 ## Fases de Trabajo (Orden Sugerido)
 
-### FASE A — Completar Correctivo Basico
+### FASE A — Completar Correctivo Basico — COMPLETADA (2026-02-28)
 **Prioridad**: ALTA | **Dependencias**: Ninguna
 **Items**: 1.1 (selector tipo), 1.7 (validacion cierre)
 
-Tareas:
-1. Agregar selector Correctivo/Preventivo en modal de solicitud de mantenimiento
-2. Implementar validacion: si existe RQ, obligar adjuntar archivos al cerrar
+Implementado:
+1. ~~Agregar selector Correctivo/Preventivo en modal de solicitud de mantenimiento~~ HECHO
+2. ~~Implementar validacion: si existe RQ, obligar adjuntar archivos al cerrar~~ HECHO
+3. Constantes TYPE_CORRECTIVE / TYPE_PREVENTIVE en modelo Maintenance
+4. Metodo `hasRequisition()` en modelo Maintenance
+5. Migracion `support_files_paths` (JSON) en maintenances
+6. Validacion condicional en controller y Orchid screen
+7. UI de archivos de soporte en modales de cierre (auditoria y mantenimiento)
+8. Display de archivos de soporte en detalle de mantenimiento cerrado
+9. Bloqueo de botones "Cargar Revision" y "Editar" cuando hay mantenimiento abierto
+10. Fix: permisos en AuditActionController (reemplazado `$this->authorize()` por `abort_unless` + `hasAccess`)
+11. Fix: formularios en modales usan JS submit (evita conflicto con Orchid Turbo)
 
-**Archivos clave**:
+**Archivos modificados**:
+- `app/Models/Maintenance.php`
 - `app/Http/Controllers/AuditActionController.php`
-- `resources/views/audit/partials/maintenance-modal.blade.php`
+- `app/Orchid/Screens/Maintenance/MaintenanceDetailScreen.php`
+- `resources/views/orchid/audit/detail.blade.php`
+- `resources/views/orchid/maintenance/detail.blade.php`
+- `database/migrations/2026_02_28_000001_add_support_files_paths_to_maintenances.php` (nueva)
 
 ---
 
