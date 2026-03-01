@@ -16,7 +16,7 @@ class AuditActionController extends Controller
      */
     public function markAsThirdParty(Audit $audit)
     {
-        $this->authorize('audit.close_with_error');
+        abort_unless(auth()->user()->hasAccess('audit.close_with_error'), 403);
         $oldStatus = $audit->general_status;
 
         // 1. Update Space
@@ -64,7 +64,7 @@ class AuditActionController extends Controller
      */
     public function uploadRevision(Request $request, Audit $audit)
     {
-        $this->authorize('audit.upload_fixes');
+        abort_unless(auth()->user()->hasAccess('audit.upload_fixes'), 403);
         $request->validate([
             'revision_photo' => 'required|image|max:10240', // Max 10MB
             'revision_comment' => 'nullable|string',
@@ -153,7 +153,7 @@ class AuditActionController extends Controller
      */
     public function updateAudit(Request $request, Audit $audit)
     {
-        $this->authorize('audit.close_with_error');
+        abort_unless(auth()->user()->hasAccess('audit.close_with_error'), 403);
         $request->validate([
             'revision_comment' => 'required|string|min:3', // Required edit note
             'criteria' => 'nullable|array',
@@ -230,13 +230,15 @@ class AuditActionController extends Controller
      */
     public function requestMaintenance(Request $request, Audit $audit)
     {
-        $this->authorize('audit.request_maintenance');
+        abort_unless(auth()->user()->hasAccess('audit.request_maintenance'), 403);
 
         $request->validate([
+            'maintenance_type' => 'required|in:corrective,preventive',
             'maintenance_category' => 'required|in:estructural,electrico,ambiental,material',
             'maintenance_priority' => 'required|in:alta,media,baja',
             'maintenance_description' => 'required|string|min:5',
         ], [
+            'maintenance_type.required' => 'El tipo de mantenimiento es requerido.',
             'maintenance_category.required' => 'La categoría es requerida.',
             'maintenance_priority.required' => 'La prioridad es requerida.',
             'maintenance_description.required' => 'La descripción es requerida.',
@@ -261,7 +263,7 @@ class AuditActionController extends Controller
             'audit_id' => $audit->id,
             'requested_by' => auth()->id(),
             'requested_at' => now(),
-            'type' => 'corrective',
+            'type' => $request->input('maintenance_type'),
             'category' => $request->input('maintenance_category'),
             'status' => Maintenance::STATUS_REPORTED,
             'priority' => $request->input('maintenance_priority'),
@@ -276,10 +278,11 @@ class AuditActionController extends Controller
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_MAINTENANCE_REQUESTED,
-            description: 'Mantenimiento solicitado. Categoría: ' . $request->input('maintenance_category') . '. Prioridad: ' . $request->input('maintenance_priority'),
+            description: 'Mantenimiento ' . ($request->input('maintenance_type') === 'preventive' ? 'preventivo' : 'correctivo') . ' solicitado. Categoría: ' . $request->input('maintenance_category') . '. Prioridad: ' . $request->input('maintenance_priority'),
             auditId: $audit->id,
             metadata: [
                 'maintenance_id' => $maintenance->id,
+                'type' => $request->input('maintenance_type'),
                 'category' => $request->input('maintenance_category'),
                 'priority' => $request->input('maintenance_priority'),
                 'advisual_synced' => $synced,
@@ -303,18 +306,9 @@ class AuditActionController extends Controller
      */
     public function closeMaintenanceFromAudit(Request $request, Audit $audit)
     {
-        $this->authorize('maintenance.close');
+        abort_unless(auth()->user()->hasAccess('maintenance.close'), 403);
 
-        $request->validate([
-            'closure_document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'closure_comment' => 'nullable|string|max:1000',
-        ], [
-            'closure_document.required' => 'El documento de cierre es requerido.',
-            'closure_document.mimes' => 'El archivo debe ser PDF o imagen (JPG, PNG).',
-            'closure_document.max' => 'El archivo no debe superar 10MB.',
-        ]);
-
-        // Find the open maintenance for this audit
+        // Find the open maintenance BEFORE validation (need to check for RQ)
         $maintenance = $audit->maintenances()
             ->whereNotIn('status', [Maintenance::STATUS_CLOSED])
             ->first();
@@ -329,17 +323,49 @@ class AuditActionController extends Controller
             return back();
         }
 
-        // Store document
+        // Conditional validation: support files required when maintenance has RQ
+        $supportFilesRule = $maintenance->hasRequisition() ? 'required|array|min:1' : 'nullable|array';
+
+        $request->validate([
+            'closure_document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'closure_comment' => 'nullable|string|max:1000',
+            'support_files' => $supportFilesRule,
+            'support_files.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ], [
+            'closure_document.required' => 'El documento de cierre es requerido.',
+            'closure_document.mimes' => 'El archivo debe ser PDF o imagen (JPG, PNG).',
+            'closure_document.max' => 'El archivo no debe superar 10MB.',
+            'support_files.required' => 'Los archivos de soporte son obligatorios cuando el mantenimiento tiene RQ.',
+            'support_files.min' => 'Debe adjuntar al menos un archivo de soporte.',
+            'support_files.*.mimes' => 'Los archivos de soporte deben ser PDF o imagen (JPG, PNG).',
+            'support_files.*.max' => 'Cada archivo de soporte no debe superar 10MB.',
+        ]);
+
+        // Store closure document
         $path = $request->file('closure_document')->store('maintenance-closures', 'public');
 
+        // Store support files
+        $supportFilesPaths = [];
+        if ($request->hasFile('support_files')) {
+            foreach ($request->file('support_files') as $file) {
+                $supportFilesPaths[] = $file->store('maintenance-closures/support', 'public');
+            }
+        }
+
         // Close the maintenance
-        $maintenance->update([
+        $updateData = [
             'status' => Maintenance::STATUS_CLOSED,
             'closed_by' => auth()->id(),
             'closed_at' => now(),
             'closure_document_path' => $path,
             'closure_comment' => $request->input('closure_comment'),
-        ]);
+        ];
+
+        if (!empty($supportFilesPaths)) {
+            $updateData['support_files_paths'] = $supportFilesPaths;
+        }
+
+        $maintenance->update($updateData);
 
         // Log activity
         SpaceActivityLog::log(
@@ -351,6 +377,7 @@ class AuditActionController extends Controller
                 'maintenance_id' => $maintenance->id,
                 'closed_by' => auth()->user()->name,
                 'document_path' => $path,
+                'support_files_count' => count($supportFilesPaths),
             ],
             year: $audit->year,
             week: $audit->week

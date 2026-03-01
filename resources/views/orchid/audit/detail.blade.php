@@ -83,7 +83,7 @@
                         </button>
                 @endif
 
-                @if(auth()->user()->hasAccess('audit.upload_fixes'))
+                @if(auth()->user()->hasAccess('audit.upload_fixes') && !$audit->hasOpenMaintenance())
                     <!-- Cargar Revisión (Green) - Triggers Modal -->
                     <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
                         data-bs-target="#uploadRevisionModal">
@@ -91,7 +91,7 @@
                     </button>
                 @endif
 
-                @if(auth()->user()->hasAccess('audit.close_with_error'))
+                @if(auth()->user()->hasAccess('audit.close_with_error') && !$audit->hasOpenMaintenance())
                     <!-- Editar (Green) -->
                     <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
                         data-bs-target="#editAuditModal">
@@ -286,8 +286,8 @@
                     @if(isset($activityLogs) && $activityLogs->count() > 0)
                         <div class="timeline-container" style="max-height: 400px; overflow-y: auto;">
                             @foreach($activityLogs as $log)
-                                <div class="d-flex mb-3 pb-3 border-bottom">
-                                    <div class="me-3">
+                                <div class="d-flex mb-3 pb-3 border-bottom" style="overflow: hidden;">
+                                    <div class="flex-shrink-0 me-3">
                                         @php
                                             $iconClass = match($log->activity_type) {
                                                 'audit_created' => 'bg-success',
@@ -328,9 +328,9 @@
                                             </div>
                                         @endif
                                     </div>
-                                    <div class="flex-grow-1">
+                                    <div class="flex-grow-1" style="min-width: 0;">
                                         <div class="d-flex justify-content-between align-items-start">
-                                            <div>
+                                            <div style="min-width: 0;">
                                                 <span class="fw-bold text-dark">
                                                     @switch($log->activity_type)
                                                         @case('audit_created')
@@ -363,7 +363,7 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        <p class="text-muted mb-1 small">{{ $log->description }}</p>
+                                        <p class="text-muted mb-1 small text-truncate" title="{{ $log->description }}">{{ $log->description }}</p>
                                         <div class="d-flex align-items-center flex-wrap gap-2">
                                             <small class="text-muted">
                                                 <i class="icon-user me-1"></i>
@@ -391,7 +391,7 @@
                                             @if(isset($log->metadata['old_status']) && isset($log->metadata['new_status']))
                                                 <div class="mt-2">
                                                     <small class="text-muted">
-                                                        Estado: 
+                                                        Estado:
                                                         <span class="badge {{ $log->metadata['old_status'] === 'bad' ? 'bg-danger' : 'bg-success' }}">
                                                             {{ ucfirst($log->metadata['old_status']) }}
                                                         </span>
@@ -402,24 +402,24 @@
                                                     </small>
                                                 </div>
                                             @endif
-                                            
+
                                             {{-- Comentario/Observación --}}
                                             @if(isset($log->metadata['comment']) && $log->metadata['comment'])
-                                                <div class="mt-2 p-2 bg-light rounded border-start border-3 border-secondary">
+                                                <div class="mt-2 p-2 bg-light rounded border-start border-3 border-secondary" style="overflow: hidden; word-break: break-word;">
                                                     <small class="text-muted d-block mb-1"><i class="icon-bubble me-1"></i> Observación:</small>
                                                     <p class="mb-0 small text-dark">{{ $log->metadata['comment'] }}</p>
                                                 </div>
                                             @endif
                                             @if(isset($log->metadata['added_comment']) && $log->metadata['added_comment'])
-                                                <div class="mt-2 p-2 bg-light rounded border-start border-3 border-info">
+                                                <div class="mt-2 p-2 bg-light rounded border-start border-3 border-info" style="overflow: hidden; word-break: break-word;">
                                                     <small class="text-muted d-block mb-1"><i class="icon-pencil me-1"></i> Nota:</small>
                                                     <p class="mb-0 small text-dark">{{ $log->metadata['added_comment'] }}</p>
                                                 </div>
                                             @endif
-                                            
+
                                             {{-- Cambios de criterios --}}
                                             @if(isset($log->metadata['criteria_changes']) && count($log->metadata['criteria_changes']) > 0)
-                                                <div class="mt-2">
+                                                <div class="mt-2" style="overflow: hidden;">
                                                     <small class="text-muted d-block mb-1"><i class="icon-list me-1"></i> Criterios modificados:</small>
                                                     <div class="d-flex flex-wrap gap-1">
                                                         @foreach($log->metadata['criteria_changes'] as $change)
@@ -1112,6 +1112,101 @@
             bsModal.hide();
         }
     }
+
+    function submitCloseMaintenance() {
+        var closureDoc = document.getElementById('closure_document_input');
+        var supportFiles = document.getElementById('support_files_input');
+        var closureComment = document.getElementById('closure_comment_input');
+
+        if (!closureDoc.files || closureDoc.files.length === 0) {
+            closureDoc.classList.add('is-invalid');
+            return;
+        }
+
+        @if(isset($openMaintenance) && $openMaintenance->advisual_requisition_id)
+        if (!supportFiles.files || supportFiles.files.length === 0) {
+            supportFiles.classList.add('is-invalid');
+            return;
+        }
+        @endif
+
+        var formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('closure_document', closureDoc.files[0]);
+        if (supportFiles.files) {
+            for (var i = 0; i < supportFiles.files.length; i++) {
+                formData.append('support_files[]', supportFiles.files[i]);
+            }
+        }
+        formData.append('closure_comment', closureComment.value);
+
+        var actionUrl = '{{ url("/admin/audit-action/" . $audit->id . "/close-maintenance") }}';
+
+        fetch(actionUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (response.ok || response.status === 302) {
+                window.location.reload();
+            } else {
+                return response.json().then(data => {
+                    var msg = data.message || 'Error al cerrar el mantenimiento.';
+                    if (data.errors) {
+                        msg = Object.values(data.errors).flat().join('\n');
+                    }
+                    alert(msg);
+                });
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            alert('Error al cerrar el mantenimiento.');
+        });
+    }
+
+    function submitRequestMaintenance() {
+        var type = document.getElementById('maintenance_type_input').value;
+        var category = document.getElementById('maintenance_category_input').value;
+        var priority = document.getElementById('maintenance_priority_input').value;
+        var description = document.getElementById('maintenance_description_input').value;
+
+        if (!category) {
+            document.getElementById('maintenance_category_input').classList.add('is-invalid');
+            return;
+        }
+        if (!description || description.length < 5) {
+            document.getElementById('maintenance_description_input').classList.add('is-invalid');
+            return;
+        }
+
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url("/admin/audit-action/" . $audit->id . "/request-maintenance") }}';
+
+        var fields = {
+            '_token': '{{ csrf_token() }}',
+            'maintenance_type': type,
+            'maintenance_category': category,
+            'maintenance_priority': priority,
+            'maintenance_description': description
+        };
+
+        for (var key in fields) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = fields[key];
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
 </script>
 
 <!-- Modal para foto individual (de actividad) -->
@@ -1175,40 +1270,44 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <form id="requestMaintenanceForm" method="POST" action="{{ url('/admin/audit-action/' . $audit->id . '/request-maintenance') }}">
-                @csrf
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Categoría *</label>
-                            <select name="maintenance_category" class="form-select form-select-sm" required>
-                                <option value="">Seleccionar...</option>
-                                <option value="estructural">Estructural</option>
-                                <option value="electrico">Eléctrico</option>
-                                <option value="ambiental">Ambiental</option>
-                                <option value="material">Material</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Prioridad *</label>
-                            <select name="maintenance_priority" class="form-select form-select-sm" required>
-                                <option value="media" selected>Media</option>
-                                <option value="alta">Alta</option>
-                                <option value="baja">Baja</option>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Descripción del Problema *</label>
-                            <textarea name="maintenance_description" class="form-control form-control-sm" rows="3"
-                                placeholder="Describa el problema encontrado..." required minlength="5"></textarea>
-                        </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Tipo de Mantenimiento *</label>
+                        <select id="maintenance_type_input" class="form-select form-select-sm" required>
+                            <option value="corrective" selected>Correctivo</option>
+                            <option value="preventive">Preventivo</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Categoría *</label>
+                        <select id="maintenance_category_input" class="form-select form-select-sm" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="estructural">Estructural</option>
+                            <option value="electrico">Eléctrico</option>
+                            <option value="ambiental">Ambiental</option>
+                            <option value="material">Material</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Prioridad *</label>
+                        <select id="maintenance_priority_input" class="form-select form-select-sm" required>
+                            <option value="media" selected>Media</option>
+                            <option value="alta">Alta</option>
+                            <option value="baja">Baja</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Descripción del Problema *</label>
+                        <textarea id="maintenance_description_input" class="form-control form-control-sm" rows="3"
+                            placeholder="Describa el problema encontrado..." required minlength="5"></textarea>
                     </div>
                 </div>
-                <div class="modal-footer border-top bg-white py-2 px-4">
-                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-warning text-dark px-4 fw-bold">Solicitar</button>
-                </div>
-            </form>
+            </div>
+            <div class="modal-footer border-top bg-white py-2 px-4">
+                <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning text-dark px-4 fw-bold" onclick="submitRequestMaintenance()">Solicitar</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1223,27 +1322,40 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <form method="POST" action="{{ url('/admin/audit-action/' . $audit->id . '/close-maintenance') }}" enctype="multipart/form-data">
-                @csrf
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Documento de Cierre (PDF o Imagen) *</label>
-                            <input type="file" name="closure_document" class="form-control form-control-sm" accept=".pdf,image/*" required>
-                            <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Comentario de Cierre</label>
-                            <textarea name="closure_comment" class="form-control form-control-sm" rows="2"
-                                placeholder="Nota opcional sobre el cierre..."></textarea>
-                        </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Documento de Cierre (PDF o Imagen) *</label>
+                        <input type="file" id="closure_document_input" class="form-control form-control-sm" accept=".pdf,image/*" required>
+                        <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">
+                            Archivos de Soporte (PDF o Imagen)
+                            @if(isset($openMaintenance) && $openMaintenance->advisual_requisition_id)
+                                *
+                            @endif
+                        </label>
+                        @if(isset($openMaintenance) && $openMaintenance->advisual_requisition_id)
+                            <div class="alert alert-danger py-1 px-2 mb-2" style="font-size: 0.8rem;">
+                                <i class="icon-exclamation me-1"></i> Obligatorio: este mantenimiento tiene RQ asociada.
+                            </div>
+                        @endif
+                        <input type="file" id="support_files_input" class="form-control form-control-sm" accept=".pdf,image/*" multiple
+                            {{ isset($openMaintenance) && $openMaintenance->advisual_requisition_id ? 'required' : '' }}>
+                        <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB por archivo. Puede seleccionar varios.</small>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Comentario de Cierre</label>
+                        <textarea id="closure_comment_input" class="form-control form-control-sm" rows="2"
+                            placeholder="Nota opcional sobre el cierre..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer border-top bg-white py-2 px-4">
-                    <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-info text-white px-4 fw-bold">Cerrar Mantenimiento</button>
-                </div>
-            </form>
+            </div>
+            <div class="modal-footer border-top bg-white py-2 px-4">
+                <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-info text-white px-4 fw-bold" onclick="submitCloseMaintenance()">Cerrar Mantenimiento</button>
+            </div>
         </div>
     </div>
 </div>

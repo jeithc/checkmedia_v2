@@ -72,25 +72,47 @@ class MaintenanceDetailScreen extends Screen
      */
     public function close(Request $request, Maintenance $maintenance)
     {
-        $request->validate([
-            'closure_document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'closure_comment' => 'nullable|string|max:1000',
-        ]);
-
         if (!$maintenance->canBeClosed()) {
             Toast::error('Este mantenimiento no puede ser cerrado.');
             return;
         }
 
+        // Conditional validation: support files required when maintenance has RQ
+        $supportFilesRule = $maintenance->hasRequisition() ? 'required|array|min:1' : 'nullable|array';
+
+        $request->validate([
+            'closure_document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'closure_comment' => 'nullable|string|max:1000',
+            'support_files' => $supportFilesRule,
+            'support_files.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ], [
+            'support_files.required' => 'Los archivos de soporte son obligatorios cuando el mantenimiento tiene RQ.',
+            'support_files.min' => 'Debe adjuntar al menos un archivo de soporte.',
+        ]);
+
         $path = $request->file('closure_document')->store('maintenance-closures', 'public');
 
-        $maintenance->update([
+        // Store support files
+        $supportFilesPaths = [];
+        if ($request->hasFile('support_files')) {
+            foreach ($request->file('support_files') as $file) {
+                $supportFilesPaths[] = $file->store('maintenance-closures/support', 'public');
+            }
+        }
+
+        $updateData = [
             'status' => Maintenance::STATUS_CLOSED,
             'closed_by' => auth()->id(),
             'closed_at' => now(),
             'closure_document_path' => $path,
             'closure_comment' => $request->input('closure_comment'),
-        ]);
+        ];
+
+        if (!empty($supportFilesPaths)) {
+            $updateData['support_files_paths'] = $supportFilesPaths;
+        }
+
+        $maintenance->update($updateData);
 
         SpaceActivityLog::log(
             spaceId: $maintenance->advertising_space_id,
@@ -101,6 +123,7 @@ class MaintenanceDetailScreen extends Screen
                 'maintenance_id' => $maintenance->id,
                 'closed_by' => auth()->user()->name,
                 'document_path' => $path,
+                'support_files_count' => count($supportFilesPaths),
             ],
         );
 

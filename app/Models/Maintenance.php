@@ -16,6 +16,9 @@ class Maintenance extends Model
     const STATUS_IN_PROGRESS = 'in_progress';
     const STATUS_CLOSED = 'closed';
 
+    const TYPE_CORRECTIVE = 'corrective';
+    const TYPE_PREVENTIVE = 'preventive';
+
     protected $fillable = [
         'advertising_space_id',
         'audit_id',
@@ -36,6 +39,7 @@ class Maintenance extends Model
         'closed_at',
         'closure_document_path',
         'closure_comment',
+        'support_files_paths',
     ];
 
     protected $casts = [
@@ -43,6 +47,7 @@ class Maintenance extends Model
         'requested_at' => 'datetime',
         'advisual_synced_at' => 'datetime',
         'closed_at' => 'datetime',
+        'support_files_paths' => 'array',
     ];
 
     protected $allowedSorts = [
@@ -76,6 +81,11 @@ class Maintenance extends Model
     public function canBeClosed(): bool
     {
         return $this->status !== self::STATUS_CLOSED;
+    }
+
+    public function hasRequisition(): bool
+    {
+        return !empty($this->advisual_requisition_id);
     }
 
     public function getStatusLabelAttribute(): string
