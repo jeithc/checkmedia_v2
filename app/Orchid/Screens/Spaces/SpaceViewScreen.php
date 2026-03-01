@@ -3,11 +3,11 @@
 namespace App\Orchid\Screens\Spaces;
 
 use App\Models\AdvertisingSpace;
+use App\Models\SpaceActivityLog;
+use App\Models\Maintenance;
 use Orchid\Screen\Screen;
-use Orchid\Screen\Sight;
 use Orchid\Support\Facades\Layout;
-use Orchid\Screen\TD;
-use App\Models\Audit;
+use Illuminate\Http\Request;
 
 class SpaceViewScreen extends Screen
 {
@@ -23,9 +23,25 @@ class SpaceViewScreen extends Screen
      *
      * @return array
      */
-    public function query(AdvertisingSpace $space): iterable
+    public function query(AdvertisingSpace $space, Request $request): iterable
     {
         $space->load('latestAudit');
+
+        $activityQuery = SpaceActivityLog::where('advertising_space_id', $space->id)
+            ->with(['user', 'audit'])
+            ->orderBy('created_at', 'desc');
+
+        if ($request->filled('activity_type')) {
+            $activityQuery->where('activity_type', $request->input('activity_type'));
+        }
+
+        if ($request->filled('date_from')) {
+            $activityQuery->whereDate('created_at', '>=', $request->input('date_from'));
+        }
+
+        if ($request->filled('date_to')) {
+            $activityQuery->whereDate('created_at', '<=', $request->input('date_to'));
+        }
 
         return [
             'space' => $space,
@@ -34,7 +50,13 @@ class SpaceViewScreen extends Screen
                 'last_audit' => $space->latestAudit ? $space->latestAudit->audit_date->format('d/m/Y') : '-',
                 'total_audits' => $space->audits()->count(),
             ],
-            'audits' => $space->audits()->with('user')->orderBy('audit_date', 'desc')->paginate(10),
+            'audits' => $space->audits()->with('user')->orderBy('audit_date', 'desc')->paginate(10, ['*'], 'audits_page'),
+            'activityLogs' => $activityQuery->paginate(20, ['*'], 'timeline_page'),
+            'activityFilters' => [
+                'activity_type' => $request->input('activity_type', ''),
+                'date_from' => $request->input('date_from', ''),
+                'date_to' => $request->input('date_to', ''),
+            ],
         ];
     }
 

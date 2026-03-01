@@ -13,7 +13,7 @@
 |---|---|---:|---:|---:|---|
 | 1 | Mantenimiento Correctivo | 48h | $3.427.200 | ~70% | Parcial |
 | 2 | Mantenimiento Preventivo | 32h | $2.284.800 | 0% | No iniciado |
-| 3 | Linea de Tiempo por Espacio | 24h | $1.713.600 | ~30% | Parcial |
+| 3 | Linea de Tiempo por Espacio | 24h | $1.713.600 | ~90% | Avanzado |
 | 4 | Informes y Reportes Mejorados | 40h | $2.856.000 | ~25% | Parcial |
 | 5 | Dashboard Analitico | 56h | $3.998.400 | ~35% | Parcial |
 | 6 | Actualizaciones Tecnicas | 64h | $4.569.600 | ~60% | Avanzado |
@@ -160,34 +160,32 @@
 ## C3 — Linea de Tiempo por Codigo de Espacio (24h / $1.713.600)
 
 ### 3.1 Vista de linea de tiempo interactiva
-- **Estado**: PARCIAL
-- **Lo que hay**: Modelo `SpaceActivityLog` con 8 tipos de actividad, colores e iconos. Timeline renderizado dentro de `AuditDetailScreen` y `MaintenanceDetailScreen`.
-- **Falta**: Tab o pantalla dedicada en `SpaceViewScreen` con timeline completo del espacio. UI tipo "Check Amoblamiento Urbano Medellin".
-- **Archivos existentes**:
+- **Estado**: HECHO
+- **Lo que hay**: Tab dedicado "Línea de Tiempo" en `SpaceViewScreen` como tab activo por defecto. Timeline vertical profesional con línea conectora, dots de color por tipo de actividad, cards con hover, avatares, badges semana/año, metadata expandible (cambios estado en español, comentarios, criterios), links contextuales a auditoría/mantenimiento, modal de fotos.
+- **Archivos**:
   - `app/Models/SpaceActivityLog.php` — modelo con `log()`, colores, iconos
-- **Archivos a crear/modificar**:
-  - `app/Orchid/Screens/Space/SpaceViewScreen.php` — agregar tab timeline
-  - `resources/views/orchid/space/timeline.blade.php` — vista dedicada
+  - `app/Orchid/Screens/Spaces/SpaceViewScreen.php` — query con activityLogs paginados + filtros GET
+  - `resources/views/orchid/spaces/timeline.blade.php` — vista timeline completa
+  - `resources/views/orchid/spaces/dashboard.blade.php` — 3 tabs (Timeline, Info, Historial)
 
 ### 3.2 Historial completo de mantenimientos
-- **Estado**: PARCIAL
-- **Lo que hay**: Activity log registra mantenimientos. Vista parcial en detail screens.
-- **Falta**: Consolidar historial de todos los mantenimientos de un espacio en la vista timeline.
+- **Estado**: HECHO
+- **Lo que hay**: Timeline consolida todas las actividades del espacio (auditorías + mantenimientos + cambios de estado + comentarios). Links contextuales a detalle de auditoría y mantenimiento.
 
-### 3.3 Diseno similar a Check Amoblamiento Urbano Medellin
-- **Estado**: PENDIENTE
-- **Falta**: Rediseno visual del timeline con el estilo especifico solicitado.
+### 3.3 Diseno profesional del timeline
+- **Estado**: HECHO
+- **Lo que hay**: Diseño profesional con línea vertical conectora, dots de color, cards con shadow hover, filtros horizontales inline, status en español (Bueno/Malo/Regular), tipografía Argon-style, estado vacío con icono.
 
 ### 3.4 Filtros por tipo de mantenimiento y fechas
-- **Estado**: PENDIENTE
-- **Falta**: Filtros interactivos en la vista timeline (tipo actividad, rango fechas).
+- **Estado**: HECHO
+- **Lo que hay**: Barra de filtros horizontal con select tipo actividad (8 tipos), date from/to, botón Filtrar, botón Limpiar (visible solo con filtros activos). Filtros via GET params leídos en SpaceViewScreen query.
 
 ### Checklist C3
-- [x] 3.1 SpaceActivityLog modelo + logging (parcial — falta UI dedicada)
-- [ ] 3.1 Tab/pantalla timeline en SpaceViewScreen
-- [ ] 3.2 Historial mantenimientos consolidado
-- [ ] 3.3 Diseno estilo Amoblamiento Urbano
-- [ ] 3.4 Filtros interactivos
+- [x] 3.1 SpaceActivityLog modelo + logging
+- [x] 3.1 Tab/pantalla timeline en SpaceViewScreen (tab activo por defecto)
+- [x] 3.2 Historial mantenimientos consolidado
+- [x] 3.3 Diseño profesional timeline (línea vertical, cards, dots color)
+- [x] 3.4 Filtros interactivos (tipo actividad + rango fechas)
 
 ---
 
@@ -401,20 +399,22 @@ Implementado:
 
 ---
 
-### FASE C — Linea de Tiempo (C3)
+### FASE C — Linea de Tiempo (C3) — COMPLETADA (2026-03-01)
 **Prioridad**: MEDIA | **Dependencias**: Ninguna
 **Items**: 3.1, 3.2, 3.3, 3.4
 
-Tareas:
-1. Crear tab dedicado en SpaceViewScreen con timeline completo
-2. Consolidar historial de auditorias + mantenimientos por espacio
-3. Disenar UI estilo "Amoblamiento Urbano Medellin"
-4. Agregar filtros por tipo y rango de fechas
+Implementado:
+1. ~~Crear tab dedicado en SpaceViewScreen con timeline completo~~ HECHO — tab "Línea de Tiempo" activo por defecto
+2. ~~Consolidar historial de auditorias + mantenimientos por espacio~~ HECHO — query SpaceActivityLog con user/audit eager-loaded, paginado 20/página
+3. ~~Diseñar UI profesional del timeline~~ HECHO — línea vertical conectora, dots color, cards hover, avatares, status español
+4. ~~Agregar filtros por tipo y rango de fechas~~ HECHO — barra horizontal con select + dates + filtrar/limpiar via GET params
 
-**Archivos clave**:
-- `app/Models/SpaceActivityLog.php` — ya existe
-- `app/Orchid/Screens/Space/` — agregar tab timeline
-- `resources/views/orchid/space/timeline.blade.php` — nueva vista
+**Archivos modificados**:
+- `app/Orchid/Screens/Spaces/SpaceViewScreen.php` — query con activityLogs + filtros
+- `resources/views/orchid/spaces/dashboard.blade.php` — 3 tabs reordenados
+
+**Archivos creados**:
+- `resources/views/orchid/spaces/timeline.blade.php` — vista timeline profesional
 
 ---
 
@@ -520,7 +520,7 @@ FASE B (notificaciones)     ✅ COMPLETADA
   |                              |
   +---> FASE F (preventivo) -----+
 
-FASE C (timeline)         [independiente]
+FASE C (timeline)         ✅ COMPLETADA
 FASE D (dashboard KPIs)   [independiente]
 FASE H (tecnico)          [paralelo a todo]
 ```

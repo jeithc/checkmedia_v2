@@ -40,21 +40,31 @@
     <!-- Navigation Tabs -->
     <ul class="nav nav-tabs mb-4 border-bottom" id="spaceTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info" aria-selected="true">
+            <button class="nav-link active" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline" type="button" role="tab" aria-controls="timeline" aria-selected="true">
+                <i class="bi bi-clock-history me-2"></i>Línea de Tiempo
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab" aria-controls="info" aria-selected="false">
                 <i class="bi bi-info-circle me-2"></i>Información General
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history" aria-selected="false">
-                <i class="bi bi-clock-history me-2"></i>Historial de Auditorías
+                <i class="bi bi-list-check me-2"></i>Historial de Auditorías
             </button>
         </li>
     </ul>
 
     <!-- Tab Content -->
     <div class="tab-content" id="spaceTabsContent">
+        <!-- Timeline Tab -->
+        <div class="tab-pane fade show active" id="timeline" role="tabpanel" aria-labelledby="timeline-tab">
+            @include('orchid.spaces.timeline')
+        </div>
+
         <!-- General Info Tab -->
-        <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+        <div class="tab-pane fade" id="info" role="tabpanel" aria-labelledby="info-tab">
             <div class="row">
                 <!-- Left Column: Space Details -->
                 <div class="col-md-6 mb-3">
