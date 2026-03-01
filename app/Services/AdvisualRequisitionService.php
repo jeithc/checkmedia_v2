@@ -40,6 +40,7 @@ class AdvisualRequisitionService
                 . ' - ' . ($maintenance->description ?? '');
 
             $requisitionId = DB::connection('advisual')->selectOne("
+                SET NOCOUNT ON;
                 INSERT INTO Requisicion (
                     RequisicionFecha,
                     RequisicionSolicitanteCodigo,
