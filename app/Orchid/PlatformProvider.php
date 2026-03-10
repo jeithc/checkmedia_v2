@@ -37,6 +37,10 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make('Dashboard')
                 ->icon('bs.collection')
                 ->route(config('platform.index')),
+                
+            Menu::make('Panel Principal (Test Dash 2)')
+                ->icon('bs.bar-chart-line')
+                ->route('platform.dashboard2'),
 
             Menu::make('Espacios')
                 ->icon('bs.geo-alt')

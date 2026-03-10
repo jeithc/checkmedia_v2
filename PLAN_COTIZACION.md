@@ -73,9 +73,20 @@
   - `app/Http/Controllers/AuditActionController.php` — metodo que invoca el servicio
   - `config/services.php` — configuracion Advisual
 
-### 1.5 Flujo completo de Ordenes de Compra (OC)
-- **Estado**: HECHO (Simplificado)
-- **Lo que hay**: Dado que el cliente nos ha confirmado que la **Requisición de Mantenimiento (Advisual) ES la Orden de Compra**, este requerimiento quedó satisfecho por el ítem 1.4 (Integración Advisual). No es necesario construir un módulo independiente de OC en CheckMedia. Al presionar "Generar RQ", el flujo de compras inicia en Advisual y el de mantenimientos continúa.
+### 1.5 Flujo completo de Ordenes de Compra (OC) y Sincronizacion Advisual
+- **Estado**: PENDIENTE
+- **Lo que hay**: Nada. No existe modelo PurchaseOrder ni flujo.
+- **Falta**: Modelo `PurchaseOrder`, migracion, pantalla Orchid de gestion, relacion con Maintenance, estados (pendiente, aprobada, rechazada, ejecutada).
+- **Pendiente Nuevo (Validacion Advisual)**: Tarea automatizada diaria para requisiciones generadas en Advisual. Considerar:
+  1. Validar diariamente si la RQ ya paso a ser Orden de Compra (OC).
+  2. Las OCs pueden iniciar con valor 0 y luego cambiar. Si ya es OC, validar cada dia si ya tiene valor asignado.
+  3. Si tiene valor (costo), jalar ese dato al sistema para tener trazabilidad de costos.
+  4. Tiempo limite de busqueda: buscar cambios hasta por 6 meses; terminado este tiempo, dejar de consultar.
+- **Archivos a crear**:
+  - `app/Models/PurchaseOrder.php`
+  - `database/migrations/*_create_purchase_orders_table.php`
+  - `app/Orchid/Screens/PurchaseOrder/PurchaseOrderListScreen.php`
+  - `app/Orchid/Screens/PurchaseOrder/PurchaseOrderDetailScreen.php`
 
 ### 1.6 Ampliacion de tipos de archivo permitidos
 - **Estado**: HECHO
@@ -96,18 +107,25 @@
   - `resources/views/orchid/maintenance/detail.blade.php` — input soporte + display archivos
 
 ### 1.8 Notificacion automatica a Compras al cerrar con OC
-- **Estado**: CANCELADO / NO APLICA
-- **Motivo**: Dado que la Requisición = Orden de Compra (gestionada en Advisual), la notificación/gestión hacia el equipo de compras se da íntegramente de su lado en el software externo o ya fue cubierta por el evento `maintenance_requested`.
+- **Estado**: PENDIENTE (depende de 1.5 OC — infraestructura de notificaciones ya lista en 1.3)
+- **Falta**: Agregar event type `purchase_order_created` en `MaintenanceNotificationService` y crear Mailable correspondiente. Trigger al cerrar novedad con OC.
+
+### 1.9 Creacion de tipos de mantenimiento preventivo y correctivo (Discusión)
+- **Estado**: EN DISCUSION
+- **Lo que hay**: Selector Correctivo/Preventivo integrado.
+- **Falta**: Crear/estructurar en detalle los tipos de mantenimiento preventivo y correctivo de manera especifica.
+- **Discusion en curso**: Determinar si permitimos que todos los auditores puedan escoger el tipo de mantenimiento o si este permiso de eleccion restringe unicamente a auditores especificos.
 
 ### Checklist C1
 - [x] 1.1 Selector tipo Correctivo/Preventivo + bloqueo edicion con mantenimiento abierto
 - [x] 1.2 Sistema evaluacion 4 aspectos
 - [x] 1.3 Notificaciones email + dashboard Orchid (3 eventos: audit_bad, requested, closed) — **Nota**: Falta configurar suscripciones por usuario para DIGITAL, ESTATICO, ST, AU
 - [x] 1.4 Boton Generar RQ + Advisual INSERT
-- [x] 1.5 Flujo OC completo (Satisfecho mediante 1.4 Requisiciones en Advisual)
+- [ ] 1.5 Flujo OC completo + validacion diaria de costos de Advisual (hasta 6 meses)
 - [x] 1.6 Tipos archivo ampliados
 - [x] 1.7 Validacion cierre condicional con archivos de soporte (requiere soporte si hay RQ)
-- [x] 1.8 Notificacion a Compras al cerrar con OC (Cancelado/Asumido por proceso en Advisual)
+- [ ] 1.8 Notificacion a Compras al cerrar con OC
+- [ ] 1.9 Definir tipos de mantenimiento y permisos por rol (todos los auditores vs especificos)
 
 ---
 
@@ -429,14 +447,21 @@ Tareas:
 
 ---
 
-### FASE E — Ordenes de Compra (C1.5, C1.8) — COMPLETADA / SIMPLIFICADA
-**Prioridad**: ALTA | **Dependencias**: Fase A
+### FASE E — Ordenes de Compra (C1.5, C1.6, C1.8)
+**Prioridad**: MEDIA-ALTA | **Dependencias**: Fase A + Fase B
 **Items**: 1.5, 1.8
 
-Implementado:
-- Se determinó (según feedback del cliente) que la **Requisición a Advisual = Orden de Compra**.
-- Las horas planeadas para crear el módulo independiente de OC se han redirigido o ahorrado. 
-- La integración y envío de datos hacia el software de Compras está implementado al 100% en `AdvisualRequisitionService`.
+Tareas:
+1. Crear modelo `PurchaseOrder` con migracion
+2. Crear pantallas Orchid (lista + detalle)
+3. Flujo: desde mantenimiento con RQ -> generar OC -> aprobacion -> ejecucion
+4. Notificacion a Compras al cerrar novedad con OC (depende de Fase B)
+5. Agregar relacion Maintenance -> PurchaseOrder
+
+**Archivos a crear**:
+- `app/Models/PurchaseOrder.php`
+- `database/migrations/*_create_purchase_orders_table.php`
+- `app/Orchid/Screens/PurchaseOrder/`
 
 ---
 
@@ -501,7 +526,7 @@ Tareas:
 ```
 FASE A (correctivo basico)  ✅ COMPLETADA
   |
-  +---> FASE E (ordenes compra)*✅ SIMPLIFICADA (Advisual) ---> FASE G (reportes)
+  +---> FASE E (ordenes compra) ---> FASE G (reportes avanzados)
   |         |
 FASE B (notificaciones)     ✅ COMPLETADA
   |                              |
@@ -545,6 +570,7 @@ FASE H (tecnico)          [paralelo a todo]
 |---|---|---|
 | Criterios estructurales | Equipo CM | Deben definir cuales criterios crear desde admin |
 | Notificaciones por rol | Decision negocio | Resuelto: sistema basado en suscripcion por usuario con filtro por categoria. Admin configura desde UserEditScreen |
+| Permisos tipo de mantenimiento | Decision negocio | En discusion: dejar que todos los auditores puedan escoger tipo de mantenimiento (preventivo vs correctivo) o solo limitarlo a cierta clase de auditores. |
 | Matriz preventiva inicial | Cliente | Deben proveer datos de periodicidad por elemento/region |
 | Presupuesto por valla | Cliente | Datos de presupuesto asignado a cada espacio |
 | S3 credenciales | Infra | Se necesitan credenciales AWS del cliente |

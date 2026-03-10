@@ -49,6 +49,11 @@ Route::screen('/main', PlatformScreen::class)
         ->parent('platform.index')
         ->push(__('Panel de Control'), route('platform.main')));
 
+// Dashboard2 (Panel KPIs)
+use App\Orchid\Screens\Dashboard\AuditDashboardScreen;
+Route::screen('/dashboard2', AuditDashboardScreen::class)
+    ->name('platform.dashboard2');
+
 // Audit Actions - Using distinct path to avoid Orchid screen route conflict
 use App\Http\Controllers\AuditActionController;
 
