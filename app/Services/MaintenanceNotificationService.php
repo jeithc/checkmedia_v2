@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\AuditBadCreatedMail;
 use App\Mail\MaintenanceClosedMail;
 use App\Mail\MaintenanceRequestedMail;
+use App\Mail\PreventiveReminderMail;
 use App\Models\Audit;
 use App\Models\Maintenance;
 use App\Models\UserNotificationSubscription;
@@ -61,6 +62,7 @@ class MaintenanceNotificationService
         return match ($sub->filter_key) {
             'all' => true,
             'category' => stripos($space->category ?? '', $sub->filter_value) !== false,
+            'element_type' => stripos($space->type ?? '', $sub->filter_value) !== false,
             default => true,
         };
     }
@@ -71,6 +73,7 @@ class MaintenanceNotificationService
             'maintenance_requested' => new MaintenanceRequestedMail($model),
             'maintenance_closed' => new MaintenanceClosedMail($model),
             'audit_bad_created' => new AuditBadCreatedMail($model),
+            'preventive_reminder' => new PreventiveReminderMail($model),
         };
     }
 
@@ -96,6 +99,12 @@ class MaintenanceNotificationService
                 ->message("Auditoría con novedades: " . ($model->observation ?: 'Sin observación'))
                 ->action(route('platform.audit.detail', $model->id))
                 ->type(Color::DANGER),
+
+            'preventive_reminder' => DashboardMessage::make()
+                ->title("Mantenimiento Preventivo Próximo — {$spaceCode}")
+                ->message("El elemento requiere mantenimiento preventivo en aproximadamente {$model->preventive_rule_days} días desde su último arreglo válido.")
+                ->action(route('platform.spaces.view', $model->id))
+                ->type(Color::WARNING),
         };
     }
 }

@@ -205,6 +205,28 @@ Route::screen('maintenances/{maintenance}', MaintenanceDetailScreen::class)
 Route::post('maintenances/{maintenance}/close', [MaintenanceDetailScreen::class, 'close'])
     ->name('platform.maintenances.close');
 
+// Preventive Schedules
+use App\Orchid\Screens\Preventive\PreventiveScheduleListScreen;
+use App\Orchid\Screens\Preventive\PreventiveScheduleEditScreen;
+
+Route::screen('preventive-schedules', PreventiveScheduleListScreen::class)
+    ->name('platform.preventive.schedule.list')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.index')
+        ->push('Mantenimiento Preventivo', route('platform.preventive.schedule.list')));
+
+Route::screen('preventive-schedules/create', PreventiveScheduleEditScreen::class)
+    ->name('platform.preventive.schedule.create')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.preventive.schedule.list')
+        ->push('Crear Regla', route('platform.preventive.schedule.create')));
+
+Route::screen('preventive-schedules/{schedule}/edit', PreventiveScheduleEditScreen::class)
+    ->name('platform.preventive.schedule.edit')
+    ->breadcrumbs(fn(Trail $trail, $schedule) => $trail
+        ->parent('platform.preventive.schedule.list')
+        ->push('Editar Regla', route('platform.preventive.schedule.edit', $schedule)));
+
 Route::get('logout-quick', function () {
     auth()->logout();
     return redirect()->route('platform.login');

@@ -127,15 +127,26 @@ class UserEditScreen extends Screen
                         ])
                         ->fields([
                             'event_type' => Select::make()->options([
-                                'audit_bad_created' => 'Auditoría con Error',
-                                'maintenance_requested' => 'Novedades (Mantenimiento Solicitado)',
-                                'maintenance_closed' => 'OC Subsanada (Mantenimiento Cerrado)',
+                                'audit_bad_created' => 'Error de Auditoría',
+                                'maintenance_requested' => 'Novedad Solicitada',
+                                'maintenance_closed' => 'Novedad Cerrada',
+                                'preventive_reminder' => 'Alerta Preventiva',
                             ]),
                             'filter_key' => Select::make()->options([
-                                'all' => 'Todas las Notificaciones',
-                                'category' => 'Categoría / Unidad de Negocio',
+                                'all' => 'Todas',
+                                'category' => 'Categoría',
+                                'element_type' => 'Tipo Elemento',
                             ]),
-                            'filter_value' => Input::make()->type('text'),
+                            'filter_value' => Input::make()
+                                ->type('text')
+                                ->datalist([
+                                    'ESTRUCTURAL',
+                                    'DIGITAL',
+                                    'AU',
+                                    'ST',
+                                    'PREVENTIVO',
+                                ])
+                                ->placeholder('Selecciona o Escribe...'),
                             'channel' => Select::make()->options([
                                 'email' => 'Email',
                             ]),

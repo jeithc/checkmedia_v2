@@ -74,14 +74,8 @@
   - `config/services.php` — configuracion Advisual
 
 ### 1.5 Flujo completo de Ordenes de Compra (OC)
-- **Estado**: PENDIENTE
-- **Lo que hay**: Nada. No existe modelo PurchaseOrder ni flujo.
-- **Falta**: Modelo `PurchaseOrder`, migracion, pantalla Orchid de gestion, relacion con Maintenance, estados (pendiente, aprobada, rechazada, ejecutada).
-- **Archivos a crear**:
-  - `app/Models/PurchaseOrder.php`
-  - `database/migrations/*_create_purchase_orders_table.php`
-  - `app/Orchid/Screens/PurchaseOrder/PurchaseOrderListScreen.php`
-  - `app/Orchid/Screens/PurchaseOrder/PurchaseOrderDetailScreen.php`
+- **Estado**: HECHO (Simplificado)
+- **Lo que hay**: Dado que el cliente nos ha confirmado que la **Requisición de Mantenimiento (Advisual) ES la Orden de Compra**, este requerimiento quedó satisfecho por el ítem 1.4 (Integración Advisual). No es necesario construir un módulo independiente de OC en CheckMedia. Al presionar "Generar RQ", el flujo de compras inicia en Advisual y el de mantenimientos continúa.
 
 ### 1.6 Ampliacion de tipos de archivo permitidos
 - **Estado**: HECHO
@@ -102,18 +96,18 @@
   - `resources/views/orchid/maintenance/detail.blade.php` — input soporte + display archivos
 
 ### 1.8 Notificacion automatica a Compras al cerrar con OC
-- **Estado**: PENDIENTE (depende de 1.5 OC — infraestructura de notificaciones ya lista en 1.3)
-- **Falta**: Agregar event type `purchase_order_created` en `MaintenanceNotificationService` y crear Mailable correspondiente. Trigger al cerrar novedad con OC.
+- **Estado**: CANCELADO / NO APLICA
+- **Motivo**: Dado que la Requisición = Orden de Compra (gestionada en Advisual), la notificación/gestión hacia el equipo de compras se da íntegramente de su lado en el software externo o ya fue cubierta por el evento `maintenance_requested`.
 
 ### Checklist C1
 - [x] 1.1 Selector tipo Correctivo/Preventivo + bloqueo edicion con mantenimiento abierto
 - [x] 1.2 Sistema evaluacion 4 aspectos
 - [x] 1.3 Notificaciones email + dashboard Orchid (3 eventos: audit_bad, requested, closed) — **Nota**: Falta configurar suscripciones por usuario para DIGITAL, ESTATICO, ST, AU
 - [x] 1.4 Boton Generar RQ + Advisual INSERT
-- [ ] 1.5 Flujo OC completo
+- [x] 1.5 Flujo OC completo (Satisfecho mediante 1.4 Requisiciones en Advisual)
 - [x] 1.6 Tipos archivo ampliados
 - [x] 1.7 Validacion cierre condicional con archivos de soporte (requiere soporte si hay RQ)
-- [ ] 1.8 Notificacion a Compras al cerrar con OC
+- [x] 1.8 Notificacion a Compras al cerrar con OC (Cancelado/Asumido por proceso en Advisual)
 
 ---
 
@@ -435,21 +429,14 @@ Tareas:
 
 ---
 
-### FASE E — Ordenes de Compra (C1.5, C1.6, C1.8)
-**Prioridad**: MEDIA-ALTA | **Dependencias**: Fase A + Fase B
+### FASE E — Ordenes de Compra (C1.5, C1.8) — COMPLETADA / SIMPLIFICADA
+**Prioridad**: ALTA | **Dependencias**: Fase A
 **Items**: 1.5, 1.8
 
-Tareas:
-1. Crear modelo `PurchaseOrder` con migracion
-2. Crear pantallas Orchid (lista + detalle)
-3. Flujo: desde mantenimiento con RQ -> generar OC -> aprobacion -> ejecucion
-4. Notificacion a Compras al cerrar novedad con OC (depende de Fase B)
-5. Agregar relacion Maintenance -> PurchaseOrder
-
-**Archivos a crear**:
-- `app/Models/PurchaseOrder.php`
-- `database/migrations/*_create_purchase_orders_table.php`
-- `app/Orchid/Screens/PurchaseOrder/`
+Implementado:
+- Se determinó (según feedback del cliente) que la **Requisición a Advisual = Orden de Compra**.
+- Las horas planeadas para crear el módulo independiente de OC se han redirigido o ahorrado. 
+- La integración y envío de datos hacia el software de Compras está implementado al 100% en `AdvisualRequisitionService`.
 
 ---
 
@@ -514,7 +501,7 @@ Tareas:
 ```
 FASE A (correctivo basico)  ✅ COMPLETADA
   |
-  +---> FASE E (ordenes compra) ---> FASE G (reportes avanzados)
+  +---> FASE E (ordenes compra)*✅ SIMPLIFICADA (Advisual) ---> FASE G (reportes)
   |         |
 FASE B (notificaciones)     ✅ COMPLETADA
   |                              |

@@ -54,6 +54,12 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('maintenance.view')
                 ->divider(),
 
+            Menu::make('Matriz Preventivo')
+                ->icon('bs.calendar-check')
+                ->route('platform.preventive.schedule.list')
+                ->permission('system.edit_users')
+                ->divider(),
+
             Menu::make(__('Users'))
                 ->icon('bs.people')
                 ->route('platform.systems.users')
@@ -96,19 +102,19 @@ class PlatformProvider extends OrchidServiceProvider
                 ->addPermission('system.be_notified', 'Recibir notificaciones'),
 
             ItemPermission::group('Auditoría')
-                ->addPermission('audit.can_audit', 'Realizar Auditorías')
-                ->addPermission('audit.can_audit_structural', 'Realizar Auditorías Estructurales')
-                ->addPermission('audit.manage_criteria', 'Gestionar Criterios de Auditoría')
-                ->addPermission('audit.close_with_error', 'Cerrar estados con error')
-                ->addPermission('audit.upload_fixes', 'Subir arreglos/revisiones')
-                ->addPermission('audit.request_maintenance', 'Solicitar mantenimiento desde auditoría'),
+                ->addPermission('audit.can_audit', 'Auditoría General')
+                ->addPermission('audit.can_audit_structural', 'Auditoría Estructural')
+                ->addPermission('audit.manage_criteria', 'Criterios de Aud.')
+                ->addPermission('audit.close_with_error', 'Cerrar con Novedades')
+                ->addPermission('audit.upload_fixes', 'Subir Revisiones')
+                ->addPermission('audit.request_maintenance', 'Solicitar Mantenimiento'),
 
             ItemPermission::group('Mantenimientos')
-                ->addPermission('maintenance.view', 'Ver mantenimientos')
-                ->addPermission('maintenance.close', 'Cerrar mantenimientos'),
+                ->addPermission('maintenance.view', 'Ver Mantenimientos')
+                ->addPermission('maintenance.close', 'Cerrar Mantenimientos'),
 
             ItemPermission::group('Reportes')
-                ->addPermission('reports.create_shared', 'Crear reportes compartidos'),
+                ->addPermission('reports.create_shared', 'Crear Reportes'),
         ];
     }
 }

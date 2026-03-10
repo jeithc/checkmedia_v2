@@ -226,11 +226,11 @@
 @endpush
 
 {{-- Barra de Filtros --}}
-<div class="bg-white rounded shadow-sm p-3 mb-4">
-    <form method="GET" action="" class="tl-filter-bar">
-        <div class="tl-filter-group" style="min-width: 180px;">
-            <label>Tipo de Actividad</label>
-            <select name="activity_type" class="form-select form-select-sm">
+<div class="bg-white rounded shadow-sm p-4 mb-4">
+    <div class="row align-items-end g-3">
+        <div class="col-12 col-md-auto" style="min-width: 240px;">
+            <label class="form-label" style="font-weight: 500; font-size: 0.75rem; color: #8898aa; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.5rem;">Tipo de Actividad</label>
+            <select id="filter_activity_type" class="form-select">
                 <option value="">Todos los tipos</option>
                 <option value="audit_created" @selected($activityFilters['activity_type'] === 'audit_created')>Auditoría Creada</option>
                 <option value="audit_updated" @selected($activityFilters['activity_type'] === 'audit_updated')>Auditoría Actualizada</option>
@@ -242,26 +242,64 @@
                 <option value="comment_added" @selected($activityFilters['activity_type'] === 'comment_added')>Comentario Agregado</option>
             </select>
         </div>
-        <div class="tl-filter-group">
-            <label>Desde</label>
-            <input type="date" name="date_from" class="form-control form-control-sm" value="{{ $activityFilters['date_from'] }}">
+        <div class="col-12 col-md-auto" style="min-width: 180px;">
+            <label class="form-label" style="font-weight: 500; font-size: 0.75rem; color: #8898aa; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.5rem;">Desde</label>
+            <input type="date" id="filter_date_from" class="form-control" value="{{ $activityFilters['date_from'] }}">
         </div>
-        <div class="tl-filter-group">
-            <label>Hasta</label>
-            <input type="date" name="date_to" class="form-control form-control-sm" value="{{ $activityFilters['date_to'] }}">
+        <div class="col-12 col-md-auto" style="min-width: 180px;">
+            <label class="form-label" style="font-weight: 500; font-size: 0.75rem; color: #8898aa; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.5rem;">Hasta</label>
+            <input type="date" id="filter_date_to" class="form-control" value="{{ $activityFilters['date_to'] }}">
         </div>
-        <div class="d-flex gap-2" style="padding-bottom: 1px;">
-            <button type="submit" class="btn btn-sm btn-primary px-3">
-                <i class="icon-magnifier me-1"></i>Filtrar
+        <div class="col-12 col-md-auto d-flex gap-2">
+            <button type="button" class="btn btn-primary px-4" onclick="applyTimelineFilters()">
+                Filtrar
             </button>
             @if($activityFilters['activity_type'] || $activityFilters['date_from'] || $activityFilters['date_to'])
-                <a href="{{ url()->current() }}" class="btn btn-sm btn-light text-muted px-3">
-                    <i class="icon-close me-1"></i>Limpiar
-                </a>
+                <button type="button" class="btn btn-outline-secondary px-4 bg-white" onclick="clearTimelineFilters()">
+                    Limpiar
+                </button>
             @endif
         </div>
-    </form>
+    </div>
 </div>
+
+@push('scripts')
+<script>
+    function applyTimelineFilters() {
+        const type = document.getElementById('filter_activity_type').value;
+        const from = document.getElementById('filter_date_from').value;
+        const to = document.getElementById('filter_date_to').value;
+        
+        const url = new URL(window.location.href);
+        if (type) url.searchParams.set('activity_type', type); else url.searchParams.delete('activity_type');
+        if (from) url.searchParams.set('date_from', from); else url.searchParams.delete('date_from');
+        if (to) url.searchParams.set('date_to', to); else url.searchParams.delete('date_to');
+        
+        // Mantener la pestaña activa
+        url.hash = 'timeline';
+        
+        if (typeof window.Turbo !== 'undefined') {
+            window.Turbo.visit(url.toString());
+        } else {
+            window.location.href = url.toString();
+        }
+    }
+
+    function clearTimelineFilters() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('activity_type');
+        url.searchParams.delete('date_from');
+        url.searchParams.delete('date_to');
+        url.hash = 'timeline';
+        
+        if (typeof window.Turbo !== 'undefined') {
+            window.Turbo.visit(url.toString());
+        } else {
+            window.location.href = url.toString();
+        }
+    }
+</script>
+@endpush
 
 {{-- Timeline --}}
 <div class="bg-white rounded shadow-sm p-4">

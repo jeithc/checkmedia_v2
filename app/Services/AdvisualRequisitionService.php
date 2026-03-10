@@ -14,6 +14,7 @@ class AdvisualRequisitionService
     public function createRequisition(Maintenance $maintenance): bool
     {
         try {
+            // TODO: cambiar por el del user login ($maintenance->requestedBy->uuid)
             $solicitanteUuid = config('services.advisual.solicitante_uuid');
 
             if (!$solicitanteUuid) {
@@ -29,15 +30,21 @@ class AdvisualRequisitionService
             }
 
             $now = now();
-            $creaUsuario = config('services.advisual.crea_usuario', 'CheckMedia');
+            // RequisicionCreaUsuario mapeado al username (UsuarioLogin)
+            $creaUsuario = $maintenance->requestedBy ? $maintenance->requestedBy->username : config('services.advisual.crea_usuario', 'CheckMedia');
             $estado = config('services.advisual.requisicion_estado', 1);
             $tipo = config('services.advisual.requisicion_tipo', 2);
             $serialProd = config('services.advisual.serial_prod', 1);
             $serialAdmin = config('services.advisual.serial_admin', 0);
 
-            $observacion = strtoupper($maintenance->category ?? 'GENERAL')
-                . ' | ' . ($space->external_code ?? 'SIN-CODIGO')
-                . ' - ' . ($maintenance->description ?? '');
+            // Observación de Solicitante es algo global
+            $observacion = $maintenance->description ?: 'Sin observaciones';
+
+            // RequiProdDescripcion (Texto indicado según novedad) diferenciado por espacio
+            $requiProdDescripcion = strtoupper($maintenance->category ?? 'GENERAL');
+            if ($maintenance->description) {
+                $requiProdDescripcion .= ' - ' . substr($maintenance->description, 0, 200); // Truncar por si acaso
+            }
 
             $requisitionId = DB::connection('advisual')->selectOne("
                 SET NOCOUNT ON;
@@ -53,8 +60,9 @@ class AdvisualRequisitionService
                     RequisicionCreaFecha,
                     RequisicionModificaUsuario,
                     RequisicionModificaFecha,
-                    RequisicionFechaSugerida
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    RequisicionFechaSugerida,
+                    RequiProdDescripcion
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 SELECT SCOPE_IDENTITY() AS id;
             ", [
                 $now,
@@ -69,6 +77,7 @@ class AdvisualRequisitionService
                 $creaUsuario,
                 $now,
                 $now,
+                $requiProdDescripcion
             ]);
 
             if (!$requisitionId || !$requisitionId->id) {
