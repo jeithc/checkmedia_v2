@@ -197,7 +197,7 @@ class AuditDashboardScreen extends Screen
 
     public function name(): ?string
     {
-        return 'Panel de Auditoría y Gestión (Dashboard2)';
+        return 'Panel de Auditoría y Gestión';
     }
 
     public function commandBar(): iterable
@@ -251,7 +251,7 @@ class AuditDashboardScreen extends Screen
                         ]),
                 ]),
 
-                \Orchid\Screen\Actions\Button::make('Aplicar Filtros y Referescar')
+                \Orchid\Screen\Actions\Button::make('Aplicar Filtros y Refrescar')
                     ->icon('bs.filter')
                     ->method('applyFilters')
                     ->class('btn btn-primary w-100'),
@@ -269,9 +269,7 @@ class AuditDashboardScreen extends Screen
                 MaintenanceStatusChart::class,
             ]),
 
-            \Orchid\Support\Facades\Layout::columns([
-                ComplianceChart::class,
-            ]),
+            ComplianceChart::class,
         ];
     }
 }

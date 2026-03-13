@@ -1,7 +1,7 @@
 <div>
     <!-- Date Range Filter -->
-    <div class="bg-white rounded shadow-sm p-3 mb-4 d-flex align-items-center gap-3 flex-wrap">
-        <span class="text-muted small text-uppercase font-weight-bold text-nowrap">Filtrar por fecha:</span>
+    <div class="bg-white rounded shadow-sm p-4 mb-4 d-flex align-items-center gap-3 flex-wrap">
+        <span class="text-muted small text-uppercase fw-bold text-nowrap">Filtrar por fecha:</span>
         <div class="d-flex align-items-center gap-2">
             <label for="dateFrom" class="text-muted small mb-0 text-nowrap">Desde</label>
             <input type="date" id="dateFrom" wire:model="dateFrom" class="form-control form-control-sm" style="width: auto;">
@@ -35,10 +35,10 @@
                 <div class="bg-white rounded shadow-sm p-4 h-100 border-start {{ $borderColor }} border-4">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="text-muted small text-uppercase font-weight-bold mb-1">{{ $metric['label'] }}</h6>
-                            <h3 class="mb-0 {{ $metric['color'] === 'danger' ? 'text-danger' : ($metric['color'] === 'warning' ? 'text-warning' : '') }}">
+                            <h6 class="text-muted small text-uppercase fw-bold mb-1">{{ $metric['label'] }}</h6>
+                            <div class="fs-3 fw-bold mb-0 {{ $metric['color'] === 'danger' ? 'text-danger' : ($metric['color'] === 'warning' ? 'text-warning' : '') }}">
                                 {{ $metric['value'] }}
-                            </h3>
+                            </div>
                             <small class="text-muted">{{ $metric['subtext'] }}</small>
                         </div>
                     </div>
@@ -50,17 +50,17 @@
     <!-- Recent Audits Table -->
     <div class="bg-white rounded shadow-sm overflow-hidden mb-4">
         <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 text-muted small text-uppercase font-weight-bold">Auditorías del Período</h6>
+            <h6 class="mb-0 text-muted small text-uppercase fw-bold">Auditorías del Período</h6>
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead class="bg-light text-muted small text-uppercase font-weight-bold">
+                <thead class="bg-light text-muted small text-uppercase fw-bold">
                     <tr>
                         <th class="px-4 py-3">Espacio</th>
                         <th class="px-4 py-3">Tipo</th>
                         <th class="px-4 py-3 text-center">Semana</th>
                         <th class="px-4 py-3 text-center">Estado</th>
-                        <th class="px-4 py-3 text-right">Fecha</th>
+                        <th class="px-4 py-3 text-end">Fecha</th>
                         <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
@@ -123,14 +123,14 @@
         <!-- Criterios con más fallas -->
         <div class="col-lg-6">
             <div class="bg-white rounded shadow-sm p-4 h-100">
-                <h6 class="text-muted small text-uppercase font-weight-bold mb-3">Criterios con más fallas</h6>
+                <h6 class="text-muted small text-uppercase fw-bold mb-3">Criterios con más fallas</h6>
                 @if($criteriaFailures->isNotEmpty())
                     @php $maxFails = $criteriaFailures->max('total'); @endphp
                     @foreach($criteriaFailures as $criterion)
                         <div class="d-flex align-items-center mb-2">
-                            <span class="small text-nowrap me-3" style="min-width: 100px;">{{ $criterion->name }}</span>
+                            <span class="small text-nowrap me-3 w-25">{{ $criterion->name }}</span>
                             <div class="flex-grow-1">
-                                <div class="progress" style="height: 20px;">
+                                <div class="progress" style="height: 24px;">
                                     <div class="progress-bar bg-danger" role="progressbar"
                                          style="width: {{ $maxFails > 0 ? round(($criterion->total / $maxFails) * 100) : 0 }}%">
                                         {{ $criterion->total }}
@@ -150,13 +150,13 @@
         <!-- Mantenimientos por estado -->
         <div class="col-lg-6">
             <div class="bg-white rounded shadow-sm p-4 h-100">
-                <h6 class="text-muted small text-uppercase font-weight-bold mb-3">Mantenimientos por estado</h6>
+                <h6 class="text-muted small text-uppercase fw-bold mb-3">Mantenimientos por estado</h6>
                 @php
                     $statusConfig = [
-                        \App\Models\Maintenance::STATUS_REPORTED => ['label' => 'Reportado', 'color' => '#ffc107'],
-                        \App\Models\Maintenance::STATUS_PENDING_ADVISUAL => ['label' => 'Pendiente Advisual', 'color' => '#0dcaf0'],
-                        \App\Models\Maintenance::STATUS_IN_PROGRESS => ['label' => 'En Progreso', 'color' => '#0d6efd'],
-                        \App\Models\Maintenance::STATUS_CLOSED => ['label' => 'Cerrado', 'color' => '#198754'],
+                        \App\Models\Maintenance::STATUS_REPORTED => ['label' => 'Reportado', 'color' => 'var(--bs-warning)', 'class' => 'text-warning'],
+                        \App\Models\Maintenance::STATUS_PENDING_ADVISUAL => ['label' => 'Pendiente Advisual', 'color' => 'var(--bs-info)', 'class' => 'text-info'],
+                        \App\Models\Maintenance::STATUS_IN_PROGRESS => ['label' => 'En Progreso', 'color' => 'var(--bs-primary)', 'class' => 'text-primary'],
+                        \App\Models\Maintenance::STATUS_CLOSED => ['label' => 'Cerrado', 'color' => 'var(--bs-success)', 'class' => 'text-success'],
                     ];
                     $totalMaint = $maintByStatus->sum();
                 @endphp
@@ -165,13 +165,13 @@
                         @foreach($statusConfig as $status => $config)
                             @php $count = $maintByStatus[$status] ?? 0; @endphp
                             <div class="text-center">
-                                <div class="fs-3 fw-bold" style="color: {{ $config['color'] }};">{{ $count }}</div>
+                                <div class="fs-3 fw-bold {{ $config['class'] }}">{{ $count }}</div>
                                 <small class="text-muted">{{ $config['label'] }}</small>
                             </div>
                         @endforeach
                     </div>
                     {{-- Stacked bar --}}
-                    <div class="progress" style="height: 30px;">
+                    <div class="progress" style="height: 24px;">
                         @foreach($statusConfig as $status => $config)
                             @php
                                 $count = $maintByStatus[$status] ?? 0;
@@ -199,27 +199,27 @@
     @if($topBadSpaces->isNotEmpty())
         <div class="bg-white rounded shadow-sm overflow-hidden mb-4">
             <div class="px-4 py-3 border-bottom">
-                <h6 class="mb-0 text-muted small text-uppercase font-weight-bold">Top espacios con errores</h6>
+                <h6 class="mb-0 text-muted small text-uppercase fw-bold">Top espacios con errores</h6>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
-                    <thead class="bg-light text-muted small text-uppercase font-weight-bold">
+                    <thead class="bg-light text-muted small text-uppercase fw-bold">
                         <tr>
-                            <th class="px-4 py-2">#</th>
-                            <th class="px-4 py-2">Código</th>
-                            <th class="px-4 py-2">Ciudad</th>
-                            <th class="px-4 py-2">Tipo</th>
-                            <th class="px-4 py-2 text-center">Auditorías Malas</th>
+                            <th class="px-4 py-3">#</th>
+                            <th class="px-4 py-3">Código</th>
+                            <th class="px-4 py-3">Ciudad</th>
+                            <th class="px-4 py-3">Tipo</th>
+                            <th class="px-4 py-3 text-center">Auditorías Malas</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($topBadSpaces as $i => $space)
                             <tr>
-                                <td class="px-4 py-2 text-muted">{{ $i + 1 }}</td>
-                                <td class="px-4 py-2 fw-bold text-danger">{{ $space['code'] }}</td>
-                                <td class="px-4 py-2">{{ $space['city'] }}</td>
-                                <td class="px-4 py-2">{{ $space['type'] }}</td>
-                                <td class="px-4 py-2 text-center">
+                                <td class="px-4 py-3 text-muted">{{ $i + 1 }}</td>
+                                <td class="px-4 py-3 fw-bold text-danger">{{ $space['code'] }}</td>
+                                <td class="px-4 py-3">{{ $space['city'] }}</td>
+                                <td class="px-4 py-3">{{ $space['type'] }}</td>
+                                <td class="px-4 py-3 text-center">
                                     <span class="badge bg-danger">{{ $space['total'] }}</span>
                                 </td>
                             </tr>
@@ -230,9 +230,4 @@
         </div>
     @endif
 
-    <style>
-        .bg-primary-soft {
-            background-color: rgba(var(--orchid-primary-rgb), 0.1);
-        }
-    </style>
 </div>

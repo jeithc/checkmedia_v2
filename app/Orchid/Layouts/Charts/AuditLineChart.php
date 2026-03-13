@@ -44,7 +44,7 @@ class AuditLineChart extends Chart
      * @var array
      */
     protected $colors = [
-        '#28a745', // green for 'good'
+        '#198754', // green for 'good'
         '#dc3545', // red for 'bad'
     ];
 }
