@@ -2,13 +2,13 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\AuditValue;
 use App\Models\Maintenance;
-use Livewire\Attributes\Url;
 use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Url;
+use Livewire\Component;
 
 class AdminDashboard extends Component
 {
@@ -20,10 +20,10 @@ class AdminDashboard extends Component
 
     public function mount()
     {
-        if (!$this->dateFrom) {
+        if (! $this->dateFrom) {
             $this->dateFrom = now()->startOfWeek()->format('Y-m-d');
         }
-        if (!$this->dateTo) {
+        if (! $this->dateTo) {
             $this->dateTo = now()->endOfWeek()->format('Y-m-d');
         }
     }
@@ -79,29 +79,57 @@ class AdminDashboard extends Component
                 'value' => number_format(AdvertisingSpace::count()),
                 'subtext' => 'Total Activos',
                 'icon' => 'bs.geo-alt',
-                'color' => 'primary'
+                'color' => 'primary',
             ],
             'audits_week' => [
                 'label' => 'Auditorías (Período)',
                 'value' => number_format($totalAuditsInRange),
                 'subtext' => 'En rango seleccionado',
                 'icon' => 'bs.check-circle',
-                'color' => 'primary'
+                'color' => 'primary',
             ],
             'audits_with_issues' => [
                 'label' => 'Auditorías con Errores',
                 'value' => number_format($auditsWithIssues),
-                'subtext' => $criticalAudits > 0 ? $criticalAudits . ' críticas sin resolver' : 'En rango seleccionado',
+                'subtext' => $criticalAudits > 0 ? $criticalAudits.' críticas sin resolver' : 'En rango seleccionado',
                 'icon' => 'bs.exclamation-triangle',
-                'color' => $auditsWithIssues > 0 ? 'danger' : 'success'
+                'color' => $auditsWithIssues > 0 ? 'danger' : 'success',
             ],
             'pending_maint' => [
                 'label' => 'Mantenimientos Pend.',
                 'value' => number_format(Maintenance::whereNotIn('status', [Maintenance::STATUS_CLOSED])->count()),
                 'subtext' => 'Por Atender',
                 'icon' => 'bs.tools',
-                'color' => 'primary'
+                'color' => 'primary',
             ],
+        ];
+
+        // --- KPI: Open vs Closed maintenances ---
+        $openMaintenances = Maintenance::whereNotIn('status', [Maintenance::STATUS_CLOSED])->count();
+        $closedMaintenances = Maintenance::where('status', Maintenance::STATUS_CLOSED)->count();
+        $totalMaintenances = $openMaintenances + $closedMaintenances;
+
+        // --- KPI: Average closure time (days) ---
+        $avgClosureTime = Maintenance::where('status', Maintenance::STATUS_CLOSED)
+            ->whereNotNull('closed_at')
+            ->whereNotNull('requested_at')
+            ->selectRaw('AVG(JULIANDAY(closed_at) - JULIANDAY(requested_at)) as avg_days')
+            ->value('avg_days');
+
+        $avgClosureDays = $avgClosureTime !== null ? round($avgClosureTime, 1) : null;
+
+        // --- KPI: Compliance rate (audits without issues / total) ---
+        $goodAudits = $totalAuditsInRange - $auditsWithIssues;
+        $complianceRate = $totalAuditsInRange > 0
+            ? round(($goodAudits / $totalAuditsInRange) * 100, 1)
+            : null;
+
+        $kpis = [
+            'open_maintenances' => $openMaintenances,
+            'closed_maintenances' => $closedMaintenances,
+            'total_maintenances' => $totalMaintenances,
+            'avg_closure_days' => $avgClosureDays,
+            'compliance_rate' => $complianceRate,
         ];
 
         // Recent audits
@@ -132,7 +160,7 @@ class AdminDashboard extends Component
             ->limit(5)
             ->with('space')
             ->get()
-            ->map(fn($a) => [
+            ->map(fn ($a) => [
                 'code' => $a->space->external_code ?? '—',
                 'city' => $a->space->city ?? '—',
                 'type' => $a->space->type ?? '—',
@@ -146,6 +174,7 @@ class AdminDashboard extends Component
 
         return view('livewire.admin-dashboard', [
             'metrics' => $metrics,
+            'kpis' => $kpis,
             'recentAudits' => $recentAudits,
             'isDefaultWeek' => $isDefaultWeek,
             'criteriaFailures' => $criteriaFailures,
