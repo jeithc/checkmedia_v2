@@ -140,3 +140,122 @@ test('average closure time is calculated from closed maintenances', function () 
     $response->assertOk();
     $response->assertSee('días promedio');
 });
+
+test('dashboard2 shows purchase order metrics without removing existing ones', function () {
+    $space = AdvertisingSpace::create([
+        'external_code' => 'OC-DASH-001',
+        'city' => 'Bogotá',
+    ]);
+
+    Maintenance::create([
+        'advertising_space_id' => $space->id,
+        'requested_by' => $this->admin->id,
+        'requested_at' => now()->subDays(7),
+        'status' => Maintenance::STATUS_IN_PROGRESS,
+        'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'DIGITAL',
+        'estimated_cost' => 1000000,
+        'final_cost' => 800000,
+        'advisual_requisition_id' => 1001,
+        'advisual_purchase_order_id' => 5001,
+        'advisual_purchase_order_total' => 800000,
+        'advisual_purchase_order_created_at' => now()->subDays(6),
+    ]);
+
+    Maintenance::create([
+        'advertising_space_id' => $space->id,
+        'requested_by' => $this->admin->id,
+        'requested_at' => now()->subDays(5),
+        'status' => Maintenance::STATUS_IN_PROGRESS,
+        'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'DIGITAL',
+        'estimated_cost' => 500000,
+        'advisual_requisition_id' => 1002,
+        'advisual_purchase_order_id' => 5002,
+        'advisual_purchase_order_total' => 0,
+        'advisual_purchase_order_created_at' => now()->subDays(4),
+    ]);
+
+    Maintenance::create([
+        'advertising_space_id' => $space->id,
+        'requested_by' => $this->admin->id,
+        'requested_at' => now()->subDays(3),
+        'status' => Maintenance::STATUS_REPORTED,
+        'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'ST',
+        'estimated_cost' => 250000,
+        'advisual_requisition_id' => 1003,
+    ]);
+
+    $response = $this->get(route('platform.dashboard2'));
+
+    $response->assertOk();
+    $response->assertSee('Novedades Abiertas');
+    $response->assertSee('Presupuesto Ejecutado (%)');
+    $response->assertSee('Novedades con OC');
+    $response->assertSee('OCs sin Valor');
+    $response->assertSee('Costo Total OCs');
+    $response->assertSee('RQ Pendientes de OC');
+    $response->assertSee('Conversión de RQ a OC');
+    $response->assertSee('Estado de Valor de OCs');
+    $response->assertSee('Costo Ejecutado de OCs por Mes');
+});
+
+test('dashboard2 computes purchase order and budget metrics from synchronized costs', function () {
+    $space = AdvertisingSpace::create([
+        'external_code' => 'OC-DASH-002',
+        'city' => 'Medellín',
+    ]);
+
+    Maintenance::create([
+        'advertising_space_id' => $space->id,
+        'requested_by' => $this->admin->id,
+        'requested_at' => now()->subDays(10),
+        'status' => Maintenance::STATUS_CLOSED,
+        'closed_by' => $this->admin->id,
+        'closed_at' => now()->subDays(2),
+        'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'ESTATICO',
+        'estimated_cost' => 1000000,
+        'final_cost' => 500000,
+        'advisual_requisition_id' => 2001,
+        'advisual_purchase_order_id' => 7001,
+        'advisual_purchase_order_total' => 500000,
+        'advisual_purchase_order_created_at' => now()->subMonth(),
+    ]);
+
+    Maintenance::create([
+        'advertising_space_id' => $space->id,
+        'requested_by' => $this->admin->id,
+        'requested_at' => now()->subDays(8),
+        'status' => Maintenance::STATUS_IN_PROGRESS,
+        'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'ESTATICO',
+        'estimated_cost' => 1000000,
+        'final_cost' => 250000,
+        'advisual_requisition_id' => 2002,
+        'advisual_purchase_order_id' => 7002,
+        'advisual_purchase_order_total' => 250000,
+        'advisual_purchase_order_created_at' => now(),
+    ]);
+
+    Maintenance::create([
+        'advertising_space_id' => $space->id,
+        'requested_by' => $this->admin->id,
+        'requested_at' => now()->subDays(6),
+        'status' => Maintenance::STATUS_REPORTED,
+        'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'AU',
+        'estimated_cost' => 500000,
+        'advisual_requisition_id' => 2003,
+    ]);
+
+    $response = $this->get(route('platform.dashboard2'));
+
+    $response->assertOk();
+    $response->assertSee('30%');
+    $response->assertSee('$750.000');
+    $response->assertSee('2');
+    $response->assertSee('1');
+    $response->assertSee('Costo Total OCs');
+});
