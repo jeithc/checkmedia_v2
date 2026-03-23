@@ -9,14 +9,18 @@ use Orchid\Screen\AsSource;
 
 class Maintenance extends Model
 {
-    use HasFactory, AsSource, Filterable;
+    use AsSource, Filterable, HasFactory;
 
     const STATUS_REPORTED = 'reported';
+
     const STATUS_PENDING_ADVISUAL = 'pending_advisual';
+
     const STATUS_IN_PROGRESS = 'in_progress';
+
     const STATUS_CLOSED = 'closed';
 
     const TYPE_CORRECTIVE = 'corrective';
+
     const TYPE_PREVENTIVE = 'preventive';
 
     protected $fillable = [
@@ -35,6 +39,17 @@ class Maintenance extends Model
         'advisual_requisition_id',
         'advisual_synced_at',
         'advisual_sync_error',
+        'advisual_purchase_order_id',
+        'advisual_purchase_order_line_id',
+        'advisual_purchase_order_description',
+        'advisual_purchase_order_quantity',
+        'advisual_purchase_order_unit_price',
+        'advisual_purchase_order_total',
+        'advisual_purchase_order_created_at',
+        'advisual_purchase_order_committed_at',
+        'advisual_purchase_order_executed_at',
+        'advisual_purchase_order_last_checked_at',
+        'advisual_purchase_order_sync_error',
         'closed_by',
         'closed_at',
         'closure_document_path',
@@ -46,6 +61,10 @@ class Maintenance extends Model
         'matrix_data' => 'array',
         'requested_at' => 'datetime',
         'advisual_synced_at' => 'datetime',
+        'advisual_purchase_order_created_at' => 'datetime',
+        'advisual_purchase_order_committed_at' => 'datetime',
+        'advisual_purchase_order_executed_at' => 'datetime',
+        'advisual_purchase_order_last_checked_at' => 'datetime',
         'closed_at' => 'datetime',
         'support_files_paths' => 'array',
     ];
@@ -85,7 +104,12 @@ class Maintenance extends Model
 
     public function hasRequisition(): bool
     {
-        return !empty($this->advisual_requisition_id);
+        return ! empty($this->advisual_requisition_id);
+    }
+
+    public function hasPurchaseOrder(): bool
+    {
+        return ! empty($this->advisual_purchase_order_id);
     }
 
     public function getStatusLabelAttribute(): string

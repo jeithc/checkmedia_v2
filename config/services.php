@@ -42,6 +42,8 @@ return [
         'requisicion_tipo' => env('ADVISUAL_REQUISICION_TIPO', 2),
         'serial_prod' => env('ADVISUAL_SERIAL_PROD', 1),
         'serial_admin' => env('ADVISUAL_SERIAL_ADMIN', 0),
+        'purchase_order_lookback_months' => env('ADVISUAL_PURCHASE_ORDER_LOOKBACK_MONTHS', 6),
+        'purchase_order_schedule_time' => env('ADVISUAL_PURCHASE_ORDER_SCHEDULE_TIME', '06:30'),
     ],
 
 ];
