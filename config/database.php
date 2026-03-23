@@ -113,6 +113,19 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'advisual' => [
+            'driver' => 'sqlsrv',
+            'host' => env('ADVISUAL_HOST', 'localhost'),
+            'port' => env('ADVISUAL_PORT', '1433'),
+            'database' => env('ADVISUAL_DATABASE', 'u829554871_efectimedios'), // Assuming same DB or needs clarification
+            'username' => env('ADVISUAL_USERNAME', ''),
+            'password' => env('ADVISUAL_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'trust_server_certificate' => true, // Often needed for local/legacy MSSQL
+        ],
+
     ],
 
     /*
@@ -148,7 +161,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
+            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')) . '-database-'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 

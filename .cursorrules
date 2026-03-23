@@ -1,0 +1,9 @@
+# Workspace Rules
+
+1. **Target Directory**: All changes and new code must be applied to `../checkmedia_v2` (d:\laragon\www\checkmedia_v2).
+2. **Reference Directory**: Use `../efectimedios` (d:\laragon\www\efectimedios) ONLY as a reference for legacy code and logic. Do not modify files in this directory.
+3. **Goal**: Migrate legacy code to a new Laravel framework in `checkmedia_v2` using best practices.
+
+# General Rules
+- **CSS & JS Separation**: Always extract CSS and JavaScript into separate files or strict `@push` stacks / `@section` blocks. Avoid large blocks of inline `<style>` or `<script>` within Blade templates.
+- **Reusability**: Make assets reusable where possible.

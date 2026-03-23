@@ -1,0 +1,62 @@
+/* Space Browser Redesign Styles */
+
+/* Tabs */
+.btn-tab {
+    border: 1px solid #e5e7eb;
+    background-color: #fff;
+    color: #374151;
+    border-radius: 20px;
+    padding: 5px 15px;
+    font-size: 0.9em;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-tab:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+.btn-tab.active {
+    background-color: #374151;
+    /* Dark gray for active/primary */
+    color: #fff;
+    border-color: #374151;
+}
+
+/* Filters */
+.filter-group {
+    min-width: 150px;
+}
+
+.filter-group label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.search-group {
+    min-width: 250px;
+}
+
+/* Table overrides */
+.table thead th {
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom-width: 1px;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+.table tbody td {
+    vertical-align: middle;
+    font-size: 0.9em;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.025em;
+}

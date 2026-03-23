@@ -1,0 +1,112 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Orchid\Filters\Filterable;
+use Orchid\Screen\AsSource;
+
+class Maintenance extends Model
+{
+    use HasFactory, AsSource, Filterable;
+
+    const STATUS_REPORTED = 'reported';
+    const STATUS_PENDING_ADVISUAL = 'pending_advisual';
+    const STATUS_IN_PROGRESS = 'in_progress';
+    const STATUS_CLOSED = 'closed';
+
+    const TYPE_CORRECTIVE = 'corrective';
+    const TYPE_PREVENTIVE = 'preventive';
+
+    protected $fillable = [
+        'advertising_space_id',
+        'audit_id',
+        'requested_by',
+        'requested_at',
+        'type',
+        'category',
+        'status',
+        'priority',
+        'matrix_data',
+        'description',
+        'estimated_cost',
+        'final_cost',
+        'advisual_requisition_id',
+        'advisual_synced_at',
+        'advisual_sync_error',
+        'closed_by',
+        'closed_at',
+        'closure_document_path',
+        'closure_comment',
+        'support_files_paths',
+    ];
+
+    protected $casts = [
+        'matrix_data' => 'array',
+        'requested_at' => 'datetime',
+        'advisual_synced_at' => 'datetime',
+        'closed_at' => 'datetime',
+        'support_files_paths' => 'array',
+    ];
+
+    protected $allowedSorts = [
+        'status',
+        'category',
+        'priority',
+        'requested_at',
+        'created_at',
+    ];
+
+    public function advertisingSpace()
+    {
+        return $this->belongsTo(AdvertisingSpace::class);
+    }
+
+    public function audit()
+    {
+        return $this->belongsTo(Audit::class);
+    }
+
+    public function requestedBy()
+    {
+        return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function closedBy()
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    public function canBeClosed(): bool
+    {
+        return $this->status !== self::STATUS_CLOSED;
+    }
+
+    public function hasRequisition(): bool
+    {
+        return !empty($this->advisual_requisition_id);
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_REPORTED => 'Reportado',
+            self::STATUS_PENDING_ADVISUAL => 'Pendiente Advisual',
+            self::STATUS_IN_PROGRESS => 'En Progreso',
+            self::STATUS_CLOSED => 'Cerrado',
+            default => ucfirst($this->status),
+        };
+    }
+
+    public function getStatusColorAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_REPORTED => 'warning',
+            self::STATUS_PENDING_ADVISUAL => 'info',
+            self::STATUS_IN_PROGRESS => 'primary',
+            self::STATUS_CLOSED => 'success',
+            default => 'secondary',
+        };
+    }
+}
