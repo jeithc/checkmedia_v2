@@ -47,6 +47,111 @@
         @endforeach
     </div>
 
+    <!-- KPIs Section -->
+    <div class="row mb-4 g-3">
+        <!-- Novedades Abiertas vs Cerradas -->
+        <div class="col-lg-4">
+            <div class="bg-white rounded shadow-sm p-4 h-100">
+                <h6 class="text-muted small text-uppercase fw-bold mb-3">Novedades Abiertas vs Cerradas</h6>
+                @if($kpis['total_maintenances'] > 0)
+                    <div class="d-flex justify-content-center gap-4 mb-3">
+                        <div class="text-center">
+                            <div class="fs-2 fw-bold text-warning">{{ $kpis['open_maintenances'] }}</div>
+                            <small class="text-muted">Abiertas</small>
+                        </div>
+                        <div class="d-flex align-items-center text-muted px-2">
+                            <span class="fs-4">/</span>
+                        </div>
+                        <div class="text-center">
+                            <div class="fs-2 fw-bold text-success">{{ $kpis['closed_maintenances'] }}</div>
+                            <small class="text-muted">Cerradas</small>
+                        </div>
+                    </div>
+                    @php
+                        $closedPct = round(($kpis['closed_maintenances'] / $kpis['total_maintenances']) * 100, 1);
+                        $openPct = 100 - $closedPct;
+                    @endphp
+                    <div class="progress" style="height: 12px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ $closedPct }}%"
+                             title="Cerradas: {{ $closedPct }}%">
+                        </div>
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: {{ $openPct }}%"
+                             title="Abiertas: {{ $openPct }}%">
+                        </div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">{{ $kpis['total_maintenances'] }} total — {{ $closedPct }}% resueltas</small>
+                    </div>
+                @else
+                    <div class="text-center text-muted py-3">
+                        <p class="mb-0">Sin novedades registradas.</p>
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        <!-- Tiempo Promedio de Cierre -->
+        <div class="col-lg-4">
+            <div class="bg-white rounded shadow-sm p-4 h-100">
+                <h6 class="text-muted small text-uppercase fw-bold mb-3">Tiempo Promedio de Cierre</h6>
+                <div class="text-center py-2">
+                    @if($kpis['avg_closure_days'] !== null)
+                        @php
+                            $closureColor = match(true) {
+                                $kpis['avg_closure_days'] <= 3 => 'text-success',
+                                $kpis['avg_closure_days'] <= 7 => 'text-primary',
+                                $kpis['avg_closure_days'] <= 14 => 'text-warning',
+                                default => 'text-danger',
+                            };
+                        @endphp
+                        <div class="fs-1 fw-bold {{ $closureColor }}">{{ $kpis['avg_closure_days'] }}</div>
+                        <div class="text-muted">días promedio</div>
+                        <small class="text-muted d-block mt-1">
+                            Desde solicitud hasta cierre
+                        </small>
+                    @else
+                        <div class="text-muted py-3">
+                            <p class="mb-0">Sin datos de cierre aún.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasa de Cumplimiento -->
+        <div class="col-lg-4">
+            <div class="bg-white rounded shadow-sm p-4 h-100">
+                <h6 class="text-muted small text-uppercase fw-bold mb-3">Tasa de Cumplimiento</h6>
+                <div class="text-center py-2">
+                    @if($kpis['compliance_rate'] !== null)
+                        @php
+                            $complianceColor = match(true) {
+                                $kpis['compliance_rate'] >= 90 => 'text-success',
+                                $kpis['compliance_rate'] >= 70 => 'text-primary',
+                                $kpis['compliance_rate'] >= 50 => 'text-warning',
+                                default => 'text-danger',
+                            };
+                        @endphp
+                        <div class="fs-1 fw-bold {{ $complianceColor }}">{{ $kpis['compliance_rate'] }}%</div>
+                        <div class="text-muted">auditorías sin novedad</div>
+                        <div class="progress mt-3" style="height: 8px;">
+                            <div class="progress-bar {{ str_replace('text-', 'bg-', $complianceColor) }}"
+                                 role="progressbar" style="width: {{ $kpis['compliance_rate'] }}%">
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            En el período seleccionado
+                        </small>
+                    @else
+                        <div class="text-muted py-3">
+                            <p class="mb-0">Sin auditorías en el período.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Recent Audits Table -->
     <div class="bg-white rounded shadow-sm overflow-hidden mb-4">
         <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">

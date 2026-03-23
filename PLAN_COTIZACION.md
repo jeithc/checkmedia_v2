@@ -15,7 +15,7 @@
 | 2 | Mantenimiento Preventivo | 32h | $2.284.800 | 0% | No iniciado |
 | 3 | Linea de Tiempo por Espacio | 24h | $1.713.600 | ~90% | Avanzado |
 | 4 | Informes y Reportes Mejorados | 40h | $2.856.000 | ~25% | Parcial |
-| 5 | Dashboard Analitico | 56h | $3.998.400 | ~35% | Parcial |
+| 5 | Dashboard Analitico | 56h | $3.998.400 | ~50% | Parcial |
 | 6 | Actualizaciones Tecnicas | 64h | $4.569.600 | ~60% | Avanzado |
 | 7 | App Movil (OPCIONAL) | 160h | $6.150.400 | 0% | No aplica aun |
 | | **Total Base (1-6)** | **264h** | **$18.849.600** | | |
@@ -256,13 +256,19 @@
   - `resources/views/livewire/admin-dashboard.blade.php`
 
 ### 5.2 Indicadores: elementos auditados, novedades abiertas/cerradas
-- **Estado**: PARCIAL
-- **Lo que hay**: Total espacios, auditorias en periodo, auditorias con errores, mantenimientos pendientes.
-- **Falta**: Novedades abiertas vs cerradas como indicador separado.
+- **Estado**: HECHO
+- **Lo que hay**: Total espacios, auditorias en periodo, auditorias con errores, mantenimientos pendientes. Indicador "Novedades Abiertas vs Cerradas" con barra de progreso bicolor (verde/amarillo), conteo y porcentaje de resolucion.
+- **Archivos**:
+  - `app/Livewire/AdminDashboard.php` — calculo open/closed maintenances
+  - `resources/views/livewire/admin-dashboard.blade.php` — tarjeta KPI con progress bar
 
 ### 5.3 KPIs: tiempo promedio de cierre, % de cumplimiento
-- **Estado**: PENDIENTE
-- **Falta**: Calculo de tiempo promedio entre apertura y cierre de mantenimientos. Porcentaje de cumplimiento de auditorias programadas.
+- **Estado**: HECHO
+- **Lo que hay**: Tiempo promedio de cierre (dias) calculado desde `requested_at` hasta `closed_at` con codigo de color (verde <= 3d, azul <= 7d, amarillo <= 14d, rojo > 14d). Tasa de cumplimiento (% auditorias sin novedad en periodo) con progress bar y codigo de color (verde >= 90%, azul >= 70%, amarillo >= 50%, rojo < 50%).
+- **Archivos**:
+  - `app/Livewire/AdminDashboard.php` — calculo avg closure time (JULIANDAY) + compliance rate
+  - `resources/views/livewire/admin-dashboard.blade.php` — tarjetas KPI con color dinamico
+  - `tests/Feature/DashboardKpiTest.php` — 4 tests cubriendo KPIs
 
 ### 5.4 Analisis presupuesto planificado vs ejecutado
 - **Estado**: PENDIENTE
@@ -279,8 +285,8 @@
 
 ### Checklist C5
 - [x] 5.1 Dashboard con metricas basicas (parcial — falta JS interactivo)
-- [x] 5.2 Indicadores basicos (parcial — faltan novedades abiertas/cerradas)
-- [ ] 5.3 KPIs tiempo cierre + cumplimiento
+- [x] 5.2 Indicadores completos (novedades abiertas/cerradas con progress bar)
+- [x] 5.3 KPIs tiempo promedio cierre + tasa de cumplimiento
 - [ ] 5.4 Presupuesto planificado vs ejecutado
 - [x] 5.5 Filtro fechas (parcial — faltan filtros multiples)
 - [ ] 5.6 Export Excel con graficos
