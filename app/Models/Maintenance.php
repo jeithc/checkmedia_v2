@@ -60,7 +60,12 @@ class Maintenance extends Model
     protected $casts = [
         'matrix_data' => 'array',
         'requested_at' => 'datetime',
+        'estimated_cost' => 'decimal:2',
+        'final_cost' => 'decimal:2',
         'advisual_synced_at' => 'datetime',
+        'advisual_purchase_order_quantity' => 'decimal:4',
+        'advisual_purchase_order_unit_price' => 'decimal:2',
+        'advisual_purchase_order_total' => 'decimal:2',
         'advisual_purchase_order_created_at' => 'datetime',
         'advisual_purchase_order_committed_at' => 'datetime',
         'advisual_purchase_order_executed_at' => 'datetime',
