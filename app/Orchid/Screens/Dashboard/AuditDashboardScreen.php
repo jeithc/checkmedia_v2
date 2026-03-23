@@ -231,19 +231,9 @@ class AuditDashboardScreen extends Screen
 
             'purchase_order_value_status' => [
                 [
-                    'name' => 'Con valor',
-                    'values' => [$purchaseOrdersWithValue],
-                    'labels' => ['OC'],
-                ],
-                [
-                    'name' => 'Sin valor',
-                    'values' => [$purchaseOrdersWithZeroValue],
-                    'labels' => ['OC'],
-                ],
-                [
-                    'name' => 'Sin OC',
-                    'values' => [$rqWithoutOc],
-                    'labels' => ['RQ'],
+                    'name' => 'Estado OC',
+                    'values' => [$purchaseOrdersWithValue, $purchaseOrdersWithZeroValue, $rqWithoutOc],
+                    'labels' => ['Con valor', 'Sin valor', 'Sin OC'],
                 ],
             ],
 

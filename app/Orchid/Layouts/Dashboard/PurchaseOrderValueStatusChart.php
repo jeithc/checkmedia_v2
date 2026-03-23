@@ -10,7 +10,7 @@ class PurchaseOrderValueStatusChart extends Chart
 
     protected $height = 300;
 
-    protected $type = self::TYPE_BAR;
+    protected $type = self::TYPE_PIE;
 
     protected $target = 'purchase_order_value_status';
 
