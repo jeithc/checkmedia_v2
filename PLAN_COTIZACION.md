@@ -74,19 +74,27 @@
   - `config/services.php` — configuracion Advisual
 
 ### 1.5 Flujo completo de Ordenes de Compra (OC) y Sincronizacion Advisual
-- **Estado**: PENDIENTE
-- **Lo que hay**: Nada. No existe modelo PurchaseOrder ni flujo.
-- **Falta**: Modelo `PurchaseOrder`, migracion, pantalla Orchid de gestion, relacion con Maintenance, estados (pendiente, aprobada, rechazada, ejecutada).
-- **Pendiente Nuevo (Validacion Advisual)**: Tarea automatizada diaria para requisiciones generadas en Advisual. Considerar:
-  1. Validar diariamente si la RQ ya paso a ser Orden de Compra (OC).
-  2. Las OCs pueden iniciar con valor 0 y luego cambiar. Si ya es OC, validar cada dia si ya tiene valor asignado.
-  3. Si tiene valor (costo), jalar ese dato al sistema para tener trazabilidad de costos.
-  4. Tiempo limite de busqueda: buscar cambios hasta por 6 meses; terminado este tiempo, dejar de consultar.
-- **Archivos a crear**:
-  - `app/Models/PurchaseOrder.php`
-  - `database/migrations/*_create_purchase_orders_table.php`
-  - `app/Orchid/Screens/PurchaseOrder/PurchaseOrderListScreen.php`
-  - `app/Orchid/Screens/PurchaseOrder/PurchaseOrderDetailScreen.php`
+- **Estado**: EN PROGRESO
+- **Lo que hay**:
+  - Sincronizacion diaria backend implementada para mantenimientos con RQ (`advisual_requisition_id`).
+  - Vinculo OC -> RQ definido por `OrdenCompra.OrdenCompraReqCodigo = maintenances.advisual_requisition_id`.
+  - Consulta real a tabla `OrdenCompra` priorizando registros con valor (`OrdenCompraValorCertificado` o `OrdenCompraValorUnitario`) y actualizacion diaria hasta por 6 meses.
+  - Persistencia local en `maintenances` de los campos clave de la OC: `advisual_purchase_order_id`, `advisual_purchase_order_line_id`, `advisual_purchase_order_description`, `advisual_purchase_order_quantity`, `advisual_purchase_order_unit_price`, `advisual_purchase_order_total`, fechas de creacion/compromiso/ejecucion, fecha ultimo chequeo y error de sync.
+  - Actualizacion automatica de `final_cost` con el valor certificado de la OC o, si aun no existe, con `cantidad * valor unitario`.
+- **Falta**:
+  - Modelo dedicado `PurchaseOrder` si se quiere desacoplar la OC del mantenimiento.
+  - Pantallas Orchid de gestion (lista + detalle) para consulta manual de OCs.
+  - Estados funcionales de OC dentro del sistema (`pendiente`, `aprobada`, `rechazada`, `ejecutada`) si negocio decide modelarlos localmente.
+  - Notificacion a Compras al cerrar una novedad asociada a OC (item 1.8).
+- **Archivos creados/modificados en esta fase**:
+  - `app/Services/AdvisualPurchaseOrderSyncService.php` — servicio de consulta y sincronizacion diaria OC desde Advisual
+  - `app/Console/Commands/SyncAdvisualPurchaseOrders.php` — comando `checkmedia:sync-purchase-orders` <!-- pragma: allowlist secret -->
+  - `routes/console.php` — schedule diario del proceso
+  - `app/Models/Maintenance.php` — campos/casts de OC y costo final
+  - `database/migrations/2026_02_25_000003_add_audit_and_requisition_fields_to_maintenances.php` — correccion de columna `advisual_requisition_id`
+  - `database/migrations/2026_03_23_000001_add_purchase_order_fields_to_maintenances.php` — nuevas columnas para OC
+  - `config/services.php` — configuracion de ventana de busqueda y hora del proceso
+  - `tests/Feature/AdvisualPurchaseOrderSyncTest.php` — cobertura de flujo y comando
 
 ### 1.6 Ampliacion de tipos de archivo permitidos
 - **Estado**: HECHO
@@ -121,7 +129,7 @@
 - [x] 1.2 Sistema evaluacion 4 aspectos
 - [x] 1.3 Notificaciones email + dashboard Orchid (3 eventos: audit_bad, requested, closed) — **Nota**: Falta configurar suscripciones por usuario para DIGITAL, ESTATICO, ST, AU
 - [x] 1.4 Boton Generar RQ + Advisual INSERT
-- [ ] 1.5 Flujo OC completo + validacion diaria de costos de Advisual (hasta 6 meses)
+- [ ] 1.5 Flujo OC completo + validacion diaria de costos de Advisual (hasta 6 meses) — **Parcial**: validacion diaria backend lista; faltan modelo/UI dedicada y flujo funcional completo de OC
 - [x] 1.6 Tipos archivo ampliados
 - [x] 1.7 Validacion cierre condicional con archivos de soporte (requiere soporte si hay RQ)
 - [ ] 1.8 Notificacion a Compras al cerrar con OC
@@ -458,16 +466,23 @@ Tareas:
 **Items**: 1.5, 1.8
 
 Tareas:
-1. Crear modelo `PurchaseOrder` con migracion
+1. Completar modelo `PurchaseOrder` con migracion dedicada si negocio requiere entidad separada
 2. Crear pantallas Orchid (lista + detalle)
-3. Flujo: desde mantenimiento con RQ -> generar OC -> aprobacion -> ejecucion
+3. Flujo: desde mantenimiento con RQ -> deteccion automatica de OC -> aprobacion -> ejecucion
 4. Notificacion a Compras al cerrar novedad con OC (depende de Fase B)
-5. Agregar relacion Maintenance -> PurchaseOrder
+5. Definir si `Maintenance -> PurchaseOrder` queda como relacion dedicada o si se mantiene la trazabilidad embebida en `maintenances`
 
-**Archivos a crear**:
-- `app/Models/PurchaseOrder.php`
-- `database/migrations/*_create_purchase_orders_table.php`
-- `app/Orchid/Screens/PurchaseOrder/`
+**Estado actual**:
+- Backend diario OC listo
+- Persistencia minima OC en `maintenances` lista
+- UI/entidad dedicada `PurchaseOrder` pendiente
+
+**Archivos clave**:
+- `app/Services/AdvisualPurchaseOrderSyncService.php`
+- `app/Console/Commands/SyncAdvisualPurchaseOrders.php`
+- `database/migrations/2026_03_23_000001_add_purchase_order_fields_to_maintenances.php`
+- `app/Models/PurchaseOrder.php` *(pendiente)*
+- `app/Orchid/Screens/PurchaseOrder/` *(pendiente)*
 
 ---
 
@@ -559,8 +574,10 @@ FASE H (tecnico)          [paralelo a todo]
 | `app/Livewire/AdminDashboard.php` | Dashboard principal |
 | `app/Http/Controllers/AuditActionController.php` | Acciones sobre auditorias |
 | `app/Services/AdvisualRequisitionService.php` | INSERT a Advisual SQL Server |
+| `app/Services/AdvisualPurchaseOrderSyncService.php` | Validacion diaria RQ -> OC y sincronizacion de costos |
 | `app/Services/AdvisualSyncService.php` | Sincronizacion de espacios |
 | `app/Services/MaintenanceNotificationService.php` | Despacho notificaciones email + dashboard |
+| `app/Console/Commands/SyncAdvisualPurchaseOrders.php` | Comando diario para revisar OCs en Advisual |
 | `app/Models/UserNotificationSubscription.php` | Suscripciones de notificacion por usuario |
 | `app/Orchid/Screens/Maintenance/` | Pantallas gestion mantenimiento |
 | `routes/platform.php` | Rutas Orchid admin |
