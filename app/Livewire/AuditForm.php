@@ -2,18 +2,18 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use Livewire\WithFileUploads;
-use Livewire\Attributes\Computed;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\AuditCriterion;
-use App\Models\AuditValue;
 use App\Models\AuditPhoto;
+use App\Models\AuditValue;
+use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
 use App\Services\ImageWatermarkService;
 use App\Services\MaintenanceNotificationService;
-use Carbon\Carbon;
+use Livewire\Attributes\Computed;
+use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class AuditForm extends Component
 {
@@ -23,21 +23,37 @@ class AuditForm extends Component
 
     // Store only IDs for Livewire serialization
     public ?int $spaceId = null;
+
     public ?int $existingAuditId = null;
 
     // These are arrays/scalars — safe for Livewire
     public $criteriaIds = [];
+
     public $criteriaList = []; // Array of ['id' => ..., 'name' => ..., 'key' => ...]
+
     public $bookingData = null; // Array or null
 
     // Form Inputs
     public $values = []; // [criterion_id => ['value' => 'good']]
+
     public $photos = [];
+
     public $observation;
 
     public $duplicateFound = false;
+
     public $showExistingDetails = false;
+
     public $auditType = 'general';
+
+    // Purpose: audit_only, preventive_maintenance, corrective_maintenance
+    public string $auditPurpose = 'audit_only';
+
+    public bool $canSelectPurpose = false;
+
+    public bool $isStructuralAuditor = false;
+
+    public string $maintenanceCategory = '';
 
     #[Computed]
     public function space()
@@ -65,8 +81,10 @@ class AuditForm extends Component
     {
         if ($this->spaceId) {
             $space = $this->space;
+
             return $space ? $space->getBookingForDate(now()) : null;
         }
+
         return null;
     }
 
@@ -76,17 +94,17 @@ class AuditForm extends Component
         $isStructural = $user->hasAccess('audit.can_audit_structural');
         $isGeneral = $user->hasAnyAccess(['audit.can_audit']);
 
-        if (!$isStructural && !$isGeneral) {
+        if (! $isStructural && ! $isGeneral) {
             abort(403);
         }
 
-        // Determine audit type based on user permissions
-        // If user only has structural permission, set type to structural
-        if ($isStructural && !$isGeneral) {
+        if ($isStructural && ! $isGeneral) {
             $this->auditType = Audit::TYPE_STRUCTURAL;
+            $this->isStructuralAuditor = true;
         }
 
-        // Load active criteria and initialize values
+        $this->canSelectPurpose = $user->hasAccess('audit.can_select_purpose');
+
         $criteria = $this->criteria;
         foreach ($criteria as $criterion) {
             $this->criteriaList[] = [
@@ -96,7 +114,7 @@ class AuditForm extends Component
             ];
             $this->criteriaIds[] = $criterion->id;
             $this->values[$criterion->id] = [
-                'value' => 'good'
+                'value' => 'good',
             ];
         }
     }
@@ -106,7 +124,7 @@ class AuditForm extends Component
         $syncService = app(\App\Services\AdvisualSyncService::class);
 
         $this->validate([
-            'external_code' => 'required'
+            'external_code' => 'required',
         ]);
 
         // Reset duplicate state before new search
@@ -127,7 +145,7 @@ class AuditForm extends Component
         $space = AdvertisingSpace::where('external_code', $this->external_code)->first();
 
         // 2. If not found, try External Sync
-        if (!$space) {
+        if (! $space) {
             try {
                 $space = $syncService->syncSpaceByCcde($this->external_code);
             } catch (\Exception $e) {
@@ -135,8 +153,9 @@ class AuditForm extends Component
             }
         }
 
-        if (!$space) {
+        if (! $space) {
             $this->addError('external_code', 'Espacio no encontrado ni en local ni en remoto.');
+
             return;
         }
 
@@ -187,7 +206,9 @@ class AuditForm extends Component
     public function complementAudit()
     {
         $existingAudit = $this->existingAudit;
-        if (!$existingAudit) return;
+        if (! $existingAudit) {
+            return;
+        }
 
         $this->showExistingDetails = false;
         $this->observation = $existingAudit->observation;
@@ -222,30 +243,40 @@ class AuditForm extends Component
         $this->duplicateFound = false;
         $this->existingAuditId = null;
         $this->showExistingDetails = false;
+        $this->auditPurpose = 'audit_only';
+        $this->maintenanceCategory = '';
 
         foreach ($this->criteriaIds as $criterionId) {
             $this->values[$criterionId] = ['value' => 'good'];
         }
 
-        // Clear computed property caches so the template re-evaluates them
         unset($this->space, $this->existingAudit, $this->booking, $this->criteria);
     }
 
     public function save()
     {
-        if (!auth()->user()->hasAnyAccess(['audit.can_audit', 'audit.can_audit_structural'])) {
+        if (! auth()->user()->hasAnyAccess(['audit.can_audit', 'audit.can_audit_structural'])) {
             abort(403);
         }
 
-        $this->validate([
+        $effectivePurpose = $this->canSelectPurpose ? $this->auditPurpose : Audit::PURPOSE_AUDIT_ONLY;
+
+        $rules = [
             'spaceId' => 'required',
-            'photos.*' => 'image|max:10240', // 10MB Max per image
+            'photos.*' => 'image|max:10240',
+        ];
+
+        if ($effectivePurpose === Audit::PURPOSE_CORRECTIVE && ! $this->isStructuralAuditor) {
+            $rules['maintenanceCategory'] = 'required|in:estructural,electrico,ambiental,material';
+        }
+
+        $this->validate($rules, [
+            'maintenanceCategory.required' => 'Debe seleccionar la categoría del mantenimiento correctivo.',
         ]);
 
         $space = $this->space;
         $existingAudit = $this->existingAudit;
 
-        // Custom Validation: Photos
         $totalPhotos = count($this->photos);
         if ($existingAudit) {
             $totalPhotos += $existingAudit->photos->count();
@@ -253,17 +284,17 @@ class AuditForm extends Component
 
         if ($totalPhotos === 0) {
             $this->addError('photos', 'Debe registrar al menos una foto para guardar la auditoría.');
+
             return;
         }
 
-        // Custom Validation: Observation required if any "bad" value
         $hasIssues = collect($this->values)->contains('value', 'bad');
         if ($hasIssues && empty(trim($this->observation))) {
             $this->addError('observation', 'Debe explicar el detalle de la irregularidad en las observaciones.');
+
             return;
         }
 
-        // 1. Create or Update Audit
         $date = now();
         $weekData = Audit::getCalendarYearAndWeek($date);
         $audit = Audit::updateOrCreate(
@@ -276,23 +307,22 @@ class AuditForm extends Component
             [
                 'user_id' => auth()->id() ?? 1,
                 'audit_date' => $existingAudit ? $existingAudit->audit_date : $date,
+                'audit_purpose' => $effectivePurpose,
                 'observation' => $this->observation,
-                'general_status' => 'good'
+                'general_status' => 'good',
             ]
         );
 
-        // Clear existing values if updating
         if ($existingAudit) {
             $audit->values()->delete();
         }
 
-        // 2. Save Values & Calculate Status
         $generalStatus = 'good';
         foreach ($this->values as $criterionId => $data) {
             AuditValue::create([
                 'audit_id' => $audit->id,
                 'audit_criterion_id' => $criterionId,
-                'value' => $data['value']
+                'value' => $data['value'],
             ]);
 
             if ($data['value'] === 'bad') {
@@ -302,12 +332,10 @@ class AuditForm extends Component
 
         $audit->update(['general_status' => $generalStatus]);
 
-        // 3. Save Photos with watermark
-        $watermarkService = new ImageWatermarkService();
+        $watermarkService = new ImageWatermarkService;
         $photoDateTime = $audit->audit_date ?? now();
 
         foreach ($this->photos as $photo) {
-            // Add watermark with audit date/time
             $watermarkedPhoto = $watermarkService->addWatermark(
                 $photo,
                 $photoDateTime->format('Y-m-d g:i a')
@@ -318,21 +346,24 @@ class AuditForm extends Component
             AuditPhoto::create([
                 'audit_id' => $audit->id,
                 'file_path' => $path,
-                'file_type' => 'image'
+                'file_type' => 'image',
             ]);
         }
 
-        // 4. Log Activity
-        $isNew = !$existingAudit;
+        $this->createMaintenanceIfNeeded($audit, $space, $effectivePurpose);
+
+        $isNew = ! $existingAudit;
+        $purposeLabel = $this->getPurposeLabel($effectivePurpose);
         SpaceActivityLog::log(
             spaceId: $space->id,
             type: $isNew ? SpaceActivityLog::TYPE_AUDIT_CREATED : SpaceActivityLog::TYPE_AUDIT_UPDATED,
             description: $isNew
-                ? "Auditoría creada con estado: {$generalStatus}"
-                : "Auditoría actualizada. Estado: {$generalStatus}",
+                ? "Auditoría creada ({$purposeLabel}) con estado: {$generalStatus}"
+                : "Auditoría actualizada ({$purposeLabel}). Estado: {$generalStatus}",
             auditId: $audit->id,
             metadata: [
                 'general_status' => $generalStatus,
+                'audit_purpose' => $effectivePurpose,
                 'photos_count' => count($this->photos),
                 'user_name' => auth()->user()?->name ?? 'Sistema',
             ],
@@ -340,15 +371,69 @@ class AuditForm extends Component
             week: $weekData['week']
         );
 
-        // 5. Notify if audit has errors
         if ($generalStatus === 'bad') {
             app(MaintenanceNotificationService::class)->notify('audit_bad_created', $audit);
         }
 
-        // 6. Reset
         $this->resetForm(true);
         $this->dispatch('audit-saved');
-        session()->flash('message', 'Auditoría guardada exitosamente.');
+
+        $flashMessage = 'Auditoría guardada exitosamente.';
+        if ($effectivePurpose === Audit::PURPOSE_PREVENTIVE) {
+            $flashMessage .= ' Mantenimiento preventivo registrado.';
+        } elseif ($effectivePurpose === Audit::PURPOSE_CORRECTIVE) {
+            $flashMessage .= ' Mantenimiento correctivo solicitado.';
+        }
+
+        session()->flash('message', $flashMessage);
+    }
+
+    protected function createMaintenanceIfNeeded(Audit $audit, AdvertisingSpace $space, string $purpose): void
+    {
+        if ($purpose === Audit::PURPOSE_AUDIT_ONLY) {
+            return;
+        }
+
+        $category = $this->isStructuralAuditor
+            ? strtolower($space->type ?? 'estructural')
+            : $this->maintenanceCategory;
+
+        if ($purpose === Audit::PURPOSE_PREVENTIVE) {
+            Maintenance::create([
+                'advertising_space_id' => $space->id,
+                'audit_id' => $audit->id,
+                'requested_by' => auth()->id(),
+                'requested_at' => now(),
+                'type' => Maintenance::TYPE_PREVENTIVE,
+                'category' => $category,
+                'status' => Maintenance::STATUS_CLOSED,
+                'closed_by' => auth()->id(),
+                'closed_at' => now(),
+                'description' => 'Mantenimiento preventivo realizado durante auditoría #'.$audit->id,
+            ]);
+        } elseif ($purpose === Audit::PURPOSE_CORRECTIVE) {
+            $maintenance = Maintenance::create([
+                'advertising_space_id' => $space->id,
+                'audit_id' => $audit->id,
+                'requested_by' => auth()->id(),
+                'requested_at' => now(),
+                'type' => Maintenance::TYPE_CORRECTIVE,
+                'category' => $category,
+                'status' => Maintenance::STATUS_REPORTED,
+                'description' => $audit->observation ?: 'Mantenimiento correctivo solicitado desde auditoría #'.$audit->id,
+            ]);
+
+            app(MaintenanceNotificationService::class)->notify('maintenance_requested', $maintenance);
+        }
+    }
+
+    protected function getPurposeLabel(string $purpose): string
+    {
+        return match ($purpose) {
+            Audit::PURPOSE_PREVENTIVE => 'Mant. Preventivo',
+            Audit::PURPOSE_CORRECTIVE => 'Mant. Correctivo',
+            default => 'Solo Auditoría',
+        };
     }
 
     public function removePhoto($index)

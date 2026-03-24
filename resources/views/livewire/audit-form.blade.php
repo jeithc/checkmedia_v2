@@ -13,6 +13,17 @@
                     General
                 </span>
             @endif
+            @if($canSelectPurpose && $auditPurpose !== 'audit_only')
+                @if($auditPurpose === 'preventive_maintenance')
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        Mant. Preventivo
+                    </span>
+                @elseif($auditPurpose === 'corrective_maintenance')
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+                        Mant. Correctivo
+                    </span>
+                @endif
+            @endif
         </div>
 
         @if(auth()->user()->hasAnyAccess(['platform.index']))
@@ -240,6 +251,99 @@
                 </div>
             </div>
         </div>
+
+        <!-- 2.5 Purpose Selector -->
+        @if($canSelectPurpose)
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-gray-50 px-6 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Propósito de la Visita</h3>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {{-- Audit Only --}}
+                    <label class="relative cursor-pointer">
+                        <input type="radio" wire:model.live="auditPurpose" value="audit_only" class="peer sr-only">
+                        <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
+                            peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:ring-2 peer-checked:ring-blue-500 peer-checked:ring-offset-1
+                            border-gray-200 hover:border-gray-300 hover:bg-gray-50">
+                            <div class="flex-shrink-0 p-2 rounded-lg bg-blue-100 text-blue-600 peer-checked:bg-blue-200">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">Solo Auditoría</p>
+                                <p class="text-xs text-gray-500">Inspección sin mantenimiento</p>
+                            </div>
+                        </div>
+                    </label>
+
+                    {{-- Preventive Maintenance --}}
+                    <label class="relative cursor-pointer">
+                        <input type="radio" wire:model.live="auditPurpose" value="preventive_maintenance" class="peer sr-only">
+                        <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
+                            peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:ring-2 peer-checked:ring-green-500 peer-checked:ring-offset-1
+                            border-gray-200 hover:border-gray-300 hover:bg-gray-50">
+                            <div class="flex-shrink-0 p-2 rounded-lg bg-green-100 text-green-600">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">Mant. Preventivo</p>
+                                <p class="text-xs text-gray-500">Cuenta para el timer preventivo</p>
+                            </div>
+                        </div>
+                    </label>
+
+                    {{-- Corrective Maintenance --}}
+                    <label class="relative cursor-pointer">
+                        <input type="radio" wire:model.live="auditPurpose" value="corrective_maintenance" class="peer sr-only">
+                        <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
+                            peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:ring-2 peer-checked:ring-orange-500 peer-checked:ring-offset-1
+                            border-gray-200 hover:border-gray-300 hover:bg-gray-50">
+                            <div class="flex-shrink-0 p-2 rounded-lg bg-orange-100 text-orange-600">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">Mant. Correctivo</p>
+                                <p class="text-xs text-gray-500">Genera solicitud de corrección</p>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                {{-- Category selector for corrective (non-structural auditors only) --}}
+                @if($auditPurpose === 'corrective_maintenance' && !$isStructuralAuditor)
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Categoría del Mantenimiento</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        @foreach(['estructural' => 'Estructural', 'electrico' => 'Eléctrico', 'ambiental' => 'Ambiental', 'material' => 'Material'] as $val => $label)
+                        <label class="relative cursor-pointer">
+                            <input type="radio" wire:model.live="maintenanceCategory" value="{{ $val }}" class="peer sr-only">
+                            <div class="text-center p-3 rounded-lg border-2 text-sm font-medium transition-all duration-200
+                                peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-800
+                                border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50">
+                                {{ $label }}
+                            </div>
+                        </label>
+                        @endforeach
+                    </div>
+                    @error('maintenanceCategory')
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        {{ $message }}
+                    </p>
+                    @enderror
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif
 
         <!-- 3. Criteria List -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

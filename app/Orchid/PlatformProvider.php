@@ -8,16 +8,11 @@ use Orchid\Platform\Dashboard;
 use Orchid\Platform\ItemPermission;
 use Orchid\Platform\OrchidServiceProvider;
 use Orchid\Screen\Actions\Menu;
-use Orchid\Support\Color;
 
 class PlatformProvider extends OrchidServiceProvider
 {
     /**
      * Bootstrap the application services.
-     *
-     * @param Dashboard $dashboard
-     *
-     * @return void
      */
     public function boot(Dashboard $dashboard): void
     {
@@ -37,7 +32,7 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make('Dashboard')
                 ->icon('bs.collection')
                 ->route(config('platform.index')),
-                
+
             Menu::make('Panel Principal (Test Dash 2)')
                 ->icon('bs.bar-chart-line')
                 ->route('platform.dashboard2'),
@@ -81,8 +76,6 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('platform.systems.roles')
                 ->divider(),
 
-
-
             Menu::make('Cerrar Sesión')
                 ->icon('bs.box-arrow-left')
                 ->route('platform.logout.quick')
@@ -111,7 +104,8 @@ class PlatformProvider extends OrchidServiceProvider
                 ->addPermission('audit.manage_criteria', 'Criterios de Aud.')
                 ->addPermission('audit.close_with_error', 'Cerrar con Novedades')
                 ->addPermission('audit.upload_fixes', 'Subir Revisiones')
-                ->addPermission('audit.request_maintenance', 'Solicitar Mantenimiento'),
+                ->addPermission('audit.request_maintenance', 'Solicitar Mantenimiento')
+                ->addPermission('audit.can_select_purpose', 'Seleccionar Propósito (Mant.)'),
 
             ItemPermission::group('Mantenimientos')
                 ->addPermission('maintenance.view', 'Ver Mantenimientos')
