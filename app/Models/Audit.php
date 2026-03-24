@@ -49,6 +49,7 @@ class Audit extends Model
         'approved_by',
         'approved_at',
         'rejection_reason',
+        'access_code_id',
     ];
 
     protected $casts = [
@@ -90,6 +91,11 @@ class Audit extends Model
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function accessCode()
+    {
+        return $this->belongsTo(ExternalAccessCode::class, 'access_code_id');
     }
 
     public function isPending(): bool

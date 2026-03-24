@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
-use App\Http\Requests\Api\RegisterExternalRequest;
+use App\Http\Requests\Api\RedeemAccessCodeRequest;
 use App\Http\Resources\Api\UserResource;
+use App\Models\ExternalAccessCode;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -43,32 +45,53 @@ class AuthController extends Controller
         ]);
     }
 
-    public function register(RegisterExternalRequest $request): JsonResponse
+    /**
+     * External auditor redeems an access code to get a session token.
+     * No account/password needed — the code IS the credential.
+     */
+    public function redeemCode(RedeemAccessCodeRequest $request): JsonResponse
     {
-        $user = User::create([
-            'name' => $request->name,
-            'username' => $request->username,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'password' => Hash::make($request->password),
-            'is_external' => true,
-            'is_active' => true,
-            'permissions' => [
-                'audit.can_audit' => true,
-            ],
-        ]);
+        $accessCode = ExternalAccessCode::where('code', strtoupper($request->code))->first();
+
+        if (! $accessCode) {
+            return response()->json([
+                'message' => 'Código de acceso no encontrado.',
+            ], 404);
+        }
+
+        if (! $accessCode->isValid()) {
+            $reason = 'Código de acceso inválido.';
+            if ($accessCode->is_revoked) {
+                $reason = 'Este código ha sido revocado.';
+            } elseif ($accessCode->expires_at?->isPast()) {
+                $reason = 'Este código ha expirado.';
+            } elseif ($accessCode->times_used >= $accessCode->max_uses) {
+                $reason = 'Este código ya alcanzó el límite de usos.';
+            }
+
+            return response()->json(['message' => $reason], 403);
+        }
+
+        $user = $this->getOrCreateExternalUser($accessCode);
+
+        $accessCode->recordUsage();
 
         $abilities = ['audit:create', 'audit:read-own'];
-        $token = $user->createToken('external-auditor-token', $abilities);
+        $token = $user->createToken("access-code:{$accessCode->code}", $abilities);
 
         return response()->json([
-            'message' => 'Registro exitoso. Sus auditorías quedarán pendientes de aprobación.',
+            'message' => 'Acceso concedido. Sus auditorías quedarán pendientes de aprobación.',
             'data' => [
                 'user' => new UserResource($user),
                 'token' => $token->plainTextToken,
                 'abilities' => $abilities,
+                'code_info' => [
+                    'label' => $accessCode->label,
+                    'remaining_uses' => $accessCode->remainingUses(),
+                    'expires_at' => $accessCode->expires_at?->toIso8601String(),
+                ],
             ],
-        ], 201);
+        ]);
     }
 
     public function logout(): JsonResponse
@@ -87,6 +110,27 @@ class AuthController extends Controller
         return response()->json([
             'data' => new UserResource($user),
         ]);
+    }
+
+    /**
+     * Get or create a system user for this access code.
+     * Each code maps to a single ephemeral user so audits have a user_id.
+     */
+    private function getOrCreateExternalUser(ExternalAccessCode $code): User
+    {
+        $username = 'ext_'.strtolower(str_replace('-', '', $code->code));
+
+        return User::firstOrCreate(
+            ['username' => $username],
+            [
+                'name' => $code->label,
+                'email' => $username.'@external.audit',
+                'password' => Hash::make(Str::random(40)),
+                'is_external' => true,
+                'is_active' => true,
+                'permissions' => ['audit.can_audit' => true],
+            ]
+        );
     }
 
     private function resolveAbilities(User $user): array

@@ -12,6 +12,7 @@ use App\Models\Audit;
 use App\Models\AuditCriterion;
 use App\Models\AuditPhoto;
 use App\Models\AuditValue;
+use App\Models\ExternalAccessCode;
 use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
 use App\Services\ImageWatermarkService;
@@ -166,6 +167,15 @@ class AuditApiController extends Controller
 
         $approvalStatus = $user->is_external ? Audit::APPROVAL_PENDING : Audit::APPROVAL_APPROVED;
 
+        $accessCodeId = null;
+        if ($user->is_external) {
+            $tokenName = $user->currentAccessToken()?->name ?? '';
+            if (str_starts_with($tokenName, 'access-code:')) {
+                $codeStr = substr($tokenName, strlen('access-code:'));
+                $accessCodeId = ExternalAccessCode::where('code', $codeStr)->value('id');
+            }
+        }
+
         $audit = Audit::updateOrCreate(
             [
                 'advertising_space_id' => $space->id,
@@ -181,6 +191,7 @@ class AuditApiController extends Controller
                 'general_status' => 'good',
                 'source' => Audit::SOURCE_MOBILE,
                 'approval_status' => $approvalStatus,
+                'access_code_id' => $accessCodeId,
             ]
         );
 

@@ -25,6 +25,13 @@ class AuditResource extends JsonResource
             'approved_by' => new UserResource($this->whenLoaded('approvedBy')),
             'approved_at' => $this->approved_at?->toIso8601String(),
             'rejection_reason' => $this->rejection_reason,
+            'access_code' => $this->when($this->access_code_id, function () {
+                return $this->accessCode ? [
+                    'id' => $this->accessCode->id,
+                    'code' => $this->accessCode->code,
+                    'label' => $this->accessCode->label,
+                ] : null;
+            }),
             'values' => AuditValueResource::collection($this->whenLoaded('values')),
             'photos' => AuditPhotoResource::collection($this->whenLoaded('photos')),
             'created_at' => $this->created_at?->toIso8601String(),
