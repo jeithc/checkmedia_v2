@@ -262,7 +262,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {{-- Audit Only --}}
                     <label class="relative cursor-pointer">
-                        <input type="radio" wire:model.live="auditPurpose" value="audit_only" class="peer sr-only">
+                        <input type="radio" name="audit_purpose" wire:model.live="auditPurpose" value="audit_only" class="peer sr-only">
                         <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
                             peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:ring-2 peer-checked:ring-blue-500 peer-checked:ring-offset-1
                             border-gray-200 hover:border-gray-300 hover:bg-gray-50">
@@ -280,7 +280,7 @@
 
                     {{-- Preventive Maintenance --}}
                     <label class="relative cursor-pointer">
-                        <input type="radio" wire:model.live="auditPurpose" value="preventive_maintenance" class="peer sr-only">
+                        <input type="radio" name="audit_purpose" wire:model.live="auditPurpose" value="preventive_maintenance" class="peer sr-only">
                         <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
                             peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:ring-2 peer-checked:ring-green-500 peer-checked:ring-offset-1
                             border-gray-200 hover:border-gray-300 hover:bg-gray-50">
@@ -298,7 +298,7 @@
 
                     {{-- Corrective Maintenance --}}
                     <label class="relative cursor-pointer">
-                        <input type="radio" wire:model.live="auditPurpose" value="corrective_maintenance" class="peer sr-only">
+                        <input type="radio" name="audit_purpose" wire:model.live="auditPurpose" value="corrective_maintenance" class="peer sr-only">
                         <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
                             peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:ring-2 peer-checked:ring-orange-500 peer-checked:ring-offset-1
                             border-gray-200 hover:border-gray-300 hover:bg-gray-50">
@@ -322,7 +322,7 @@
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         @foreach(['estructural' => 'Estructural', 'electrico' => 'Eléctrico', 'ambiental' => 'Ambiental', 'material' => 'Material'] as $val => $label)
                         <label class="relative cursor-pointer">
-                            <input type="radio" wire:model.live="maintenanceCategory" value="{{ $val }}" class="peer sr-only">
+                            <input type="radio" name="maintenance_category" wire:model.live="maintenanceCategory" value="{{ $val }}" class="peer sr-only">
                             <div class="text-center p-3 rounded-lg border-2 text-sm font-medium transition-all duration-200
                                 peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-800
                                 border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50">
