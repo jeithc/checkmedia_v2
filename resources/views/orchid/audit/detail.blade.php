@@ -24,6 +24,16 @@
                         <span class="badge bg-primary">General</span>
                     @endif
                 </div>
+                @if($audit->audit_purpose && $audit->audit_purpose !== 'audit_only')
+                <div class="me-4 text-end">
+                    <small class="text-muted d-block text-uppercase" style="font-size: 0.7rem;">PROPÓSITO</small>
+                    @if($audit->audit_purpose === 'preventive_maintenance')
+                        <span class="badge text-white" style="background-color: #16a34a;">Mant. Preventivo</span>
+                    @elseif($audit->audit_purpose === 'corrective_maintenance')
+                        <span class="badge text-white" style="background-color: #ea580c;">Mant. Correctivo</span>
+                    @endif
+                </div>
+                @endif
                 <div class="me-4 text-end">
                     <small class="text-muted d-block text-uppercase" style="font-size: 0.7rem;">SEMANA</small>
                     <span class="text-dark fw-bold">{{ $audit->week }} / {{ $audit->year }}</span>
@@ -456,6 +466,7 @@
                                     <tr>
                                         <th>Semana/Año</th>
                                         <th>Tipo</th>
+                                        <th>Propósito</th>
                                         <th>Fecha</th>
                                         <th>Estado</th>
                                         <th>Auditor</th>
@@ -478,6 +489,15 @@
                                                     <span class="badge" style="background-color: #7c3aed; font-size: 0.7rem;">Estructural</span>
                                                 @else
                                                     <span class="badge bg-primary" style="font-size: 0.7rem;">General</span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($histAudit->audit_purpose === 'preventive_maintenance')
+                                                    <span class="badge text-white" style="background-color: #16a34a; font-size: 0.65rem;">Preventivo</span>
+                                                @elseif($histAudit->audit_purpose === 'corrective_maintenance')
+                                                    <span class="badge text-white" style="background-color: #ea580c; font-size: 0.65rem;">Correctivo</span>
+                                                @else
+                                                    <span class="text-muted" style="font-size: 0.7rem;">-</span>
                                                 @endif
                                             </td>
                                             <td class="text-muted small">

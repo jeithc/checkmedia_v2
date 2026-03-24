@@ -9,10 +9,17 @@ use Orchid\Screen\AsSource;
 
 class Audit extends Model
 {
-    use HasFactory, Chartable, AsSource;
+    use AsSource, Chartable, HasFactory;
 
     const TYPE_GENERAL = 'general';
+
     const TYPE_STRUCTURAL = 'structural';
+
+    const PURPOSE_AUDIT_ONLY = 'audit_only';
+
+    const PURPOSE_PREVENTIVE = 'preventive_maintenance';
+
+    const PURPOSE_CORRECTIVE = 'corrective_maintenance';
 
     protected $fillable = [
         'advertising_space_id',
@@ -20,6 +27,7 @@ class Audit extends Model
         'year',
         'week',
         'audit_type',
+        'audit_purpose',
         'audit_date',
         'general_status',
         'observation',
@@ -84,8 +92,8 @@ class Audit extends Model
      * Get calendar-based year and week for a given date.
      * Uses ISO-8601 week numbering (weeks start on Monday).
      * Adjusts year for edge cases (late December / early January).
-     * 
-     * @param \Carbon\Carbon|null $date
+     *
+     * @param  \Carbon\Carbon|null  $date
      * @return array ['year' => int, 'week' => int]
      */
     public static function getCalendarYearAndWeek($date = null)
@@ -104,7 +112,7 @@ class Audit extends Model
 
         return [
             'year' => $year,
-            'week' => $weekNumber
+            'week' => $weekNumber,
         ];
     }
 }

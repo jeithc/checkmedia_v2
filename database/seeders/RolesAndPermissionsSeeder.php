@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Orchid\Platform\Models\Role;
-use App\Models\User;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -46,6 +46,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'platform.index' => true,
             'platform.systems.attachment' => true,
             'audit.can_audit' => true,
+            'audit.can_select_purpose' => true,
             'audit.close_with_error' => true,
             'audit.upload_fixes' => true,
             'audit.request_maintenance' => true,
@@ -65,6 +66,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'platform.index' => true,
             'platform.systems.attachment' => true,
             'audit.can_audit_structural' => true,
+            'audit.can_select_purpose' => true,
             'audit.upload_fixes' => true,
             'maintenance.view' => true,
         ];
@@ -84,7 +86,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $adminUser->save();
 
             // Assign the exact role to the user directly
-            if (!$adminUser->inRole('administrador')) {
+            if (! $adminUser->inRole('administrador')) {
                 $adminUser->addRole($adminRole);
             }
         }
