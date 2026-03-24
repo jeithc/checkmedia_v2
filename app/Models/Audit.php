@@ -21,6 +21,16 @@ class Audit extends Model
 
     const PURPOSE_CORRECTIVE = 'corrective_maintenance';
 
+    const SOURCE_WEB = 'web';
+
+    const SOURCE_MOBILE = 'mobile';
+
+    const APPROVAL_PENDING = 'pending';
+
+    const APPROVAL_APPROVED = 'approved';
+
+    const APPROVAL_REJECTED = 'rejected';
+
     protected $fillable = [
         'advertising_space_id',
         'user_id',
@@ -34,11 +44,17 @@ class Audit extends Model
         'resolution_photo_path',
         'resolution_comment',
         'resolved_at',
+        'source',
+        'approval_status',
+        'approved_by',
+        'approved_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
         'audit_date' => 'datetime',
         'resolved_at' => 'datetime',
+        'approved_at' => 'datetime',
     ];
 
     public function space()
@@ -69,6 +85,21 @@ class Audit extends Model
     public function maintenances()
     {
         return $this->hasMany(Maintenance::class);
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function isPending(): bool
+    {
+        return $this->approval_status === self::APPROVAL_PENDING;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approval_status === self::APPROVAL_APPROVED;
     }
 
     public function hasOpenMaintenance(): bool

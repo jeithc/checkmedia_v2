@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Laravel\Sanctum\HasApiTokens;
 use Orchid\Filters\Types\Like;
 use Orchid\Filters\Types\Where;
 use Orchid\Filters\Types\WhereDateStartEnd;
@@ -9,6 +10,8 @@ use Orchid\Platform\Models\User as Authenticatable;
 
 class User extends Authenticatable
 {
+    use HasApiTokens;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -24,6 +27,8 @@ class User extends Authenticatable
         'must_change_password', // Added
         'avatar_path', // Added
         'is_superuser', // Added
+        'is_external',
+        'phone',
     ];
 
     /**
@@ -48,16 +53,9 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'must_change_password' => 'boolean',
         'is_superuser' => 'boolean',
+        'is_external' => 'boolean',
     ];
 
-
-
-    /**
-     * @param string $permit
-     * @param bool   $cache
-     *
-     * @return bool
-     */
     public function hasAccess(string $permit, bool $cache = true): bool
     {
         if ($this->is_superuser) {
@@ -68,10 +66,7 @@ class User extends Authenticatable
     }
 
     /**
-     * @param mixed $permissions
-     * @param bool  $cache
-     *
-     * @return bool
+     * @param  mixed  $permissions
      */
     public function hasAnyAccess($permissions, bool $cache = true): bool
     {
@@ -126,6 +121,7 @@ class User extends Authenticatable
     {
         return $this->hasMany(SavedReport::class);
     }
+
     /**
      * Send the password reset notification.
      *
