@@ -93,15 +93,6 @@ class AuditDashboardScreen extends Screen
             }
         }
 
-        $totalEstimated = $maintenances->sum(fn (Maintenance $maintenance) => (float) ($maintenance->estimated_cost ?? 0));
-        $totalFinal = $maintenances->sum(fn (Maintenance $maintenance) => (float) ($maintenance->final_cost ?? 0));
-
-        $executionPct = '0%';
-        if ($totalEstimated > 0 && $totalFinal > 0) {
-            $pct = round(($totalFinal / $totalEstimated) * 100, 1);
-            $executionPct = "{$pct}%";
-        }
-
         $openWithRc = $maintenances
             ->where('status', '!=', Maintenance::STATUS_CLOSED)
             ->whereNotNull('advisual_requisition_id')
@@ -112,6 +103,7 @@ class AuditDashboardScreen extends Screen
         $purchaseOrdersWithoutValue = $withPurchaseOrder->filter(fn (Maintenance $maintenance) => (float) ($maintenance->advisual_purchase_order_total ?? 0) <= 0)->count();
         $pendingPurchaseOrders = $withRequisition->whereNull('advisual_purchase_order_id')->count();
         $purchaseOrderTotal = $withPurchaseOrder->sum(fn (Maintenance $maintenance) => (float) ($maintenance->advisual_purchase_order_total ?? 0));
+        $purchaseOrdersWithValue = $withPurchaseOrder->filter(fn (Maintenance $maintenance) => (float) ($maintenance->advisual_purchase_order_total ?? 0) > 0)->count();
 
         $purchaseOrderCostDisplay = '$'.number_format($purchaseOrderTotal, 0, ',', '.');
 
@@ -158,7 +150,6 @@ class AuditDashboardScreen extends Screen
         }
 
         // 5. Estado de valor de OC
-        $purchaseOrdersWithValue = $withPurchaseOrder->filter(fn (Maintenance $maintenance) => (float) ($maintenance->advisual_purchase_order_total ?? 0) > 0)->count();
         $purchaseOrdersWithZeroValue = $purchaseOrdersWithoutValue;
         $rqWithoutOc = $pendingPurchaseOrders;
 
@@ -179,7 +170,7 @@ class AuditDashboardScreen extends Screen
             'metrics' => [
                 'Novedades Abiertas' => ['value' => number_format($openIssues)],
                 'Tiempo Promedio Cierre' => ['value' => $avgTimeStr],
-                'Presupuesto Ejecutado (%)' => ['value' => $executionPct, 'diff' => 'Final vs Estimado'],
+                'OCs con Valor' => ['value' => number_format($purchaseOrdersWithValue), 'diff' => 'Con costo sincronizado'],
                 'Novedades Abiertas con RQ' => ['value' => number_format($openWithRc)],
                 'Novedades con OC' => ['value' => number_format($withPurchaseOrder->count()), 'diff' => 'RQ convertidas'],
                 'OCs sin Valor' => ['value' => number_format($purchaseOrdersWithoutValue), 'diff' => 'Pendientes de costo'],
@@ -323,7 +314,7 @@ class AuditDashboardScreen extends Screen
             \Orchid\Support\Facades\Layout::metrics([
                 'Novedades Abiertas' => 'metrics.Novedades Abiertas',
                 'Tiempo Promedio Cierre' => 'metrics.Tiempo Promedio Cierre',
-                'Presupuesto Ejecutado (%)' => 'metrics.Presupuesto Ejecutado (%)',
+                'OCs con Valor' => 'metrics.OCs con Valor',
                 'Novedades Abiertas con RQ' => 'metrics.Novedades Abiertas con RQ',
             ]),
 
