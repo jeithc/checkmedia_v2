@@ -53,12 +53,7 @@ class AdvisualSyncService
             $row = null;
 
             try {
-                // 1. Intentar conexión estándar nativa (Laravel sqlsrv)
-                $row = DB::connection('advisual')->selectOne($sqlQuery, [$code]);
-            } catch (Exception $e) {
-                // 2. Hostinger Fallback: Usar el FreeTDS ODBC si falta el driver oficial
-                Log::info("Advisual standard connection failed. Attempting FreeTDS ODBC fallback.");
-                
+                // 1. Intentar FreeTDS ODBC (Prioridad para Hostinger Shared)
                 $username = config('database.connections.advisual.username');
                 $password = config('database.connections.advisual.password');
                 
@@ -66,6 +61,10 @@ class AdvisualSyncService
                 $stmt = $pdo->prepare($sqlQuery);
                 $stmt->execute([$code]);
                 $row = $stmt->fetch(\PDO::FETCH_OBJ);
+            } catch (Exception $e) {
+                // 2. Fallback: Intentar conexión estándar nativa (Local/VPS con sqlsrv)
+                Log::info("Advisual ODBC connection failed. Attempting standard Laravel fallback. " . $e->getMessage());
+                $row = DB::connection('advisual')->selectOne($sqlQuery, [$code]);
             }
 
             if (!$row) {

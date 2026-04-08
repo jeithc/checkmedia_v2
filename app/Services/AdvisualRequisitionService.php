@@ -41,7 +41,7 @@ class AdvisualRequisitionService
             $categoryLabel = strtoupper($maintenance->category ?? 'GENERAL');
             $observacion = $categoryLabel . ' - ' . ($maintenance->description ?: 'Sin observaciones');
 
-            $requisitionId = DB::connection('advisual')->selectOne("
+            $sqlQuery = "
                 SET NOCOUNT ON;
                 INSERT INTO Requisicion (
                     RequisicionFecha,
@@ -58,7 +58,9 @@ class AdvisualRequisitionService
                     RequisicionFechaSugerida
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 SELECT SCOPE_IDENTITY() AS id;
-            ", [
+            ";
+
+            $bindings = [
                 $now,
                 $solicitanteUuid,
                 $tipo,
@@ -71,7 +73,37 @@ class AdvisualRequisitionService
                 $creaUsuario,
                 $now,
                 $now,
-            ]);
+            ];
+
+            $requisitionId = null;
+
+            try {
+                // 1. Intentar FreeTDS ODBC (Prioridad para Hostinger Shared)
+                $username = config('database.connections.advisual.username');
+                $password = config('database.connections.advisual.password');
+                
+                $pdo = new \PDO("odbc:mssql_odbc", $username, $password);
+                $stmt = $pdo->prepare($sqlQuery);
+                $stmt->execute($bindings);
+                
+                do {
+                    $row = $stmt->fetch(\PDO::FETCH_OBJ);
+                    if ($row && isset($row->id)) {
+                        $requisitionId = $row;
+                        break;
+                    }
+                } while ($stmt->nextRowset());
+
+                // Fallback preventivo si fetch directo falló pero insertó (FreeTDS quirk)
+                if (!$requisitionId) {
+                    $stmt = $pdo->query("SELECT @@IDENTITY AS id");
+                    $requisitionId = $stmt->fetch(\PDO::FETCH_OBJ);
+                }
+            } catch (\Exception $e) {
+                // 2. Fallback: Intentar conexión estándar nativa (Local/VPS con sqlsrv)
+                Log::info("Advisual Requisition ODBC failed. Attempting standard Laravel fallback. " . $e->getMessage());
+                $requisitionId = DB::connection('advisual')->selectOne($sqlQuery, $bindings);
+            }
 
             if (!$requisitionId || !$requisitionId->id) {
                 $this->markError($maintenance, 'No se obtuvo el ID de la requisición insertada en Advisual.');
