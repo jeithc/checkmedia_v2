@@ -37,14 +37,9 @@ class AdvisualRequisitionService
             $serialProd = config('services.advisual.serial_prod', 1);
             $serialAdmin = config('services.advisual.serial_admin', 0);
 
-            // Observación de Solicitante es algo global
-            $observacion = $maintenance->description ?: 'Sin observaciones';
-
-            // RequiProdDescripcion (Texto indicado según novedad) diferenciado por espacio
-            $requiProdDescripcion = strtoupper($maintenance->category ?? 'GENERAL');
-            if ($maintenance->description) {
-                $requiProdDescripcion .= ' - ' . substr($maintenance->description, 0, 200); // Truncar por si acaso
-            }
+            // Observación incluye categoría + descripción del problema
+            $categoryLabel = strtoupper($maintenance->category ?? 'GENERAL');
+            $observacion = $categoryLabel . ' - ' . ($maintenance->description ?: 'Sin observaciones');
 
             $requisitionId = DB::connection('advisual')->selectOne("
                 SET NOCOUNT ON;
@@ -60,9 +55,8 @@ class AdvisualRequisitionService
                     RequisicionCreaFecha,
                     RequisicionModificaUsuario,
                     RequisicionModificaFecha,
-                    RequisicionFechaSugerida,
-                    RequiProdDescripcion
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    RequisicionFechaSugerida
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 SELECT SCOPE_IDENTITY() AS id;
             ", [
                 $now,
@@ -77,7 +71,6 @@ class AdvisualRequisitionService
                 $creaUsuario,
                 $now,
                 $now,
-                $requiProdDescripcion
             ]);
 
             if (!$requisitionId || !$requisitionId->id) {

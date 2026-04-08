@@ -8,6 +8,8 @@ use App\Models\SpaceActivityLog;
 use App\Services\AdvisualRequisitionService;
 use App\Services\MaintenanceNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Orchid\Support\Facades\Toast;
 
 class AuditActionController extends Controller
@@ -248,14 +250,21 @@ class AuditActionController extends Controller
 
         // Validate audit has bad status
         if ($audit->general_status !== 'bad') {
-            Toast::error('Solo se pueden solicitar mantenimientos para auditorías con errores.');
-            return back();
+            return response()->json(['message' => 'Solo se pueden solicitar mantenimientos para auditorías con errores.'], 422);
         }
 
         // Check no open maintenance exists for this audit
         if ($audit->hasOpenMaintenance()) {
-            Toast::error('Ya existe un mantenimiento abierto para esta auditoría.');
-            return back();
+            return response()->json(['message' => 'Ya existe un mantenimiento abierto para esta auditoría.'], 422);
+        }
+
+        // Check Advisual connectivity before creating anything
+        $advisualService = app(AdvisualRequisitionService::class);
+        try {
+            DB::connection('advisual')->getPdo();
+        } catch (\Exception $e) {
+            Log::error('Advisual connection failed before creating maintenance', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'No se pudo conectar con Advisual. La requisición no fue creada.'], 503);
         }
 
         // Create maintenance record
@@ -271,9 +280,13 @@ class AuditActionController extends Controller
             'description' => $request->input('maintenance_description'),
         ]);
 
-        // Try to create requisition in Advisual
-        $advisualService = app(AdvisualRequisitionService::class);
+        // Create requisition in Advisual
         $synced = $advisualService->createRequisition($maintenance);
+
+        if (!$synced) {
+            $maintenance->delete();
+            return response()->json(['message' => 'Error al crear la requisición en Advisual. El mantenimiento no fue creado.'], 500);
+        }
 
         // Log activity
         SpaceActivityLog::log(
@@ -295,13 +308,7 @@ class AuditActionController extends Controller
 
         app(MaintenanceNotificationService::class)->notify('maintenance_requested', $maintenance);
 
-        $message = 'Mantenimiento solicitado exitosamente.';
-        if (!$synced) {
-            $message .= ' (Error al sincronizar con Advisual - se reintentará)';
-        }
-
-        Toast::success($message);
-        return back();
+        return response()->json(['message' => 'Mantenimiento solicitado exitosamente.', 'success' => true]);
     }
 
     /**

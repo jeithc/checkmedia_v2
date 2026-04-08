@@ -113,7 +113,7 @@ class AdminDashboard extends Component
         $avgClosureTime = Maintenance::where('status', Maintenance::STATUS_CLOSED)
             ->whereNotNull('closed_at')
             ->whereNotNull('requested_at')
-            ->selectRaw('AVG(JULIANDAY(closed_at) - JULIANDAY(requested_at)) as avg_days')
+            ->selectRaw('AVG(DATEDIFF(closed_at, requested_at)) as avg_days')
             ->value('avg_days');
 
         $avgClosureDays = $avgClosureTime !== null ? round($avgClosureTime, 1) : null;

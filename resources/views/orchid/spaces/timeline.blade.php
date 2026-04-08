@@ -363,7 +363,18 @@
                         <span class="tl-timestamp">{{ $log->created_at->format('d M Y, H:i') }}</span>
                     </div>
 
-                    <p class="tl-description">{{ $log->description }}</p>
+                    @php
+                        $inlineStatus = $log->metadata['general_status'] ?? ($log->metadata['new_status'] ?? null);
+                        $descCleaned = $inlineStatus
+                            ? preg_replace('/\b(good|bad|warning)\b/i', '', $log->description)
+                            : $log->description;
+                    @endphp
+                    <p class="tl-description">
+                        {{ trim($descCleaned) }}
+                        @if($inlineStatus)
+                            <span class="tl-status-badge {{ $statusBadge($inlineStatus) }}">{{ $statusLabel($inlineStatus) }}</span>
+                        @endif
+                    </p>
 
                     <div class="tl-meta">
                         <span class="tl-meta-item">

@@ -206,10 +206,21 @@
                             csrf.value = '{{ csrf_token() }}';
                             form.appendChild(csrf);
                             
+                            bypassOrchidDirtyCheck();
                             document.body.appendChild(form);
                             form.submit();
                         }
                     });
+                }
+                
+                // Función para evitar la alerta de cambios sin guardar de Orchid
+                function bypassOrchidDirtyCheck() {
+                    const postForm = document.getElementById('post-form');
+                    if (postForm) {
+                        postForm.dataset.formHasBeenChangedValue = 'false';
+                        postForm.dataset.formNeedPreventsFormAbandonmentValue = 'false';
+                    }
+                    window.onbeforeunload = null;
                 }
             </script>
 
@@ -960,7 +971,7 @@
                     showConfirmButton: false
                 }).then(() => {
                     // Limpiar para evitar advertencia de Chrome
-                    window.onbeforeunload = null;
+                    bypassOrchidDirtyCheck();
                     clearModalInputs('uploadRevisionModal');
                     window.location.reload();
                 });
@@ -1066,7 +1077,7 @@
                     showConfirmButton: false
                 }).then(() => {
                     // Limpiar para evitar advertencia de Chrome
-                    window.onbeforeunload = null;
+                    bypassOrchidDirtyCheck();
                     clearModalInputs('editAuditModal');
                     
                     if (typeof Turbo !== 'undefined') {
@@ -1172,6 +1183,7 @@
         })
         .then(response => {
             if (response.ok || response.status === 302) {
+                bypassOrchidDirtyCheck();
                 window.location.reload();
             } else {
                 return response.json().then(data => {
@@ -1204,28 +1216,47 @@
             return;
         }
 
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ url("/admin/audit-action/" . $audit->id . "/request-maintenance") }}';
+        var btn = document.querySelector('#requestMaintenanceModal .btn-warning');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Enviando...';
 
-        var fields = {
-            '_token': '{{ csrf_token() }}',
-            'maintenance_type': type,
-            'maintenance_category': category,
-            'maintenance_priority': priority,
-            'maintenance_description': description
-        };
-
-        for (var key in fields) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = key;
-            input.value = fields[key];
-            form.appendChild(input);
-        }
-
-        document.body.appendChild(form);
-        form.submit();
+        fetch('{{ url("/admin/audit-action/" . $audit->id . "/request-maintenance") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                maintenance_type: type,
+                maintenance_category: category,
+                maintenance_priority: priority,
+                maintenance_description: description,
+            }),
+        })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok) throw data;
+                return data;
+            });
+        })
+        .then(function(data) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Solicitud Creada!',
+                text: 'El mantenimiento ha sido solicitado correctamente.',
+                timer: 1500,
+                showConfirmButton: false
+            }).then(() => {
+                bypassOrchidDirtyCheck();
+                window.location.reload();
+            });
+        })
+        .catch(function(error) {
+            btn.disabled = false;
+            btn.innerHTML = 'Solicitar';
+            alert(error.message || 'Error al solicitar mantenimiento.');
+        });
     }
 </script>
 
