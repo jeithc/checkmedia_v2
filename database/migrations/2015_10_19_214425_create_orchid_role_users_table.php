@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('role_users', function (Blueprint $table) {
             $table->unsignedBigInteger('user_id');
-            $table->unsignedBigInteger('role_id'); // Changed from unsignedInteger to match roles.id type
+            $table->unsignedInteger('role_id'); // Must be unsignedInteger to match roles.id (increments)
             $table->primary(['user_id', 'role_id']);
             $table->foreign('user_id')
                 ->references('id')
