@@ -20,9 +20,7 @@ class AdvisualSyncService
     public function syncSpaceByCcde(string $code)
     {
         try {
-            // 1. Query External DB (Advisual / SQL Server)
-            // Using raw query mapping the legacy SELECT structure
-            $row = DB::connection('advisual')->selectOne("
+            $sqlQuery = "
                 SELECT TOP 1 
                     ElementoCodigo,
                     EspacioCodigo,
@@ -50,7 +48,25 @@ class AdvisualSyncService
                 LEFT JOIN Negocio as n on n.NegocioCodigo=ped.negociocodigo
                 LEFT JOIN cliente as cl on n.NegocioClienteCodigo=cl.ClienteCodigo
                 WHERE EspacioCodigo = ?
-            ", [$code]);
+            ";
+
+            $row = null;
+
+            try {
+                // 1. Intentar conexión estándar nativa (Laravel sqlsrv)
+                $row = DB::connection('advisual')->selectOne($sqlQuery, [$code]);
+            } catch (Exception $e) {
+                // 2. Hostinger Fallback: Usar el FreeTDS ODBC si falta el driver oficial
+                Log::info("Advisual standard connection failed. Attempting FreeTDS ODBC fallback.");
+                
+                $username = config('database.connections.advisual.username');
+                $password = config('database.connections.advisual.password');
+                
+                $pdo = new \PDO("odbc:mssql_odbc", $username, $password);
+                $stmt = $pdo->prepare($sqlQuery);
+                $stmt->execute([$code]);
+                $row = $stmt->fetch(\PDO::FETCH_OBJ);
+            }
 
             if (!$row) {
                 return null;
