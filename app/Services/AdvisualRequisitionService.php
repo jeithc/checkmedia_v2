@@ -60,8 +60,10 @@ class AdvisualRequisitionService
                 SELECT SCOPE_IDENTITY() AS id;
             ";
 
+            $nowStr = $now->format('Y-m-d H:i:s');
+
             $bindings = [
-                $now,
+                $nowStr,
                 $solicitanteUuid,
                 $tipo,
                 $observacion,
@@ -69,10 +71,10 @@ class AdvisualRequisitionService
                 $serialAdmin,
                 $serialProd,
                 $creaUsuario,
-                $now,
+                $nowStr,
                 $creaUsuario,
-                $now,
-                $now,
+                $nowStr,
+                $nowStr,
             ];
 
             $requisitionId = null;
@@ -99,10 +101,13 @@ class AdvisualRequisitionService
                     $stmt = $pdo->query("SELECT @@IDENTITY AS id");
                     $requisitionId = $stmt->fetch(\PDO::FETCH_OBJ);
                 }
-            } catch (\Exception $e) {
+            } catch (\Exception $eOdbc) {
                 // 2. Fallback: Intentar conexión estándar nativa (Local/VPS con sqlsrv)
-                Log::info("Advisual Requisition ODBC failed. Attempting standard Laravel fallback. " . $e->getMessage());
-                $requisitionId = DB::connection('advisual')->selectOne($sqlQuery, $bindings);
+                try {
+                    $requisitionId = DB::connection('advisual')->selectOne($sqlQuery, $bindings);
+                } catch (\Exception $eNative) {
+                    throw new \Exception("ODBC Error: " . $eOdbc->getMessage() . " | Native Error: " . $eNative->getMessage());
+                }
             }
 
             if (!$requisitionId || !$requisitionId->id) {
