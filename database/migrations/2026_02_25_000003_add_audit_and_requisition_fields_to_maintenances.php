@@ -10,6 +10,9 @@ return new class extends Migration
     {
         Schema::table('maintenances', function (Blueprint $table) {
             // Only add columns that don't already exist
+            if (! Schema::hasColumn('maintenances', 'audit_id')) {
+                $table->foreignId('audit_id')->nullable()->constrained('audits')->cascadeOnDelete()->after('advertising_space_id');
+            }
             if (! Schema::hasColumn('maintenances', 'requested_by')) {
                 $table->foreignId('requested_by')->nullable()->constrained('users')->nullOnDelete()->after('audit_id');
             }
@@ -44,7 +47,7 @@ return new class extends Migration
     {
         Schema::table('maintenances', function (Blueprint $table) {
             $columnsToDrop = [];
-            foreach (['requested_by', 'requested_at', 'advisual_requisition_id', 'advisual_synced_at', 'advisual_sync_error', 'closed_by', 'closed_at', 'closure_document_path', 'closure_comment'] as $col) {
+            foreach (['audit_id', 'requested_by', 'requested_at', 'advisual_requisition_id', 'advisual_synced_at', 'advisual_sync_error', 'closed_by', 'closed_at', 'closure_document_path', 'closure_comment'] as $col) {
                 if (Schema::hasColumn('maintenances', $col)) {
                     $columnsToDrop[] = $col;
                 }
