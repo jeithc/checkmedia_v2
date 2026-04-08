@@ -23,6 +23,13 @@ class Maintenance extends Model
 
     const TYPE_PREVENTIVE = 'preventive';
 
+    public const CATEGORIES = [
+        'estructural' => 'Estructural',
+        'ambiental' => 'Ambiental',
+        'electrico' => 'Eléctrico',
+        'material' => 'Material',
+    ];
+
     protected $fillable = [
         'advertising_space_id',
         'audit_id',

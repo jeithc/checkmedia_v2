@@ -6,6 +6,7 @@ use App\Models\PreventiveSchedule;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Fields\Input;
+use Orchid\Screen\Fields\Select;
 use Orchid\Screen\Fields\Switcher;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
@@ -72,18 +73,23 @@ class PreventiveScheduleEditScreen extends Screen
      */
     public function layout(): iterable
     {
+        $elementTypes = \App\Models\Maintenance::CATEGORIES;
+        $cities = \App\Models\AdvertisingSpace::select('city')->distinct()->whereNotNull('city')->where('city', '!=', '')->pluck('city', 'city')->toArray();
+
         return [
             Layout::rows([
-                Input::make('schedule.element_type')
+                Select::make('schedule.element_type')
                     ->title('Tipo de Elemento')
-                    ->placeholder('Ej: CIRCUITO DIGITAL, PARADERO...')
+                    ->options($elementTypes)
+                    ->empty('Seleccionar Tipo de Elemento...')
                     ->required()
                     ->help('Debe coincidir con la lista de tipos de elementos activos en Nominas.'),
                 
-                Input::make('schedule.city')
+                Select::make('schedule.city')
                     ->title('Ciudad')
-                    ->placeholder('Ej: BOGOTA, CALI, MEDELLIN')
-                    ->help('Déjalo en blanco si la regla aplica para todo el país.'),
+                    ->options($cities)
+                    ->empty('Todas las ciudades')
+                    ->help('Déjalo en "Todas las ciudades" o selecciona una ciudad específica para esta regla.'),
                 
                 Input::make('schedule.frequency_days')
                     ->title('Frecuencia en Días')

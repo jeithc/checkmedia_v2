@@ -1334,10 +1334,9 @@
                         <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Categoría *</label>
                         <select id="maintenance_category_input" class="form-select form-select-sm" required>
                             <option value="">Seleccionar...</option>
-                            <option value="estructural">Estructural</option>
-                            <option value="electrico">Eléctrico</option>
-                            <option value="ambiental">Ambiental</option>
-                            <option value="material">Material</option>
+                            @foreach(\App\Models\Maintenance::CATEGORIES as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div class="col-md-6">

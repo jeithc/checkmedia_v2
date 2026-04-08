@@ -235,9 +235,11 @@ class AuditActionController extends Controller
     {
         abort_unless(auth()->user()->hasAccess('audit.request_maintenance'), 403);
 
+        $allowedCategories = implode(',', array_keys(Maintenance::CATEGORIES));
+
         $request->validate([
             'maintenance_type' => 'required|in:corrective,preventive',
-            'maintenance_category' => 'required|in:estructural,electrico,ambiental,material',
+            'maintenance_category' => "required|in:{$allowedCategories}",
             'maintenance_priority' => 'required|in:alta,media,baja',
             'maintenance_description' => 'required|string|min:5',
         ], [
