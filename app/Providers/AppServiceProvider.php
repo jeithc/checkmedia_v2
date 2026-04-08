@@ -22,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
+        if (env('APP_ENV') === 'production' || env('APP_ENV') === 'prod') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // Prevent Livewire/Alpine from re-initializing on Turbo navigation (Orchid uses Turbo for SPA)
         \Livewire\Livewire::useScriptTagAttributes([
             'data-turbo-eval' => 'false',
