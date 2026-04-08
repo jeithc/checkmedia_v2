@@ -24,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
 
         if (env('APP_ENV') === 'production' || env('APP_ENV') === 'prod') {
             \Illuminate\Support\Facades\URL::forceScheme('https');
+            request()->server->set('HTTPS', 'on');
         }
 
         // Prevent Livewire/Alpine from re-initializing on Turbo navigation (Orchid uses Turbo for SPA)
