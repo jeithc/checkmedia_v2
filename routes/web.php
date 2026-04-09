@@ -7,8 +7,8 @@ Route::get('/', function () {
     if (auth()->check()) {
         $user = auth()->user();
 
-        // If user is an auditor (has audit permission but not admin access), redirect to audit form
-        if ($user->hasAnyAccess(['audit.can_audit']) && !$user->hasAnyAccess(['platform.index'])) {
+        // Si el usuario no tiene acceso al panel de administración, redirigir a auditoría
+        if (!$user->hasAccess('platform.index')) {
             return redirect()->route('audit.form');
         }
 

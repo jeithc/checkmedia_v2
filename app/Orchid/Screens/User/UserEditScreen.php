@@ -201,6 +201,16 @@ class UserEditScreen extends Screen
             'user.password.min'      => 'La contraseña debe tener al menos 6 caracteres.',
         ]);
 
+        $roles = $request->input('user.roles', []);
+        $hasPermissions = collect($request->input('permissions', []))
+            ->contains(fn($val) => (bool)$val === true);
+
+        if (empty($roles) && !$hasPermissions) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'user.roles' => 'El usuario debe de tener al menos un rol o un permiso directo.',
+            ]);
+        }
+
         $permissions = collect($request->get('permissions', []))
             ->map(fn($value, $key) => [base64_decode($key) => (bool)$value])
             ->collapse()

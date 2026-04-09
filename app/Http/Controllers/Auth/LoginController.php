@@ -29,8 +29,8 @@ class LoginController extends Controller
 
             $user = Auth::user();
             
-            // If user only has auditor permission, redirect to audit form
-            if ($user->hasAnyAccess(['audit.can_audit']) && !$user->hasAnyAccess(['platform.index'])) {
+            // Si el usuario no tiene acceso al panel de administración, redirigir a auditoría
+            if (!$user->hasAccess('platform.index')) {
                  return redirect()->route('audit.form');
             }
 
