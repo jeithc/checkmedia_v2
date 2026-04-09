@@ -90,6 +90,7 @@ class AuditForm extends Component
 
     public function mount()
     {
+        /** @var \App\Models\User|null $user */
         $user = auth()->user();
 
         if (!$user) {
@@ -98,17 +99,14 @@ class AuditForm extends Component
 
         $isStructural = $user->hasAccess('audit.can_audit_structural');
         $isGeneral = $user->hasAnyAccess(['audit.can_audit']);
-
-        if (! $isStructural && ! $isGeneral) {
-            abort(403);
-        }
+        $isAdmin = $user->hasAccess('platform.index');
 
         if ($isStructural && ! $isGeneral) {
             $this->auditType = Audit::TYPE_STRUCTURAL;
             $this->isStructuralAuditor = true;
         }
 
-        $this->canSelectPurpose = $user->hasAccess('audit.can_select_purpose');
+        $this->canSelectPurpose = $isStructural || $isGeneral || $isAdmin || $user->hasAccess('audit.can_select_purpose');
 
         $criteria = $this->criteria;
         foreach ($criteria as $criterion) {
@@ -260,7 +258,10 @@ class AuditForm extends Component
 
     public function save()
     {
-        if (! auth()->user()->hasAnyAccess(['audit.can_audit', 'audit.can_audit_structural'])) {
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+
+        if (!$user) {
             abort(403);
         }
 
@@ -310,7 +311,7 @@ class AuditForm extends Component
                 'audit_type' => $this->auditType,
             ],
             [
-                'user_id' => auth()->id() ?? 1,
+                'user_id' => $user->id ?? 1,
                 'audit_date' => $existingAudit ? $existingAudit->audit_date : $date,
                 'audit_purpose' => $effectivePurpose,
                 'observation' => $this->observation,
@@ -370,7 +371,7 @@ class AuditForm extends Component
                 'general_status' => $generalStatus,
                 'audit_purpose' => $effectivePurpose,
                 'photos_count' => count($this->photos),
-                'user_name' => auth()->user()?->name ?? 'Sistema',
+                'user_name' => $user->name ?? 'Sistema',
             ],
             year: $weekData['year'],
             week: $weekData['week']
@@ -399,6 +400,10 @@ class AuditForm extends Component
             return;
         }
 
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+        $userId = $user ? $user->id : 1;
+
         $category = $this->isStructuralAuditor
             ? strtolower($space->type ?? 'estructural')
             : $this->maintenanceCategory;
@@ -407,12 +412,12 @@ class AuditForm extends Component
             Maintenance::create([
                 'advertising_space_id' => $space->id,
                 'audit_id' => $audit->id,
-                'requested_by' => auth()->id(),
+                'requested_by' => $userId,
                 'requested_at' => now(),
                 'type' => Maintenance::TYPE_PREVENTIVE,
                 'category' => $category,
                 'status' => Maintenance::STATUS_CLOSED,
-                'closed_by' => auth()->id(),
+                'closed_by' => $userId,
                 'closed_at' => now(),
                 'description' => 'Mantenimiento preventivo realizado durante auditoría #'.$audit->id,
             ]);
@@ -420,7 +425,7 @@ class AuditForm extends Component
             $maintenance = Maintenance::create([
                 'advertising_space_id' => $space->id,
                 'audit_id' => $audit->id,
-                'requested_by' => auth()->id(),
+                'requested_by' => $userId,
                 'requested_at' => now(),
                 'type' => Maintenance::TYPE_CORRECTIVE,
                 'category' => $category,
