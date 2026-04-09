@@ -53,12 +53,6 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('maintenance.view')
                 ->divider(),
 
-            Menu::make('Matriz Preventivo')
-                ->icon('bs.calendar-check')
-                ->route('platform.preventive.schedule.list')
-                ->permission('system.edit_users')
-                ->divider(),
-
             Menu::make(__('Users'))
                 ->icon('bs.people')
                 ->route('platform.systems.users')
@@ -69,6 +63,11 @@ class PlatformProvider extends OrchidServiceProvider
                 ->icon('bs.list-check')
                 ->route('platform.audit.criteria')
                 ->permission('audit.manage_criteria'),
+
+            Menu::make('Matriz Preventivo')
+                ->icon('bs.calendar-check')
+                ->route('platform.preventive.schedule.list')
+                ->permission('system.edit_users'),
 
             Menu::make(__('Roles'))
                 ->icon('bs.shield')
