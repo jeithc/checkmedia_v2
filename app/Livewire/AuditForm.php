@@ -91,6 +91,11 @@ class AuditForm extends Component
     public function mount()
     {
         $user = auth()->user();
+
+        if (!$user) {
+            return redirect()->route('platform.login');
+        }
+
         $isStructural = $user->hasAccess('audit.can_audit_structural');
         $isGeneral = $user->hasAnyAccess(['audit.can_audit']);
 
