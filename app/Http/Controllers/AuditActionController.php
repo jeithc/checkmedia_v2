@@ -260,14 +260,8 @@ class AuditActionController extends Controller
             return response()->json(['message' => 'Ya existe un mantenimiento abierto para esta auditoría.'], 422);
         }
 
-        // Check Advisual connectivity before creating anything
+        // El chequeo de conexión se movió adentro de AdvisualRequisitionService para soportar ODBC (Hostinger)
         $advisualService = app(AdvisualRequisitionService::class);
-        try {
-            DB::connection('advisual')->getPdo();
-        } catch (\Exception $e) {
-            Log::error('Advisual connection failed before creating maintenance', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'No se pudo conectar con Advisual. La requisición no fue creada.'], 503);
-        }
 
         // Create maintenance record
         $maintenance = Maintenance::create([
