@@ -182,6 +182,7 @@ class UserEditScreen extends Screen
             'user.username' => [
                 'required',
                 'string',
+                'regex:/^[a-z0-9_\.-]+$/',
                 Rule::unique(User::class, 'username')->ignore($user),
             ],
             'user.password' => [
@@ -192,6 +193,7 @@ class UserEditScreen extends Screen
         ], [
             'user.username.required' => 'El nombre de usuario es obligatorio.',
             'user.username.unique'   => 'Este nombre de usuario ya está en uso por otra persona.',
+            'user.username.regex'    => 'El nombre de usuario solo debe contener letras minúsculas, números, guiones y sin espacios.',
             'user.email.required'    => 'El correo electrónico es obligatorio.',
             'user.email.email'       => 'Por favor, ingresa un correo electrónico válido.',
             'user.email.unique'      => 'Este correo electrónico ya está registrado en el sistema.',

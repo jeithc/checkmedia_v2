@@ -32,7 +32,8 @@ class UserEditLayout extends Rows
                 ->max(255)
                 ->required()
                 ->title(__('Username'))
-                ->placeholder(__('Username')),
+                ->placeholder(__('Username'))
+                ->help('Solo letras minúsculas, números, y sin espacios.'),
 
             Input::make('user.email')
                 ->type('email')
