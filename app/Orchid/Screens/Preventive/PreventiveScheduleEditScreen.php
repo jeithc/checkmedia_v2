@@ -74,16 +74,23 @@ class PreventiveScheduleEditScreen extends Screen
     public function layout(): iterable
     {
         $elementTypes = \App\Models\Maintenance::CATEGORIES;
+        $units = \App\Models\AdvertisingSpace::select('category')->distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category', 'category')->toArray();
         $cities = \App\Models\AdvertisingSpace::select('city')->distinct()->whereNotNull('city')->where('city', '!=', '')->pluck('city', 'city')->toArray();
 
         return [
             Layout::rows([
                 Select::make('schedule.element_type')
-                    ->title('Tipo de Elemento')
+                    ->title('Categoría Mantenimiento')
                     ->options($elementTypes)
-                    ->empty('Seleccionar Tipo de Elemento...')
+                    ->empty('Seleccionar Categoría...')
                     ->required()
-                    ->help('Debe coincidir con la lista de tipos de elementos activos en Nominas.'),
+                    ->help('Debe coincidir con la lista de categorías activas.'),
+
+                Select::make('schedule.unit')
+                    ->title('Unidad / Element Type')
+                    ->options($units)
+                    ->empty('Todas las unidades')
+                    ->help('Déjalo en "Todas las unidades" o selecciona un tipo (Vallas, Aeropuertos) específico.'),
                 
                 Select::make('schedule.city')
                     ->title('Ciudad')
@@ -118,10 +125,16 @@ class PreventiveScheduleEditScreen extends Screen
     {
         $request->validate([
             'schedule.element_type' => 'required|string',
+            'schedule.unit' => 'nullable|string',
             'schedule.frequency_days' => 'required|numeric|min:1',
         ]);
 
         $data = $request->get('schedule');
+        
+        // Manejar strings vacíos como nulos
+        if (isset($data['unit']) && trim($data['unit']) === '') {
+            $data['unit'] = null;
+        }
         
         // Manejar el string vacío en city como null
         if (isset($data['city']) && trim($data['city']) === '') {
