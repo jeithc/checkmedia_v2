@@ -17,8 +17,7 @@ class PreventiveMatrixScreen extends Screen
     public function query(): iterable
     {
         return [
-            'spaces' => AdvertisingSpace::with(['audits', 'preventiveSchedule'])
-                ->filters()
+            'spaces' => AdvertisingSpace::with(['audits'])
                 ->paginate(20),
         ];
     }
