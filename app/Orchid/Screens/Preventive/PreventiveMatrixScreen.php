@@ -24,8 +24,6 @@ class PreventiveMatrixScreen extends Screen
 
     /**
      * The name of the screen displayed in the header.
-     *
-     * @return string|null
      */
     public function name(): ?string
     {
@@ -72,13 +70,13 @@ class PreventiveMatrixScreen extends Screen
                     ->filter(TD::FILTER_TEXT),
 
                 TD::make('last_audit_date', 'Últ. Preventivo')
-                    ->render(fn(AdvertisingSpace $space) => $this->renderLastAuditDate($space)),
+                    ->render(fn (AdvertisingSpace $space) => $this->renderLastAuditDate($space)),
 
                 TD::make('due_date', 'Próx. Vencimiento')
-                    ->render(fn(AdvertisingSpace $space) => $this->renderDueDate($space)),
+                    ->render(fn (AdvertisingSpace $space) => $this->renderDueDate($space)),
 
                 TD::make('days_remaining', 'Días')
-                    ->render(fn(AdvertisingSpace $space) => $this->renderDaysRemaining($space)),
+                    ->render(fn (AdvertisingSpace $space) => $this->renderDaysRemaining($space)),
             ]),
         ];
     }
@@ -91,7 +89,7 @@ class PreventiveMatrixScreen extends Screen
         $matrix = $space->getPreventiveMatrix();
         $lastAuditDate = $matrix['last_audit_date'];
 
-        if (!$lastAuditDate) {
+        if (! $lastAuditDate) {
             return '—';
         }
 
@@ -106,7 +104,7 @@ class PreventiveMatrixScreen extends Screen
         $matrix = $space->getPreventiveMatrix();
         $dueDate = $matrix['due_date'];
 
-        if (!$dueDate) {
+        if (! $dueDate) {
             return '—';
         }
 
@@ -124,7 +122,7 @@ class PreventiveMatrixScreen extends Screen
         $statusColor = $matrix['status_color'];
 
         // Map status color to Bootstrap badge class
-        $badgeClass = match($statusColor) {
+        $badgeClass = match ($statusColor) {
             'danger' => 'bg-danger',
             'warning' => 'bg-warning',
             'success' => 'bg-success',

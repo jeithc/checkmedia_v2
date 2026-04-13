@@ -5,12 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Orchid\Screen\AsSource;
-use App\Models\Audit;
-use App\Models\PreventiveSchedule;
 
 class AdvertisingSpace extends Model
 {
-    use HasFactory, AsSource;
+    use AsSource, HasFactory;
 
     protected $fillable = [
         'external_code',
@@ -91,9 +89,8 @@ class AdvertisingSpace extends Model
         return PreventiveSchedule::where('element_type', $this->type)
             ->where('is_active', true)
             ->orderByDesc('city') // city-specific (non-null) comes first
-            ->when($this->city, fn($q) => $q->where(fn($subQ) =>
-                $subQ->where('city', $this->city)->orWhereNull('city')
-            ), fn($q) => $q->whereNull('city'))
+            ->when($this->city, fn ($q) => $q->where(fn ($subQ) => $subQ->where('city', $this->city)->orWhereNull('city')
+            ), fn ($q) => $q->whereNull('city'))
             ->first();
     }
 
@@ -106,7 +103,7 @@ class AdvertisingSpace extends Model
         $lastAudit = $this->lastPreventiveAudit();
         $schedule = $this->getPreventiveSchedule();
 
-        if (!$schedule) {
+        if (! $schedule) {
             // No schedule found — treat as critical
             return [
                 'last_audit_date' => $lastAudit?->audit_date,
@@ -117,7 +114,7 @@ class AdvertisingSpace extends Model
             ];
         }
 
-        if (!$lastAudit) {
+        if (! $lastAudit) {
             // No audit yet — treat as already overdue
             return [
                 'last_audit_date' => null,
