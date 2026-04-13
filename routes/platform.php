@@ -219,7 +219,7 @@ Route::screen('preventive-matrix', PreventiveMatrixScreen::class)
     ->name('platform.preventive.matrix')
     ->breadcrumbs(fn(Trail $trail) => $trail
         ->parent('platform.index')
-        ->push('Urgencia Preventiva', route('platform.preventive.matrix')));
+        ->push('Listado Preventivos', route('platform.preventive.matrix')));
 
 Route::screen('preventive-schedules', PreventiveScheduleListScreen::class)
     ->name('platform.preventive.schedule.list')
