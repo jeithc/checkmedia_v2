@@ -213,6 +213,13 @@ Route::post('maintenances/{maintenance}/close', [MaintenanceDetailScreen::class,
 // Preventive Schedules
 use App\Orchid\Screens\Preventive\PreventiveScheduleListScreen;
 use App\Orchid\Screens\Preventive\PreventiveScheduleEditScreen;
+use App\Orchid\Screens\Preventive\PreventiveMatrixScreen;
+
+Route::screen('preventive-matrix', PreventiveMatrixScreen::class)
+    ->name('platform.preventive.matrix')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.index')
+        ->push('Urgencia Preventiva', route('platform.preventive.matrix')));
 
 Route::screen('preventive-schedules', PreventiveScheduleListScreen::class)
     ->name('platform.preventive.schedule.list')
