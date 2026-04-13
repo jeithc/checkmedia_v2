@@ -63,11 +63,16 @@ class PreventiveScheduleListScreen extends Screen
     {
         return [
             Layout::table('schedules', [
-                TD::make('element_type', 'Tipo de Elemento')
+                TD::make('element_type', 'Categoría Mant.')
                     ->sort()
                     ->filter(TD::FILTER_TEXT)
                     ->render(fn (PreventiveSchedule $schedule) => Link::make($schedule->element_type)
                         ->route('platform.preventive.schedule.edit', $schedule->id)),
+                
+                TD::make('unit', 'Unidad')
+                    ->sort()
+                    ->filter(TD::FILTER_TEXT)
+                    ->render(fn (PreventiveSchedule $schedule) => $schedule->unit ?? 'Todas las unidades'),
                 
                 TD::make('city', 'Ciudad')
                     ->sort()

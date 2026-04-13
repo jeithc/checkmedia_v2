@@ -46,14 +46,32 @@ class CheckPreventiveSchedules extends Command
         $notifiedCount = 0;
 
         foreach ($spaces as $space) {
-            // 3. Buscar la regla aplicable. Priorizar coincidencia de Tipo + Ciudad, luego solo Tipo.
+            // 3. Buscar la regla aplicable. Priorizar coincidencia exacta (Tipo + Unidad + Ciudad).
             $rule = $schedules->where('element_type', $space->type)
+                              ->where('unit', $space->category)
                               ->where('city', $space->city)
                               ->first();
 
             if (!$rule) {
-                // Buscar regla general solo por tipo
+                // Prioridad 2: Buscar regla de Tipo + Unidad (Sin ciudad específica)
                 $rule = $schedules->where('element_type', $space->type)
+                                  ->where('unit', $space->category)
+                                  ->whereNull('city')
+                                  ->first();
+            }
+
+            if (!$rule) {
+                // Prioridad 3: Buscar regla de Tipo + Ciudad (Para cualquier unidad)
+                $rule = $schedules->where('element_type', $space->type)
+                                  ->whereNull('unit')
+                                  ->where('city', $space->city)
+                                  ->first();
+            }
+
+            if (!$rule) {
+                // Prioridad 4: Buscar regla general solo por tipo
+                $rule = $schedules->where('element_type', $space->type)
+                                  ->whereNull('unit')
                                   ->whereNull('city')
                                   ->first();
             }

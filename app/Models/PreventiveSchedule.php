@@ -13,6 +13,7 @@ class PreventiveSchedule extends Model
 
     protected $fillable = [
         'element_type',
+        'unit',
         'city',
         'frequency_days',
         'is_active',
@@ -25,6 +26,7 @@ class PreventiveSchedule extends Model
 
     protected $allowedSorts = [
         'element_type',
+        'unit',
         'city',
         'frequency_days',
         'is_active',
@@ -33,6 +35,7 @@ class PreventiveSchedule extends Model
 
     protected $allowedFilters = [
         'element_type' => \Orchid\Filters\Types\Like::class,
+        'unit' => \Orchid\Filters\Types\Like::class,
         'city' => \Orchid\Filters\Types\Like::class,
     ];
 }

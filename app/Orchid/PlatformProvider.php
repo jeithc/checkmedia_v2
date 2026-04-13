@@ -53,6 +53,11 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('maintenance.view')
                 ->divider(),
 
+            Menu::make('Listado Preventivos')
+                ->icon('bs.calendar-check')
+                ->route('platform.preventive.matrix')
+                ->permission('system.edit_users'),
+
             Menu::make(__('Users'))
                 ->icon('bs.people')
                 ->route('platform.systems.users')
