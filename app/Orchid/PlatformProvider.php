@@ -53,8 +53,8 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('maintenance.view')
                 ->divider(),
 
-            Menu::make('Urgencia Preventiva')
-                ->icon('bs.exclamation-triangle')
+            Menu::make('Listado Preventivos')
+                ->icon('bs.calendar-check')
                 ->route('platform.preventive.matrix')
                 ->permission('system.edit_users'),
 

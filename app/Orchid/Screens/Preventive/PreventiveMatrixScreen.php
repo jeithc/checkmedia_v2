@@ -27,7 +27,7 @@ class PreventiveMatrixScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'Matriz de Urgencia Preventiva';
+        return 'Listado Preventivos';
     }
 
     /**
