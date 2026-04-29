@@ -454,7 +454,7 @@
                     @foreach ($photos as $index => $photo)
                     <div
                         class="relative group aspect-square rounded-lg overflow-hidden bg-gray-100 shadow-sm border border-gray-200">
-                        <img src="{{ $photo->temporaryUrl() }}" class="w-full h-full object-cover">
+                        <img src="{{ asset('storage/livewire-tmp/' . $photo->getFilename()) }}" class="w-full h-full object-cover">
 
                         <!-- Cancel/Remove Overlay -->
                         <button type="button" wire:click="removePhoto({{ $index }})"
