@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MediaStorage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Orchid\Metrics\Chartable;
@@ -76,6 +77,11 @@ class Audit extends Model
         return $this->maintenances()
             ->whereNotIn('status', [Maintenance::STATUS_CLOSED])
             ->exists();
+    }
+
+    public function getResolutionPhotoUrlAttribute(): ?string
+    {
+        return MediaStorage::url($this->resolution_photo_path);
     }
 
     /**

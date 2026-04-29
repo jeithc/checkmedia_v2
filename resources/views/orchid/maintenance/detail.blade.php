@@ -96,7 +96,7 @@
                 @if($maintenance->closure_document_path)
                 <div class="mb-2">
                     <small class="text-muted fw-bold d-block mb-1">Documento:</small>
-                    <a href="{{ asset('storage/' . $maintenance->closure_document_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <a href="{{ $maintenance->closureDocumentUrl() }}" target="_blank" class="btn btn-sm btn-outline-primary">
                         <i class="icon-doc me-1"></i> Ver Documento
                     </a>
                 </div>
@@ -105,7 +105,7 @@
                 <div class="mb-2">
                     <small class="text-muted fw-bold d-block mb-1">Archivos de Soporte:</small>
                     @foreach($maintenance->support_files_paths as $index => $supportPath)
-                        <a href="{{ asset('storage/' . $supportPath) }}" target="_blank" class="btn btn-sm btn-outline-secondary me-1 mb-1">
+                        <a href="{{ $maintenance->supportFileUrl($supportPath) }}" target="_blank" class="btn btn-sm btn-outline-secondary me-1 mb-1">
                             <i class="icon-doc me-1"></i> Soporte {{ $index + 1 }}
                         </a>
                     @endforeach

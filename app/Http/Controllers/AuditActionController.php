@@ -7,6 +7,7 @@ use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
 use App\Services\AdvisualRequisitionService;
 use App\Services\MaintenanceNotificationService;
+use App\Support\MediaStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -97,7 +98,7 @@ class AuditActionController extends Controller
 
         // 2. Upload Photo
         if ($request->hasFile('revision_photo')) {
-            $path = $request->file('revision_photo')->store('audit_resolutions', 'public');
+            $path = MediaStorage::store($request->file('revision_photo'), 'audit_resolutions');
             $audit->resolution_photo_path = $path;
         }
 
@@ -348,13 +349,13 @@ class AuditActionController extends Controller
         ]);
 
         // Store closure document
-        $path = $request->file('closure_document')->store('maintenance-closures', 'public');
+        $path = MediaStorage::store($request->file('closure_document'), 'maintenance-closures');
 
         // Store support files
         $supportFilesPaths = [];
         if ($request->hasFile('support_files')) {
             foreach ($request->file('support_files') as $file) {
-                $supportFilesPaths[] = $file->store('maintenance-closures/support', 'public');
+                $supportFilesPaths[] = MediaStorage::store($file, 'maintenance-closures/support');
             }
         }
 

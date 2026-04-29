@@ -11,6 +11,7 @@ use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
 use App\Services\ImageWatermarkService;
 use App\Services\MaintenanceNotificationService;
+use App\Support\MediaStorage;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -347,7 +348,7 @@ class AuditForm extends Component
                 $photoDateTime->format('Y-m-d g:i a')
             );
 
-            $path = $watermarkedPhoto->store('audit-photos', 'public');
+            $path = MediaStorage::putFile('audit-photos', $watermarkedPhoto);
 
             AuditPhoto::create([
                 'audit_id' => $audit->id,

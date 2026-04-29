@@ -5,6 +5,7 @@ namespace App\Orchid\Screens\Maintenance;
 use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
 use App\Services\MaintenanceNotificationService;
+use App\Support\MediaStorage;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
@@ -91,13 +92,13 @@ class MaintenanceDetailScreen extends Screen
             'support_files.min' => 'Debe adjuntar al menos un archivo de soporte.',
         ]);
 
-        $path = $request->file('closure_document')->store('maintenance-closures', 'public');
+        $path = MediaStorage::store($request->file('closure_document'), 'maintenance-closures');
 
         // Store support files
         $supportFilesPaths = [];
         if ($request->hasFile('support_files')) {
             foreach ($request->file('support_files') as $file) {
-                $supportFilesPaths[] = $file->store('maintenance-closures/support', 'public');
+                $supportFilesPaths[] = MediaStorage::store($file, 'maintenance-closures/support');
             }
         }
 

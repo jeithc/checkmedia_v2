@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Orchid\Presenters;
 
+use App\Support\MediaStorage;
 use Illuminate\Support\Str;
 use Laravel\Scout\Builder;
 use Orchid\Screen\Contracts\Personable;
@@ -64,19 +65,17 @@ class UserPresenter extends Presenter implements Personable, Searchable
         $path = $this->entity->avatar_path;
 
         if ($path) {
-            // If it's already a full URL, check if we need to fix the localhost part
             if (filter_var($path, FILTER_VALIDATE_URL)) {
-                // If it contains localhost/storage, we might want to fix it to use current site URL
-                // But generally, if it's a URL, Orchid's internal logic should have set it.
-                // Re-pointing to asset('storage/...') is safer if we extract the path.
                 if (str_contains($path, '/storage/')) {
                     $path = explode('/storage/', $path)[1];
-                    return asset('storage/' . $path);
+
+                    return MediaStorage::url($path);
                 }
+
                 return $path;
             }
 
-            return asset('storage/' . ltrim($path, '/'));
+            return MediaStorage::url($path);
         }
 
         $hash = md5(strtolower(trim($this->entity->email)));

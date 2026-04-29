@@ -15,6 +15,8 @@ use App\Services\AdvisualSyncService;
 uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 beforeEach(function () {
+    config(['media.disk' => 'public']);
+
     // Create test user manually
     $this->user = User::create([
         'name' => 'Test User',
@@ -71,7 +73,8 @@ beforeEach(function () {
         'product_name' => 'Test Product',
     ]);
 
-    Storage::fake('public');
+    config(['media.disk' => 'public']);
+    Storage::fake(config('media.disk'));
 });
 
 test('it creates audit with correct week and year', function () {

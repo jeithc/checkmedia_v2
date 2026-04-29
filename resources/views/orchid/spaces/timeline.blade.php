@@ -385,7 +385,7 @@
                             <button type="button"
                                     data-bs-toggle="modal"
                                     data-bs-target="#timelinePhotoModal"
-                                    data-photo-url="{{ asset('storage/' . $log->metadata['photo_path']) }}"
+                                    data-photo-url="{{ \App\Support\MediaStorage::url($log->metadata['photo_path']) }}"
                                     class="btn btn-link p-0 tl-meta-item btn-view-timeline-photo" style="text-decoration:none; font-size: 0.75rem; color: #2dce89;">
                                 <i class="icon-camera"></i> Ver Foto
                             </button>

@@ -10,6 +10,7 @@ use App\Orchid\Layouts\User\UserPasswordLayout;
 use App\Orchid\Layouts\User\UserRoleLayout;
 use App\Models\User;
 use App\Models\UserNotificationSubscription;
+use App\Support\MediaStorage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -224,11 +225,8 @@ class UserEditScreen extends Screen
             unset($userData['password']);
         }
 
-        // Clean avatar_path if it's a full URL
         if (isset($userData['avatar_path']) && !empty($userData['avatar_path'])) {
-            if (str_contains($userData['avatar_path'], '/storage/')) {
-                $userData['avatar_path'] = explode('/storage/', $userData['avatar_path'])[1];
-            }
+            $userData['avatar_path'] = MediaStorage::normalizePath($userData['avatar_path']);
         }
 
         // Clean up userData to only contains what's in fillable

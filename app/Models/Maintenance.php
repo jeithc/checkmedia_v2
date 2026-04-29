@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\MediaStorage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Orchid\Filters\Filterable;
@@ -122,6 +123,16 @@ class Maintenance extends Model
     public function hasPurchaseOrder(): bool
     {
         return ! empty($this->advisual_purchase_order_id);
+    }
+
+    public function getClosureDocumentUrlAttribute(): ?string
+    {
+        return MediaStorage::url($this->closure_document_path);
+    }
+
+    public function supportFileUrl(string $path): ?string
+    {
+        return MediaStorage::url($path);
     }
 
     public function getStatusLabelAttribute(): string

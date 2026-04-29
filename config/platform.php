@@ -187,7 +187,7 @@ return [
     */
 
     'attachment' => [
-        'disk' => env('PLATFORM_FILESYSTEM_DISK', 'public'),
+        'disk' => env('PLATFORM_FILESYSTEM_DISK', env('MEDIA_DISK', 'public')),
         'generator' => \Orchid\Attachment\Engines\Generator::class,
     ],
 
