@@ -134,11 +134,13 @@ test('it only syncs maintenances inside the configured search window', function 
         'advisual_requisition_id' => 9004,
     ]);
 
+    $outsideSearchWindow = Carbon::parse('2026-03-23 11:00:00')->subMonths(7);
+
     $oldMaintenance->forceFill([
-        'created_at' => now()->subMonths(7),
-        'updated_at' => now()->subMonths(7),
-        'requested_at' => now()->subMonths(7),
-        'advisual_synced_at' => now()->subMonths(7),
+        'created_at' => $outsideSearchWindow,
+        'updated_at' => $outsideSearchWindow,
+        'requested_at' => $outsideSearchWindow,
+        'advisual_synced_at' => $outsideSearchWindow,
     ])->save();
 
     $database = Mockery::mock(DatabaseManager::class);
