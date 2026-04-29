@@ -6,7 +6,15 @@
       "Bash(grep:*)",
       "Bash(composer show:*)",
       "Bash(php artisan:*)",
-      "Bash(composer run-script:*)"
+      "Bash(composer run-script:*)",
+      "Read(//Users/jcarrillo/**)",
+      "Bash(/Users/jcarrillo/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/scripts/start-server.sh --project-dir /Users/jcarrillo/dev/personal/checkmedia_v2)",
+      "Bash(/Users/jcarrillo/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__plugin_claude-mem_mcp-search__smart_unfold",
+      "Bash(php:*)",
+      "mcp__plugin_claude-mem_mcp-search__smart_outline"
     ]
   }
 }
