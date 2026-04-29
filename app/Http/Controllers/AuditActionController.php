@@ -9,7 +9,6 @@ use App\Services\AdvisualRequisitionService;
 use App\Services\MaintenanceNotificationService;
 use App\Support\MediaStorage;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Orchid\Support\Facades\Toast;
 
@@ -38,8 +37,8 @@ class AuditActionController extends Controller
 
         // 3. Update Audit Status
         $audit->general_status = 'good';
-        if (!str_contains($audit->observation ?? '', '[Marcado como Tercero]')) {
-            $audit->observation = trim(($audit->observation ?? '') . " [Marcado como Tercero]");
+        if (! str_contains($audit->observation ?? '', '[Marcado como Tercero]')) {
+            $audit->observation = trim(($audit->observation ?? '').' [Marcado como Tercero]');
         }
         $audit->save();
 
@@ -108,7 +107,7 @@ class AuditActionController extends Controller
             if ($value->value === 'bad') {
                 $newGeneralStatus = 'bad';
                 break;
-        }
+            }
         }
 
         // 4. Update Audit
@@ -120,7 +119,7 @@ class AuditActionController extends Controller
         // 5. Log Comment
         $audit->comments()->create([
             'user_id' => auth()->id(),
-            'message' => "Cargó revisión: " . ($request->input('revision_comment') ?: 'Sin comentario'),
+            'message' => 'Cargó revisión: '.($request->input('revision_comment') ?: 'Sin comentario'),
             'type' => 'resolution',
         ]);
 
@@ -128,7 +127,7 @@ class AuditActionController extends Controller
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_RESOLUTION_UPLOADED,
-            description: 'Revisión cargada. Estado actualizado a: ' . ucfirst($newGeneralStatus),
+            description: 'Revisión cargada. Estado actualizado a: '.ucfirst($newGeneralStatus),
             auditId: $audit->id,
             metadata: [
                 'old_status' => $oldStatus,
@@ -144,7 +143,7 @@ class AuditActionController extends Controller
 
         $message = 'Revisión cargada exitosamente.';
         if (count($criteriaChanges) > 0) {
-            $message .= ' Se actualizaron ' . count($criteriaChanges) . ' criterio(s).';
+            $message .= ' Se actualizaron '.count($criteriaChanges).' criterio(s).';
         }
 
         Toast::success($message);
@@ -192,7 +191,7 @@ class AuditActionController extends Controller
             if ($value->value === 'bad') {
                 $newGeneralStatus = 'bad';
                 break;
-        }
+            }
         }
 
         // 3. Add Edit Note as Comment (Do not overwrite initial observation)
@@ -211,7 +210,7 @@ class AuditActionController extends Controller
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_AUDIT_UPDATED,
-            description: 'Auditoría editada manualmente. Estado: ' . ucfirst($newGeneralStatus),
+            description: 'Auditoría editada manualmente. Estado: '.ucfirst($newGeneralStatus),
             auditId: $audit->id,
             metadata: [
                 'old_status' => $oldStatus,
@@ -280,8 +279,9 @@ class AuditActionController extends Controller
         // Create requisition in Advisual
         $synced = $advisualService->createRequisition($maintenance);
 
-        if (!$synced) {
+        if (! $synced) {
             $maintenance->delete();
+
             return response()->json(['message' => 'Error al crear la requisición en Advisual. El mantenimiento no fue creado.'], 500);
         }
 
@@ -289,7 +289,7 @@ class AuditActionController extends Controller
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_MAINTENANCE_REQUESTED,
-            description: 'Mantenimiento ' . ($request->input('maintenance_type') === 'preventive' ? 'preventivo' : 'correctivo') . ' solicitado. Categoría: ' . $request->input('maintenance_category') . '. Prioridad: ' . $request->input('maintenance_priority'),
+            description: 'Mantenimiento '.($request->input('maintenance_type') === 'preventive' ? 'preventivo' : 'correctivo').' solicitado. Categoría: '.$request->input('maintenance_category').'. Prioridad: '.$request->input('maintenance_priority'),
             auditId: $audit->id,
             metadata: [
                 'maintenance_id' => $maintenance->id,
@@ -320,13 +320,15 @@ class AuditActionController extends Controller
             ->whereNotIn('status', [Maintenance::STATUS_CLOSED])
             ->first();
 
-        if (!$maintenance) {
+        if (! $maintenance) {
             Toast::error('No se encontró un mantenimiento abierto para esta auditoría.');
+
             return back();
         }
 
-        if (!$maintenance->canBeClosed()) {
+        if (! $maintenance->canBeClosed()) {
             Toast::error('Este mantenimiento no puede ser cerrado.');
+
             return back();
         }
 
@@ -368,7 +370,7 @@ class AuditActionController extends Controller
             'closure_comment' => $request->input('closure_comment'),
         ];
 
-        if (!empty($supportFilesPaths)) {
+        if (! empty($supportFilesPaths)) {
             $updateData['support_files_paths'] = $supportFilesPaths;
         }
 
@@ -393,6 +395,7 @@ class AuditActionController extends Controller
         app(MaintenanceNotificationService::class)->notify('maintenance_closed', $maintenance);
 
         Toast::success('Mantenimiento cerrado exitosamente.');
+
         return back();
     }
 }

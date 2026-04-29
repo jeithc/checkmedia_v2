@@ -35,7 +35,7 @@ class MaintenanceDetailScreen extends Screen
 
     public function name(): ?string
     {
-        return 'Detalle de Mantenimiento #' . $this->maintenance->id;
+        return 'Detalle de Mantenimiento #'.$this->maintenance->id;
     }
 
     public function description(): ?string
@@ -74,8 +74,9 @@ class MaintenanceDetailScreen extends Screen
      */
     public function close(Request $request, Maintenance $maintenance)
     {
-        if (!$maintenance->canBeClosed()) {
+        if (! $maintenance->canBeClosed()) {
             Toast::error('Este mantenimiento no puede ser cerrado.');
+
             return;
         }
 
@@ -110,7 +111,7 @@ class MaintenanceDetailScreen extends Screen
             'closure_comment' => $request->input('closure_comment'),
         ];
 
-        if (!empty($supportFilesPaths)) {
+        if (! empty($supportFilesPaths)) {
             $updateData['support_files_paths'] = $supportFilesPaths;
         }
 

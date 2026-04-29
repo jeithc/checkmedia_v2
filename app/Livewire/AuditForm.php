@@ -94,7 +94,7 @@ class AuditForm extends Component
         /** @var \App\Models\User|null $user */
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('platform.login');
         }
 
@@ -262,7 +262,7 @@ class AuditForm extends Component
         /** @var \App\Models\User|null $user */
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
