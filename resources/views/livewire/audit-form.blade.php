@@ -278,7 +278,8 @@
                         </div>
                     </label>
 
-                    {{-- Preventive Maintenance --}}
+                    {{-- Preventive Maintenance: solo admin / con permiso --}}
+                    @if($canDoPreventive)
                     <label class="relative cursor-pointer">
                         <input type="radio" name="audit_purpose" wire:model.live="auditPurpose" value="preventive_maintenance" class="peer sr-only">
                         <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
@@ -295,6 +296,7 @@
                             </div>
                         </div>
                     </label>
+                    @endif
 
                     {{-- Corrective Maintenance --}}
                     <label class="relative cursor-pointer">
@@ -352,17 +354,27 @@
             </div>
             <div class="divide-y divide-gray-100">
                 @foreach($this->criteria as $criterion)
+                @php($isLocked = in_array($criterion->id, $lockedCriteria))
                 <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <label class="text-sm font-medium text-gray-900 w-1/3">{{ $criterion->name }}</label>
+                        <label class="text-sm font-medium text-gray-900 w-1/3 flex items-center gap-2">
+                            {{ $criterion->name }}
+                            @if($isLocked)
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700" title="Reportado previamente como Malo. No se puede revertir a Bueno.">
+                                    Bloqueado
+                                </span>
+                            @endif
+                        </label>
 
                         <div class="flex items-center space-x-2">
                             <!-- Good Button -->
-                            <button type="button" wire:click="$set('values.{{ $criterion->id }}.value', 'good')" class="relative inline-flex items-center px-4 py-2 rounded-full border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all duration-200
-                                                     {{ $values[$criterion->id]['value'] === 'good'
+                            <button type="button"
+                                @if($isLocked) disabled title="Ya reportado como Malo. No se puede regresar a Bueno." @else wire:click="$set('values.{{ $criterion->id }}.value', 'good')" @endif
+                                class="relative inline-flex items-center px-4 py-2 rounded-full border text-sm font-medium focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all duration-200
+                                                     {{ $isLocked ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60' : ($values[$criterion->id]['value'] === 'good'
                         ? 'bg-green-100 border-green-200 text-green-800 ring-2 ring-green-500 ring-offset-2'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50' }}">
-                                <svg class="mr-1.5 h-4 w-4 {{ $values[$criterion->id]['value'] === 'good' ? 'text-green-600' : 'text-gray-400' }}"
+                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50') }}">
+                                <svg class="mr-1.5 h-4 w-4 {{ $values[$criterion->id]['value'] === 'good' && !$isLocked ? 'text-green-600' : 'text-gray-400' }}"
                                     fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd"
                                         d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"

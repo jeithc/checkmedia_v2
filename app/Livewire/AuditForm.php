@@ -36,6 +36,9 @@ class AuditForm extends Component
     // Form Inputs
     public $values = []; // [criterion_id => ['value' => 'good']]
 
+    // Criterios bloqueados al complementar: ya estaban 'bad' y no pueden volver a 'good'
+    public array $lockedCriteria = [];
+
     public $photos = [];
 
     public $observation;
@@ -50,6 +53,8 @@ class AuditForm extends Component
     public string $auditPurpose = 'audit_only';
 
     public bool $canSelectPurpose = false;
+
+    public bool $canDoPreventive = false;
 
     public bool $isStructuralAuditor = false;
 
@@ -107,6 +112,9 @@ class AuditForm extends Component
         }
 
         $this->canSelectPurpose = $isStructural || $isGeneral || $isAdmin || $user->hasAccess('audit.can_select_purpose');
+
+        // Mantenimiento preventivo: solo admin (auditor de campo no lo selecciona)
+        $this->canDoPreventive = $isAdmin || $user->hasAccess('audit.can_preventive');
 
         $criteria = $this->criteria;
         foreach ($criteria as $criterion) {
@@ -216,10 +224,14 @@ class AuditForm extends Component
         $this->showExistingDetails = false;
         $this->observation = $existingAudit->observation;
 
-        // Load existing values
+        // Load existing values y bloquear criterios ya marcados 'bad' para que no regresen a 'good'
+        $this->lockedCriteria = [];
         foreach ($existingAudit->values as $val) {
             if (isset($this->values[$val->audit_criterion_id])) {
                 $this->values[$val->audit_criterion_id]['value'] = $val->value;
+                if ($val->value === 'bad') {
+                    $this->lockedCriteria[] = $val->audit_criterion_id;
+                }
             }
         }
 
@@ -248,6 +260,7 @@ class AuditForm extends Component
         $this->showExistingDetails = false;
         $this->auditPurpose = 'audit_only';
         $this->maintenanceCategory = '';
+        $this->lockedCriteria = [];
 
         foreach ($this->criteriaIds as $criterionId) {
             $this->values[$criterionId] = ['value' => 'good'];
@@ -266,6 +279,11 @@ class AuditForm extends Component
         }
 
         $effectivePurpose = $this->canSelectPurpose ? $this->auditPurpose : Audit::PURPOSE_AUDIT_ONLY;
+
+        // Bloquear preventivo si user no tiene permiso (auditor de campo)
+        if ($effectivePurpose === Audit::PURPOSE_PREVENTIVE && ! $this->canDoPreventive) {
+            $effectivePurpose = Audit::PURPOSE_AUDIT_ONLY;
+        }
 
         $rules = [
             'spaceId' => 'required',
@@ -301,6 +319,15 @@ class AuditForm extends Component
             return;
         }
 
+        // Bloquear que un criterio ya reportado 'bad' regrese a 'good' al complementar
+        foreach ($this->lockedCriteria as $lockedId) {
+            if (isset($this->values[$lockedId]) && $this->values[$lockedId]['value'] !== 'bad') {
+                $this->addError('values', 'No se puede cambiar un criterio reportado como Malo a Bueno. Solo se permite degradar el estado.');
+
+                return;
+            }
+        }
+
         $date = now();
         $weekData = Audit::getCalendarYearAndWeek($date);
         $audit = Audit::updateOrCreate(
@@ -319,7 +346,9 @@ class AuditForm extends Component
             ]
         );
 
-        if ($existingAudit) {
+        // Si el audit ya existía (updateOrCreate lo encontró), purgar valores previos
+        // para evitar duplicados cuando se complementa o recarga (reupload borra existingAuditId)
+        if (! $audit->wasRecentlyCreated) {
             $audit->values()->delete();
         }
 
