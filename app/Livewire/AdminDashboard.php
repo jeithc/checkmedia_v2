@@ -109,11 +109,15 @@ class AdminDashboard extends Component
         $closedMaintenances = Maintenance::where('status', Maintenance::STATUS_CLOSED)->count();
         $totalMaintenances = $openMaintenances + $closedMaintenances;
 
+        $avgClosureExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? 'julianday(closed_at) - julianday(requested_at)'
+            : 'DATEDIFF(closed_at, requested_at)';
+
         // --- KPI: Average closure time (days) ---
         $avgClosureTime = Maintenance::where('status', Maintenance::STATUS_CLOSED)
             ->whereNotNull('closed_at')
             ->whereNotNull('requested_at')
-            ->selectRaw('AVG(DATEDIFF(closed_at, requested_at)) as avg_days')
+            ->selectRaw("AVG({$avgClosureExpression}) as avg_days")
             ->value('avg_days');
 
         $avgClosureDays = $avgClosureTime !== null ? round($avgClosureTime, 1) : null;
