@@ -14,7 +14,16 @@
       "Bash(git commit:*)",
       "mcp__plugin_claude-mem_mcp-search__smart_unfold",
       "Bash(php:*)",
-      "mcp__plugin_claude-mem_mcp-search__smart_outline"
+      "mcp__plugin_claude-mem_mcp-search__smart_outline",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"SELECT external_code, COUNT\\(*\\) c FROM advertising_spaces GROUP BY external_code HAVING c > 1 LIMIT 20;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"SELECT external_code, COUNT\\(*\\) c FROM advertising_spaces GROUP BY external_code HAVING c > 1 LIMIT 10;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"SHOW INDEX FROM advertising_spaces;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"SELECT COUNT\\(*\\) total_audits, COUNT\\(DISTINCT advertising_space_id\\) distinct_spaces FROM audits;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"SELECT av.id, av.audit_id, av.audit_criterion_id, av.value, ac.name FROM audit_values av JOIN audit_criteria ac ON ac.id=av.audit_criterion_id WHERE av.audit_id=61 ORDER BY ac.name;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"SELECT id, name, \\\\`key\\\\`, \\\\`type\\\\`, audit_type, is_active FROM audit_criteria ORDER BY audit_type, name;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"SELECT audit_id, audit_criterion_id, COUNT\\(*\\) c FROM audit_values GROUP BY audit_id, audit_criterion_id HAVING c > 1;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"DELETE av1 FROM audit_values av1 INNER JOIN audit_values av2 WHERE av1.audit_id = av2.audit_id AND av1.audit_criterion_id = av2.audit_criterion_id AND av1.id < av2.id; SELECT audit_id, audit_criterion_id, COUNT\\(*\\) c FROM audit_values GROUP BY audit_id, audit_criterion_id HAVING c > 1;\")",
+      "Bash(mysql -h 127.0.0.1 -P 3306 -u root checkmedia -e \"ALTER TABLE audit_values ADD UNIQUE KEY audit_values_audit_id_criterion_id_unique \\(audit_id, audit_criterion_id\\);\")"
     ]
   }
 }
