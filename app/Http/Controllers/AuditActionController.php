@@ -238,7 +238,7 @@ class AuditActionController extends Controller
         $allowedCategories = implode(',', array_keys(Maintenance::CATEGORIES));
 
         $request->validate([
-            'maintenance_type' => 'required|in:corrective,preventive',
+            'maintenance_type' => 'required|in:preventive',
             'maintenance_category' => "required|in:{$allowedCategories}",
             'maintenance_priority' => 'required|in:alta,media,baja',
             'maintenance_description' => 'required|string|min:5',
@@ -288,7 +288,7 @@ class AuditActionController extends Controller
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_MAINTENANCE_REQUESTED,
-            description: 'Mantenimiento ' . ($request->input('maintenance_type') === 'preventive' ? 'preventivo' : 'correctivo') . ' solicitado. Categoría: ' . $request->input('maintenance_category') . '. Prioridad: ' . $request->input('maintenance_priority'),
+            description: 'Mantenimiento preventivo solicitado. Categoría: ' . $request->input('maintenance_category') . '. Prioridad: ' . $request->input('maintenance_priority'),
             auditId: $audit->id,
             metadata: [
                 'maintenance_id' => $maintenance->id,

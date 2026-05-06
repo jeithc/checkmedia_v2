@@ -37,9 +37,9 @@ class AdvisualRequisitionService
             $serialProd = config('services.advisual.serial_prod', 1);
             $serialAdmin = config('services.advisual.serial_admin', 0);
 
-            // Observación incluye categoría + descripción del problema
+            // Observación incluye código de espacio + categoría + descripción del problema
             $categoryLabel = strtoupper($maintenance->category ?? 'GENERAL');
-            $observacion = $categoryLabel . ' - ' . ($maintenance->description ?: 'Sin observaciones');
+            $observacion = $space->external_code . ' - ' . $categoryLabel . ' - ' . ($maintenance->description ?: 'Sin observaciones');
 
             $sqlQuery = "
                 SET NOCOUNT ON;

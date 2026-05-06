@@ -49,7 +49,7 @@ class AuditForm extends Component
 
     public $auditType = 'general';
 
-    // Purpose: audit_only, preventive_maintenance, corrective_maintenance
+    // Purpose: audit_only, preventive_maintenance
     public string $auditPurpose = 'audit_only';
 
     public bool $canSelectPurpose = false;
@@ -57,8 +57,6 @@ class AuditForm extends Component
     public bool $canDoPreventive = false;
 
     public bool $isStructuralAuditor = false;
-
-    public string $maintenanceCategory = '';
 
     #[Computed]
     public function space()
@@ -259,7 +257,6 @@ class AuditForm extends Component
         $this->existingAuditId = null;
         $this->showExistingDetails = false;
         $this->auditPurpose = 'audit_only';
-        $this->maintenanceCategory = '';
         $this->lockedCriteria = [];
 
         foreach ($this->criteriaIds as $criterionId) {
@@ -290,13 +287,7 @@ class AuditForm extends Component
             'photos.*' => 'image|max:10240',
         ];
 
-        if ($effectivePurpose === Audit::PURPOSE_CORRECTIVE && ! $this->isStructuralAuditor) {
-            $rules['maintenanceCategory'] = 'required|in:estructural,electrico,ambiental,material';
-        }
-
-        $this->validate($rules, [
-            'maintenanceCategory.required' => 'Debe seleccionar la categoría del mantenimiento correctivo.',
-        ]);
+        $this->validate($rules);
 
         $space = $this->space;
         $existingAudit = $this->existingAudit;
@@ -416,8 +407,6 @@ class AuditForm extends Component
         $flashMessage = 'Auditoría guardada exitosamente.';
         if ($effectivePurpose === Audit::PURPOSE_PREVENTIVE) {
             $flashMessage .= ' Mantenimiento preventivo registrado.';
-        } elseif ($effectivePurpose === Audit::PURPOSE_CORRECTIVE) {
-            $flashMessage .= ' Mantenimiento correctivo solicitado.';
         }
 
         session()->flash('message', $flashMessage);
@@ -435,7 +424,7 @@ class AuditForm extends Component
 
         $category = $this->isStructuralAuditor
             ? strtolower($space->type ?? 'estructural')
-            : $this->maintenanceCategory;
+            : 'estructural';
 
         if ($purpose === Audit::PURPOSE_PREVENTIVE) {
             Maintenance::create([
@@ -450,19 +439,6 @@ class AuditForm extends Component
                 'closed_at' => now(),
                 'description' => 'Mantenimiento preventivo realizado durante auditoría #'.$audit->id,
             ]);
-        } elseif ($purpose === Audit::PURPOSE_CORRECTIVE) {
-            $maintenance = Maintenance::create([
-                'advertising_space_id' => $space->id,
-                'audit_id' => $audit->id,
-                'requested_by' => $userId,
-                'requested_at' => now(),
-                'type' => Maintenance::TYPE_CORRECTIVE,
-                'category' => $category,
-                'status' => Maintenance::STATUS_REPORTED,
-                'description' => $audit->observation ?: 'Mantenimiento correctivo solicitado desde auditoría #'.$audit->id,
-            ]);
-
-            app(MaintenanceNotificationService::class)->notify('maintenance_requested', $maintenance);
         }
     }
 
@@ -470,7 +446,6 @@ class AuditForm extends Component
     {
         return match ($purpose) {
             Audit::PURPOSE_PREVENTIVE => 'Mant. Preventivo',
-            Audit::PURPOSE_CORRECTIVE => 'Mant. Correctivo',
             default => 'Solo Auditoría',
         };
     }

@@ -13,6 +13,7 @@ class MaintenanceListScreen extends Screen
     {
         return [
             'maintenances' => Maintenance::with(['advertisingSpace', 'audit', 'requestedBy'])
+                ->where('type', Maintenance::TYPE_PREVENTIVE)
                 ->filters()
                 ->orderByRaw("CASE WHEN status = 'closed' THEN 1 ELSE 0 END")
                 ->orderBy('created_at', 'desc')
@@ -27,7 +28,7 @@ class MaintenanceListScreen extends Screen
 
     public function description(): ?string
     {
-        return 'Listado de mantenimientos solicitados desde auditorías.';
+        return 'Listado de mantenimientos preventivos.';
     }
 
     public function permission(): ?iterable
