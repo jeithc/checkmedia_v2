@@ -39,19 +39,44 @@ class AuditDetailScreen extends Screen
             ->limit(50)
             ->get();
 
-        // Fetch all audits for this space (for history)
-        $allAudits = Audit::where('advertising_space_id', $audit->space->id)
-            ->orderBy('year', 'desc')
-            ->orderBy('week', 'desc')
-            ->limit(20)
+        // Backfill synthetic entries for audits without an audit_created log
+        $loggedAuditIds = $activityLogs
+            ->whereIn('activity_type', [SpaceActivityLog::TYPE_AUDIT_CREATED, SpaceActivityLog::TYPE_AUDIT_UPDATED])
+            ->pluck('audit_id')
+            ->filter()
+            ->unique();
+
+        $missingAudits = Audit::where('advertising_space_id', $audit->space->id)
+            ->whereNotIn('id', $loggedAuditIds)
+            ->with('user')
             ->get();
+
+        foreach ($missingAudits as $missing) {
+            $synthetic = new SpaceActivityLog([
+                'advertising_space_id' => $missing->advertising_space_id,
+                'user_id' => $missing->user_id,
+                'audit_id' => $missing->id,
+                'activity_type' => SpaceActivityLog::TYPE_AUDIT_CREATED,
+                'description' => 'Auditoría registrada con estado: ' . ($missing->general_status ?? 'n/a'),
+                'metadata' => [
+                    'general_status' => $missing->general_status,
+                    'audit_purpose' => $missing->audit_purpose,
+                ],
+                'year' => $missing->year,
+                'week' => $missing->week,
+            ]);
+            $synthetic->setRelation('user', $missing->user);
+            $synthetic->created_at = $missing->audit_date ?? $missing->created_at;
+            $activityLogs->push($synthetic);
+        }
+
+        $activityLogs = $activityLogs->sortByDesc('created_at')->values();
 
         return [
             'audit' => $audit,
             'space' => $audit->space,
             'booking' => $booking,
             'activityLogs' => $activityLogs,
-            'allAudits' => $allAudits,
         ];
     }
 

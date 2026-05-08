@@ -287,23 +287,7 @@
                 <span class="badge bg-secondary">{{ $audit->space->external_code }}</span>
             </div>
 
-            <!-- Navigation Tabs -->
-            <ul class="nav nav-tabs mb-3" id="historyTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active text-dark fw-semibold" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
-                        <i class="icon-list me-1"></i> Actividad Reciente
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link text-dark fw-semibold" id="audits-tab" data-bs-toggle="tab" data-bs-target="#audits-history" type="button" role="tab">
-                        <i class="icon-docs me-1"></i> Auditorías Anteriores
-                    </button>
-                </li>
-            </ul>
-
-            <div class="tab-content" id="historyTabsContent">
-                <!-- Activity Log Tab -->
-                <div class="tab-pane fade show active" id="activity" role="tabpanel">
+            <div>
                     @if(isset($activityLogs) && $activityLogs->count() > 0)
                         <div class="timeline-container" style="max-height: 400px; overflow-y: auto;">
                             @foreach($activityLogs as $log)
@@ -384,7 +368,19 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        <p class="text-muted mb-1 small text-truncate" title="{{ $log->description }}">{{ $log->description }}</p>
+                                        @php
+                                            $cleanDescription = preg_replace('/\s*con estado:\s*(good|bad)\s*\.?/i', '', $log->description);
+                                            $cleanDescription = preg_replace('/\s*Estado:\s*(good|bad)\s*\.?/i', '', $cleanDescription);
+                                            $statusValue = $log->metadata['general_status'] ?? null;
+                                        @endphp
+                                        <p class="text-muted mb-1 small d-flex align-items-center flex-wrap gap-2" title="{{ $log->description }}">
+                                            <span class="text-truncate">{{ trim($cleanDescription) }}</span>
+                                            @if($statusValue === 'good')
+                                                <span class="badge bg-success">Bueno</span>
+                                            @elseif($statusValue === 'bad')
+                                                <span class="badge bg-danger">Malo</span>
+                                            @endif
+                                        </p>
                                         <div class="d-flex align-items-center flex-wrap gap-2">
                                             <small class="text-muted">
                                                 <i class="icon-user me-1"></i>
@@ -394,7 +390,20 @@
                                                 <i class="icon-clock me-1"></i>
                                                 {{ $log->created_at->format('d/m/Y H:i') }}
                                             </small>
-                                            
+
+                                            @if($log->audit_id)
+                                                @if($log->audit_id !== $audit->id)
+                                                    <a href="{{ route('platform.audit.detail', $log->audit_id) }}"
+                                                        class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">
+                                                        <i class="icon-eye me-1"></i> Ver auditoría
+                                                    </a>
+                                                @else
+                                                    <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                                                        <i class="icon-eye me-1"></i> Vista actual
+                                                    </span>
+                                                @endif
+                                            @endif
+
                                             {{-- Botón para ver foto si existe --}}
                                             @if(isset($log->metadata['photo_path']) && $log->metadata['photo_path'])
                                                 <button type="button" 
@@ -468,87 +477,6 @@
                     @endif
                 </div>
 
-                <!-- Previous Audits Tab -->
-                <div class="tab-pane fade" id="audits-history" role="tabpanel">
-                    @if(isset($allAudits) && $allAudits->count() > 0)
-                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                            <table class="table table-hover table-sm align-middle">
-                                <thead class="table-light sticky-top">
-                                    <tr>
-                                        <th>Semana/Año</th>
-                                        <th>Tipo</th>
-                                        <th>Propósito</th>
-                                        <th>Fecha</th>
-                                        <th>Estado</th>
-                                        <th>Auditor</th>
-                                        <th class="text-end">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($allAudits as $histAudit)
-                                        <tr class="{{ $histAudit->id === $audit->id ? 'table-active' : '' }}">
-                                            <td>
-                                                <span class="badge bg-light text-dark">
-                                                    S{{ $histAudit->week }} / {{ $histAudit->year }}
-                                                </span>
-                                                @if($histAudit->id === $audit->id)
-                                                    <span class="badge bg-primary ms-1">Actual</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($histAudit->audit_type === 'structural')
-                                                    <span class="badge" style="background-color: #7c3aed; font-size: 0.7rem;">Estructural</span>
-                                                @else
-                                                    <span class="badge bg-primary" style="font-size: 0.7rem;">General</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if($histAudit->audit_purpose === 'preventive_maintenance')
-                                                    <span class="badge text-white" style="background-color: #16a34a; font-size: 0.65rem;">Preventivo</span>
-                                                @elseif($histAudit->audit_purpose === 'corrective_maintenance')
-                                                    <span class="badge text-white" style="background-color: #ea580c; font-size: 0.65rem;">Correctivo</span>
-                                                @else
-                                                    <span class="text-muted" style="font-size: 0.7rem;">-</span>
-                                                @endif
-                                            </td>
-                                            <td class="text-muted small">
-                                                {{ $histAudit->audit_date ? $histAudit->audit_date->format('d/m/Y H:i') : '-' }}
-                                            </td>
-                                            <td>
-                                                @if($histAudit->general_status === 'bad')
-                                                    <span class="badge bg-danger">Malo</span>
-                                                @else
-                                                    <span class="badge bg-success">Bueno</span>
-                                                @endif
-                                                @if($histAudit->resolved_at)
-                                                    <i class="icon-check text-success ms-1" title="Resuelto"></i>
-                                                @endif
-                                            </td>
-                                            <td class="text-muted small">
-                                                {{ $histAudit->user->name ?? 'N/A' }}
-                                            </td>
-                                            <td class="text-end">
-                                                @if($histAudit->id !== $audit->id)
-                                                    <a href="{{ route('platform.audit.detail', $histAudit) }}" 
-                                                       class="btn btn-sm btn-outline-primary">
-                                                        <i class="icon-eye"></i> Ver
-                                                    </a>
-                                                @else
-                                                    <span class="text-muted small">Vista actual</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <div class="text-center py-4 text-muted">
-                            <i class="icon-docs" style="font-size: 3rem; opacity: 0.3;"></i>
-                            <p class="mt-2 mb-0">No hay auditorías anteriores para este espacio.</p>
-                        </div>
-                    @endif
-                </div>
             </div>
 
             <!-- Third Party Info (if applicable) -->

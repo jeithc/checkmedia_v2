@@ -5,11 +5,9 @@ namespace App\Orchid\Screens\Dashboard;
 use App\Models\Audit;
 use App\Models\Maintenance;
 use App\Orchid\Layouts\Dashboard\AuditsOverTimeChart;
-use App\Orchid\Layouts\Dashboard\ComplianceChart;
 use App\Orchid\Layouts\Dashboard\MaintenanceStatusChart;
 use App\Orchid\Layouts\Dashboard\PurchaseOrderCostTrendChart;
 use App\Orchid\Layouts\Dashboard\PurchaseOrderCoverageChart;
-use App\Orchid\Layouts\Dashboard\PurchaseOrderValueStatusChart;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -331,12 +329,7 @@ class AuditDashboardScreen extends Screen
             ]),
 
             \Orchid\Support\Facades\Layout::columns([
-                ComplianceChart::class,
                 PurchaseOrderCoverageChart::class,
-            ]),
-
-            \Orchid\Support\Facades\Layout::columns([
-                PurchaseOrderValueStatusChart::class,
                 PurchaseOrderCostTrendChart::class,
             ]),
         ];

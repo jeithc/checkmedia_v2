@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Orchid\Screens;
 
 use App\Models\Audit;
+use App\Models\Maintenance;
 use Carbon\Carbon;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
@@ -13,6 +14,7 @@ use Orchid\Support\Facades\Layout;
 class PlatformScreen extends Screen
 {
     private bool $hasAuditData = false;
+    private bool $hasPoValueData = false;
 
     public function query(): iterable
     {
@@ -26,8 +28,12 @@ class PlatformScreen extends Screen
             ->whereDate('audit_date', '<=', $dateTo)
             ->exists();
 
+        $poValueStatus = $this->buildPoValueStatusData();
+
         if (!$this->hasAuditData) {
-            return [];
+            return [
+                'purchase_order_value_status' => $poValueStatus,
+            ];
         }
 
         $goodAudits = Audit::where('audit_date', '>=', $dateFromCarbon)
@@ -54,11 +60,19 @@ class PlatformScreen extends Screen
 
         return [
             'audit_line_chart' => [$goodAudits, $badAudits],
+            'purchase_order_value_status' => $poValueStatus,
             'audit_pie_chart' => [
                 [
                     'name' => 'Estado de Auditorías',
                     'values' => [$goodCount, $badCount],
-                    'labels' => ['Bueno', 'Malo'],
+                    'labels' => (function () use ($goodCount, $badCount) {
+                        $total = $goodCount + $badCount;
+                        $pct = fn ($n) => $total > 0 ? round(($n / $total) * 100, 1) . '%' : '0%';
+                        return [
+                            "Bueno {$pct($goodCount)} ({$goodCount})",
+                            "Malo {$pct($badCount)} ({$badCount})",
+                        ];
+                    })(),
                 ],
             ],
         ];
@@ -83,6 +97,35 @@ class PlatformScreen extends Screen
         ];
     }
 
+    private function buildPoValueStatusData(): array
+    {
+        $maintenances = Maintenance::all();
+
+        $withPurchaseOrder = $maintenances->whereNotNull('advisual_purchase_order_id');
+        $withRequisition = $maintenances->whereNotNull('advisual_requisition_id');
+
+        $withValue = $withPurchaseOrder->filter(fn (Maintenance $m) => (float) ($m->advisual_purchase_order_total ?? 0) > 0)->count();
+        $withoutValue = $withPurchaseOrder->filter(fn (Maintenance $m) => (float) ($m->advisual_purchase_order_total ?? 0) <= 0)->count();
+        $rqWithoutOc = $withRequisition->whereNull('advisual_purchase_order_id')->count();
+
+        $total = $withValue + $withoutValue + $rqWithoutOc;
+        $this->hasPoValueData = $total > 0;
+
+        $pct = fn ($n) => $total > 0 ? round(($n / $total) * 100, 1) . '%' : '0%';
+
+        return [
+            [
+                'name' => 'Estado OC',
+                'values' => [$withValue, $withoutValue, $rqWithoutOc],
+                'labels' => [
+                    "Con valor {$pct($withValue)} ({$withValue})",
+                    "Sin valor {$pct($withoutValue)} ({$withoutValue})",
+                    "Sin OC {$pct($rqWithoutOc)} ({$rqWithoutOc})",
+                ],
+            ],
+        ];
+    }
+
     public function layout(): iterable
     {
         $layouts = [
@@ -98,6 +141,10 @@ class PlatformScreen extends Screen
             ]);
         } else {
             $layouts[] = Layout::view('orchid.partials.no-chart-data');
+        }
+
+        if ($this->hasPoValueData) {
+            $layouts[] = \App\Orchid\Layouts\Dashboard\PurchaseOrderValueStatusChart::class;
         }
 
         return $layouts;

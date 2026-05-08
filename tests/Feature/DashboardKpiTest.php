@@ -197,7 +197,6 @@ test('dashboard2 shows purchase order metrics without removing existing ones', f
     $response->assertSee('Costo Total OCs');
     $response->assertSee('RQ Pendientes de OC');
     $response->assertSee('Conversión de RQ a OC');
-    $response->assertSee('Estado de Valor de OCs');
     $response->assertSee('Costo Ejecutado de OCs por Mes');
 });
 
