@@ -235,16 +235,14 @@ class AuditActionController extends Controller
     {
         abort_unless(auth()->user()->hasAccess('audit.request_maintenance'), 403);
 
-        $allowedCategories = implode(',', array_keys(Maintenance::CATEGORIES));
-
         $request->validate([
-            'maintenance_type' => 'required|in:preventive',
-            'maintenance_category' => "required|in:{$allowedCategories}",
+            'audit_value_ids' => 'required|array|min:1',
+            'audit_value_ids.*' => 'integer|exists:audit_values,id',
             'maintenance_priority' => 'required|in:alta,media,baja',
             'maintenance_description' => 'required|string|min:5',
         ], [
-            'maintenance_type.required' => 'El tipo de mantenimiento es requerido.',
-            'maintenance_category.required' => 'La categoría es requerida.',
+            'audit_value_ids.required' => 'Selecciona al menos un criterio.',
+            'audit_value_ids.min' => 'Selecciona al menos un criterio.',
             'maintenance_priority.required' => 'La prioridad es requerida.',
             'maintenance_description.required' => 'La descripción es requerida.',
             'maintenance_description.min' => 'La descripción debe tener al menos 5 caracteres.',
@@ -255,45 +253,68 @@ class AuditActionController extends Controller
             return response()->json(['message' => 'Solo se pueden solicitar mantenimientos para auditorías con errores.'], 422);
         }
 
-        // Check no open maintenance exists for this audit
-        if ($audit->hasOpenMaintenance()) {
-            return response()->json(['message' => 'Ya existe un mantenimiento abierto para esta auditoría.'], 422);
+        if (! $audit->canRequestMaintenance()) {
+            return response()->json(['message' => 'No hay criterios pendientes por cubrir.'], 422);
         }
 
-        // El chequeo de conexión se movió adentro de AdvisualRequisitionService para soportar ODBC (Hostinger)
+        $values = \App\Models\AuditValue::whereIn('id', $request->input('audit_value_ids'))
+            ->where('audit_id', $audit->id)
+            ->where('value', 'bad')
+            ->whereDoesntHave('maintenances', fn ($q) =>
+                $q->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])
+            )
+            ->with('criterion')
+            ->get();
+
+        if ($values->count() !== count($request->input('audit_value_ids'))) {
+            return response()->json(['message' => 'Algunos criterios ya están cubiertos por otro mantenimiento o no son válidos.'], 422);
+        }
+
         $advisualService = app(AdvisualRequisitionService::class);
 
-        // Create maintenance record
-        $maintenance = Maintenance::create([
-            'advertising_space_id' => $audit->advertising_space_id,
-            'audit_id' => $audit->id,
-            'requested_by' => auth()->id(),
-            'requested_at' => now(),
-            'type' => $request->input('maintenance_type'),
-            'category' => $request->input('maintenance_category'),
-            'status' => Maintenance::STATUS_REPORTED,
-            'priority' => $request->input('maintenance_priority'),
-            'description' => $request->input('maintenance_description'),
-        ]);
+        $firstCriterion = $values->first()->criterion;
+        $primaryCategory = strtolower($firstCriterion->name ?? $firstCriterion->category ?? 'general');
+
+        $maintenance = \DB::transaction(function () use ($audit, $request, $primaryCategory, $values) {
+            $m = Maintenance::create([
+                'advertising_space_id' => $audit->advertising_space_id,
+                'audit_id' => $audit->id,
+                'requested_by' => auth()->id(),
+                'requested_at' => now(),
+                'type' => 'preventive',
+                'category' => $primaryCategory,
+                'status' => Maintenance::STATUS_REPORTED,
+                'priority' => $request->input('maintenance_priority'),
+                'description' => $request->input('maintenance_description'),
+            ]);
+            $m->auditValues()->attach($values->pluck('id')->all());
+            return $m;
+        });
 
         // Create requisition in Advisual
         $synced = $advisualService->createRequisition($maintenance);
 
         if (!$synced) {
+            $maintenance->auditValues()->detach();
             $maintenance->delete();
             return response()->json(['message' => 'Error al crear la requisición en Advisual. El mantenimiento no fue creado.'], 500);
         }
 
-        // Log activity
+        $criteriaNames = $values->pluck('criterion.name')->filter()->join(', ');
+        $criteriaCategories = $values->pluck('criterion.category')->filter()->unique()->join(', ');
+
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_MAINTENANCE_REQUESTED,
-            description: 'Mantenimiento preventivo solicitado. Categoría: ' . $request->input('maintenance_category') . '. Prioridad: ' . $request->input('maintenance_priority'),
+            description: "Mantenimiento preventivo solicitado para: {$criteriaNames}. Prioridad: " . $request->input('maintenance_priority'),
             auditId: $audit->id,
             metadata: [
                 'maintenance_id' => $maintenance->id,
-                'type' => $request->input('maintenance_type'),
-                'category' => $request->input('maintenance_category'),
+                'type' => 'preventive',
+                'category' => $primaryCategory,
+                'categories' => $criteriaCategories,
+                'criteria_names' => $criteriaNames,
+                'audit_value_ids' => $values->pluck('id')->all(),
                 'priority' => $request->input('maintenance_priority'),
                 'advisual_synced' => $synced,
                 'user_name' => auth()->user()->name,
@@ -315,9 +336,14 @@ class AuditActionController extends Controller
         abort_unless(auth()->user()->hasAccess('maintenance.close'), 403);
 
         // Find the open maintenance BEFORE validation (need to check for RQ)
-        $maintenance = $audit->maintenances()
-            ->whereNotIn('status', [Maintenance::STATUS_CLOSED])
-            ->first();
+        $openQuery = $audit->maintenances()
+            ->whereNotIn('status', [Maintenance::STATUS_CLOSED]);
+
+        if ($request->filled('maintenance_id')) {
+            $maintenance = (clone $openQuery)->where('id', $request->input('maintenance_id'))->first();
+        } else {
+            $maintenance = (clone $openQuery)->oldest('requested_at')->first();
+        }
 
         if (!$maintenance) {
             Toast::error('No se encontró un mantenimiento abierto para esta auditoría.');
@@ -371,13 +397,25 @@ class AuditActionController extends Controller
             $updateData['support_files_paths'] = $supportFilesPaths;
         }
 
-        $maintenance->update($updateData);
+        $resolvedNames = '';
+        \DB::transaction(function () use ($maintenance, $updateData, $audit, &$resolvedNames) {
+            $maintenance->update($updateData);
+
+            $linked = $maintenance->auditValues()->where('value', 'bad')->with('criterion')->get();
+            $resolvedNames = $linked->pluck('criterion.name')->filter()->join(', ');
+            foreach ($linked as $val) {
+                $val->update(['value' => 'good']);
+            }
+
+            $audit->refresh();
+            $audit->calculateGeneralStatus();
+        });
 
         // Log activity
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_MAINTENANCE_CLOSED,
-            description: 'Mantenimiento cerrado desde detalle de auditoría.',
+            description: 'Mantenimiento cerrado desde detalle de auditoría.' . ($resolvedNames ? " Criterios resueltos: {$resolvedNames}" : ''),
             auditId: $audit->id,
             metadata: [
                 'maintenance_id' => $maintenance->id,

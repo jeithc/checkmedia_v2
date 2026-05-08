@@ -109,7 +109,7 @@
                     </button>
                 @endif
 
-                @if(auth()->user()->hasAccess('audit.request_maintenance') && $audit->general_status === 'bad' && !$audit->hasOpenMaintenance())
+                @if(auth()->user()->hasAccess('audit.request_maintenance') && $audit->general_status === 'bad' && $audit->canRequestMaintenance())
                     <!-- Solicitar Mantenimiento (Warning) -->
                     <button type="button" class="btn btn-warning text-dark fw-bold px-4" data-bs-toggle="modal"
                         data-bs-target="#requestMaintenanceModal">
@@ -128,7 +128,8 @@
 
             <!-- Maintenance Banner -->
             @php
-                $openMaintenance = $audit->maintenances()->whereNotIn('status', ['closed'])->first();
+                $openMaintenances = $audit->maintenances()->with('auditValues.criterion')->whereNotIn('status', ['closed'])->orderBy('requested_at')->get();
+                $openMaintenance = $openMaintenances->first();
                 $closedMaintenance = !$openMaintenance ? $audit->maintenances()->where('status', 'closed')->latest()->first() : null;
                 $displayMaintenance = $openMaintenance ?? $closedMaintenance;
             @endphp
@@ -1099,6 +1100,11 @@
         }
         formData.append('closure_comment', closureComment.value);
 
+        var maintenanceSelect = document.getElementById('close_maintenance_id_input');
+        if (maintenanceSelect && maintenanceSelect.value) {
+            formData.append('maintenance_id', maintenanceSelect.value);
+        }
+
         var actionUrl = '{{ url("/admin/audit-action/" . $audit->id . "/close-maintenance") }}';
 
         fetch(actionUrl, {
@@ -1130,13 +1136,14 @@
     }
 
     function submitRequestMaintenance() {
-        var type = document.getElementById('maintenance_type_input').value;
-        var category = document.getElementById('maintenance_category_input').value;
         var priority = document.getElementById('maintenance_priority_input').value;
         var description = document.getElementById('maintenance_description_input').value;
+        var auditValueIds = Array.from(
+            document.querySelectorAll('#maintenance_criteria_list input[name="audit_value_ids[]"]:checked')
+        ).map(function (cb) { return parseInt(cb.value, 10); });
 
-        if (!category) {
-            document.getElementById('maintenance_category_input').classList.add('is-invalid');
+        if (!auditValueIds.length) {
+            alert('Selecciona al menos un criterio a corregir.');
             return;
         }
         if (!description || description.length < 5) {
@@ -1156,8 +1163,7 @@
                 'Accept': 'application/json',
             },
             body: JSON.stringify({
-                maintenance_type: type,
-                maintenance_category: category,
+                audit_value_ids: auditValueIds,
                 maintenance_priority: priority,
                 maintenance_description: description,
             }),
@@ -1256,16 +1262,27 @@
                         <input type="hidden" id="maintenance_type_input" value="preventive">
                         <div class="form-control form-control-sm bg-light text-muted" style="pointer-events: none;">Preventivo</div>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Categoría *</label>
-                        <select id="maintenance_category_input" class="form-select form-select-sm" required>
-                            <option value="">Seleccionar...</option>
-                            @foreach(\App\Models\Maintenance::CATEGORIES as $key => $label)
-                                <option value="{{ $key }}">{{ $label }}</option>
-                            @endforeach
-                        </select>
+                    <div class="col-12">
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Criterios a corregir *</label>
+                        @php $uncoveredBad = $audit->uncoveredBadValues(); @endphp
+                        <div id="maintenance_criteria_list" class="border rounded p-2 bg-light" style="max-height: 220px; overflow-y: auto;">
+                            @forelse($uncoveredBad as $val)
+                                <div class="form-check">
+                                    <input class="form-check-input maintenance-criteria-checkbox" type="checkbox"
+                                        name="audit_value_ids[]" value="{{ $val->id }}" id="av_{{ $val->id }}">
+                                    <label class="form-check-label d-flex align-items-center justify-content-between" for="av_{{ $val->id }}">
+                                        <span>{{ $val->criterion->name }}</span>
+                                        <span class="badge bg-secondary text-uppercase ms-2" style="font-size: 0.65rem;">
+                                            {{ $val->criterion->category ?? '—' }}
+                                        </span>
+                                    </label>
+                                </div>
+                            @empty
+                                <p class="text-muted small mb-0">No hay criterios pendientes por cubrir.</p>
+                            @endforelse
+                        </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Prioridad *</label>
                         <select id="maintenance_priority_input" class="form-select form-select-sm" required>
                             <option value="media" selected>Media</option>
@@ -1300,6 +1317,19 @@
             </div>
             <div class="modal-body p-4">
                 <div class="row g-3">
+                    @if(isset($openMaintenances) && $openMaintenances->count() > 1)
+                        <div class="col-12">
+                            <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Mantenimiento a cerrar *</label>
+                            <select id="close_maintenance_id_input" class="form-select form-select-sm" required>
+                                @foreach($openMaintenances as $om)
+                                    @php
+                                        $omCriteria = $om->auditValues->pluck('criterion.name')->filter()->join(', ') ?: ($om->category ?? 'Sin criterios');
+                                    @endphp
+                                    <option value="{{ $om->id }}">#{{ $om->id }} — {{ $omCriteria }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
                     <div class="col-12">
                         <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Documento de Cierre (PDF o Imagen) *</label>
                         <input type="file" id="closure_document_input" class="form-control form-control-sm" accept=".pdf,image/*" required>

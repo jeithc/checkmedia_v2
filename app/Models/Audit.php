@@ -78,6 +78,22 @@ class Audit extends Model
             ->exists();
     }
 
+    public function uncoveredBadValues()
+    {
+        return $this->values()
+            ->where('value', 'bad')
+            ->whereDoesntHave('maintenances', fn ($q) =>
+                $q->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])
+            )
+            ->with('criterion')
+            ->get();
+    }
+
+    public function canRequestMaintenance(): bool
+    {
+        return $this->uncoveredBadValues()->isNotEmpty();
+    }
+
     /**
      * Helper to get the total score or status from values
      */

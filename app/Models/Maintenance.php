@@ -109,6 +109,11 @@ class Maintenance extends Model
         return $this->belongsTo(User::class, 'closed_by');
     }
 
+    public function auditValues()
+    {
+        return $this->belongsToMany(AuditValue::class, 'maintenance_audit_value')->withTimestamps();
+    }
+
     public function canBeClosed(): bool
     {
         return $this->status !== self::STATUS_CLOSED;
