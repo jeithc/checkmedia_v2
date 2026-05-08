@@ -83,8 +83,12 @@ class AdvisualRequisitionService
                 // 1. Intentar FreeTDS ODBC (Prioridad para Hostinger Shared)
                 $username = config('database.connections.advisual.username');
                 $password = config('database.connections.advisual.password');
-                
-                $pdo = new \PDO("odbc:mssql_odbc", $username, $password);
+                $database = config('database.connections.advisual.database');
+                $host = config('database.connections.advisual.host');
+                $port = config('database.connections.advisual.port', '1433');
+
+                $dsn = "odbc:Driver=FreeTDS;Server={$host};Port={$port};Database={$database};TDS_Version=7.4;";
+                $pdo = new \PDO($dsn, $username, $password);
                 $stmt = $pdo->prepare($sqlQuery);
                 $stmt->execute($bindings);
                 
