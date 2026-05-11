@@ -44,6 +44,9 @@ return [
         'serial_admin' => env('ADVISUAL_SERIAL_ADMIN', 0),
         'purchase_order_lookback_months' => env('ADVISUAL_PURCHASE_ORDER_LOOKBACK_MONTHS', 6),
         'purchase_order_schedule_time' => env('ADVISUAL_PURCHASE_ORDER_SCHEDULE_TIME', '06:30'),
+        'requiprod_cantidad' => env('ADVISUAL_REQUIPROD_CANTIDAD', 1),
+        'requiprod_can_pedida' => env('ADVISUAL_REQUIPROD_CAN_PEDIDA', 0),
+        'requiprod_unidad_fallback' => env('ADVISUAL_REQUIPROD_UNIDAD_FALLBACK', 13),
     ],
 
 ];
