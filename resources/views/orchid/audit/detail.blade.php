@@ -62,8 +62,15 @@
                     </thead>
                     <tbody>
                         @foreach($audit->values as $val)
-                            <tr>
-                                <td class="fw-bold text-dark">{{ $val->criterion->name }}</td>
+                            <tr @if($val->value === 'bad' && !empty($val->comment)) class="align-top" @endif>
+                                <td class="fw-bold text-dark">
+                                    {{ $val->criterion->name }}
+                                    @if($val->value === 'bad' && !empty($val->comment))
+                                        <div class="mt-1 small fw-normal text-danger d-flex align-items-start gap-1" style="border-left: 3px solid #dc3545; padding-left: 8px;">
+                                            <span>{{ $val->comment }}</span>
+                                        </div>
+                                    @endif
+                                </td>
                                 <!-- Option 1: Bueno -->
                                 <td class="text-center">
                                         <input type="radio" disabled {{ $val->value === 'good' ? 'checked' : '' }}
@@ -567,8 +574,15 @@
                                     </thead>
                                     <tbody class="bg-white">
                                         @foreach($audit->values as $val)
-                                            <tr class="border-bottom-light">
-                                                <td class="ps-3 py-2 text-dark small">{{ $val->criterion->name }}</td>
+                                            <tr class="border-bottom-light @if($val->value === 'bad' && !empty($val->comment)) align-top @endif">
+                                                <td class="ps-3 py-2 text-dark small">
+                                                    {{ $val->criterion->name }}
+                                                    @if($val->value === 'bad' && !empty($val->comment))
+                                                        <div class="mt-1 text-danger" style="font-size: 0.75rem; border-left: 3px solid #dc3545; padding-left: 6px;">
+                                                            {{ $val->comment }}
+                                                        </div>
+                                                    @endif
+                                                </td>
                                                 <td class="text-center">
                                                     <div class="form-check d-flex justify-content-center">
                                                         <input type="radio" name="criteria[{{ $val->id }}]" value="good"
@@ -673,8 +687,15 @@
                                     </thead>
                                     <tbody class="bg-white">
                                         @foreach($audit->values as $val)
-                                            <tr class="border-bottom-light">
-                                                <td class="ps-3 py-2 text-dark small">{{ $val->criterion->name }}</td>
+                                            <tr class="border-bottom-light @if($val->value === 'bad' && !empty($val->comment)) align-top @endif">
+                                                <td class="ps-3 py-2 text-dark small">
+                                                    {{ $val->criterion->name }}
+                                                    @if($val->value === 'bad' && !empty($val->comment))
+                                                        <div class="mt-1 text-danger" style="font-size: 0.75rem; border-left: 3px solid #dc3545; padding-left: 6px;">
+                                                            {{ $val->comment }}
+                                                        </div>
+                                                    @endif
+                                                </td>
                                                 <td class="text-center">
                                                     <div class="form-check d-flex justify-content-center">
                                                         <input type="radio" name="criteria[{{ $val->id }}]" value="good"

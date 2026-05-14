@@ -391,6 +391,26 @@
                             </button>
                         </div>
                     </div>
+
+                    @if(($values[$criterion->id]['value'] ?? null) === 'bad')
+                        <div class="mt-3" wire:key="comment-{{ $auditType }}-{{ $criterion->id }}">
+                            <label class="block text-xs font-semibold text-red-700 mb-1">
+                                Detalle de la irregularidad <span class="text-red-600">*</span>
+                            </label>
+                            <textarea wire:model.defer="values.{{ $criterion->id }}.comment"
+                                rows="2"
+                                placeholder="Describe qué falla en este ítem..."
+                                class="block w-full rounded-lg border border-red-200 bg-red-50 shadow-sm focus:border-red-500 focus:ring-red-500 focus:bg-white sm:text-sm p-2 transition-colors"></textarea>
+                            @error('values.'.$criterion->id.'.comment')
+                                <p class="mt-1 text-xs text-red-600 flex items-center">
+                                    <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+                    @endif
                 </div>
                 @endforeach
             </div>
@@ -496,7 +516,10 @@
 
         <!-- 5. Observations (Card) -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Observación General</label>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">
+                Observación General <span class="text-xs font-normal text-gray-500">(opcional)</span>
+            </label>
+            <p class="text-xs text-gray-500 mb-2">Opcional. Los detalles por ítem ya se capturan arriba.</p>
             <textarea wire:model="observation"
                 class="block w-full rounded-lg border border-gray-300 bg-gray-50 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:bg-white sm:text-sm p-3 transition-colors"
                 rows="3" placeholder="Comentarios adicionales sobre el espacio o la visita..."></textarea>

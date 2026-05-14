@@ -12,7 +12,8 @@ class AuditValue extends Model
     protected $fillable = [
         'audit_id',
         'audit_criterion_id',
-        'value'
+        'value',
+        'comment',
     ];
 
     public function criterion()

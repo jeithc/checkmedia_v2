@@ -155,8 +155,9 @@ test('it requires at least one photo', function () {
         ->assertHasErrors('photos');
 });
 
-test('it requires observation when status is bad', function () {
+test('it requires per-item comment when status is bad', function () {
     $photo = UploadedFile::fake()->image('test.jpg');
+    $badId = $this->criteria[0]->id;
 
     Livewire::test(AuditForm::class)
         ->set('external_code', 'TEST001')
@@ -164,12 +165,36 @@ test('it requires observation when status is bad', function () {
         ->set('photos', [$photo])
         ->set('observation', '')
         ->set('values', [
-            $this->criteria[0]->id => ['value' => 'bad', 'comment' => ''],
+            $badId => ['value' => 'bad', 'comment' => ''],
             $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
             $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
         ])
         ->call('save')
-        ->assertHasErrors('observation');
+        ->assertHasErrors("values.$badId.comment");
+});
+
+test('it saves when bad item has per-item comment without general observation', function () {
+    $photo = UploadedFile::fake()->image('test.jpg');
+    $badId = $this->criteria[0]->id;
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [$photo])
+        ->set('observation', '')
+        ->set('values', [
+            $badId => ['value' => 'bad', 'comment' => 'Pintura descascarada en esquina superior'],
+            $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $this->assertDatabaseHas('audit_values', [
+        'audit_criterion_id' => $badId,
+        'value' => 'bad',
+        'comment' => 'Pintura descascarada en esquina superior',
+    ]);
 });
 
 test('it allows saving without observation when all good', function () {
@@ -212,6 +237,7 @@ test('it can complement existing audit', function () {
         'audit_id' => $existingAudit->id,
         'audit_criterion_id' => $this->criteria[0]->id,
         'value' => 'bad',
+        'comment' => 'Daño previo registrado',
     ]);
 
     $photo = UploadedFile::fake()->image('new_photo.jpg');

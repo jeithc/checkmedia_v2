@@ -128,6 +128,7 @@ class AuditForm extends Component
             $this->criteriaIds[] = $criterion->id;
             $this->values[$criterion->id] = [
                 'value' => 'good',
+                'comment' => '',
             ];
         }
     }
@@ -148,7 +149,7 @@ class AuditForm extends Component
                 'key' => $criterion->key,
             ];
             $this->criteriaIds[] = $criterion->id;
-            $this->values[$criterion->id] = ['value' => 'good'];
+            $this->values[$criterion->id] = ['value' => 'good', 'comment' => ''];
         }
 
         $this->duplicateFound = false;
@@ -192,7 +193,7 @@ class AuditForm extends Component
         $this->photos = [];
         $this->observation = '';
         foreach ($this->criteriaIds as $criterionId) {
-            $this->values[$criterionId] = ['value' => 'good'];
+            $this->values[$criterionId] = ['value' => 'good', 'comment' => ''];
         }
 
         // 1. Try Local Search
@@ -272,6 +273,7 @@ class AuditForm extends Component
         foreach ($existingAudit->values as $val) {
             if (isset($this->values[$val->audit_criterion_id])) {
                 $this->values[$val->audit_criterion_id]['value'] = $val->value;
+                $this->values[$val->audit_criterion_id]['comment'] = $val->comment ?? '';
                 if ($val->value === 'bad') {
                     $this->lockedCriteria[] = $val->audit_criterion_id;
                 }
@@ -305,7 +307,7 @@ class AuditForm extends Component
         $this->lockedCriteria = [];
 
         foreach ($this->criteriaIds as $criterionId) {
-            $this->values[$criterionId] = ['value' => 'good'];
+            $this->values[$criterionId] = ['value' => 'good', 'comment' => ''];
         }
 
         unset($this->space, $this->existingAudit, $this->booking, $this->criteria);
@@ -348,10 +350,14 @@ class AuditForm extends Component
             return;
         }
 
-        $hasIssues = collect($this->values)->contains('value', 'bad');
-        if ($hasIssues && empty(trim($this->observation))) {
-            $this->addError('observation', 'Debe explicar el detalle de la irregularidad en las observaciones.');
-
+        $missingComment = false;
+        foreach ($this->values as $criterionId => $data) {
+            if (($data['value'] ?? null) === 'bad' && empty(trim($data['comment'] ?? ''))) {
+                $this->addError("values.$criterionId.comment", 'Describe la irregularidad de este ítem.');
+                $missingComment = true;
+            }
+        }
+        if ($missingComment) {
             return;
         }
 
@@ -394,6 +400,7 @@ class AuditForm extends Component
                 'audit_id' => $audit->id,
                 'audit_criterion_id' => $criterionId,
                 'value' => $data['value'],
+                'comment' => $data['value'] === 'bad' ? trim($data['comment'] ?? '') : null,
             ]);
 
             if ($data['value'] === 'bad') {
