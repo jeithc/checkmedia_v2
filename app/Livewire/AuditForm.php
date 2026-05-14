@@ -58,6 +58,8 @@ class AuditForm extends Component
 
     public bool $isStructuralAuditor = false;
 
+    public bool $canSelectAuditType = false;
+
     #[Computed]
     public function space()
     {
@@ -109,10 +111,12 @@ class AuditForm extends Component
             $this->isStructuralAuditor = true;
         }
 
+        $this->canSelectAuditType = $isStructural && $isGeneral;
+
         $this->canSelectPurpose = $isStructural || $isGeneral || $isAdmin || $user->hasAccess('audit.can_select_purpose');
 
         // Mantenimiento preventivo: solo admin (auditor de campo no lo selecciona)
-        $this->canDoPreventive = $isAdmin || $user->hasAccess('audit.can_preventive');
+        $this->canDoPreventive = $isAdmin || $user->hasAccess('audit.can_select_purpose');
 
         $criteria = $this->criteria;
         foreach ($criteria as $criterion) {
@@ -125,6 +129,47 @@ class AuditForm extends Component
             $this->values[$criterion->id] = [
                 'value' => 'good',
             ];
+        }
+    }
+
+    public function updatedAuditType(): void
+    {
+        unset($this->criteria);
+
+        $this->criteriaIds = [];
+        $this->criteriaList = [];
+        $this->values = [];
+        $this->lockedCriteria = [];
+
+        foreach ($this->criteria as $criterion) {
+            $this->criteriaList[] = [
+                'id' => $criterion->id,
+                'name' => $criterion->name,
+                'key' => $criterion->key,
+            ];
+            $this->criteriaIds[] = $criterion->id;
+            $this->values[$criterion->id] = ['value' => 'good'];
+        }
+
+        $this->duplicateFound = false;
+        $this->existingAuditId = null;
+        $this->showExistingDetails = false;
+
+        if ($this->spaceId) {
+            $space = AdvertisingSpace::find($this->spaceId);
+            if ($space) {
+                $weekData = Audit::getCalendarYearAndWeek(now());
+                $existingAudit = Audit::where('advertising_space_id', $space->id)
+                    ->where('year', $weekData['year'])
+                    ->where('week', $weekData['week'])
+                    ->where('audit_type', $this->auditType)
+                    ->first();
+
+                if ($existingAudit) {
+                    $this->existingAuditId = $existingAudit->id;
+                    $this->duplicateFound = true;
+                }
+            }
         }
     }
 

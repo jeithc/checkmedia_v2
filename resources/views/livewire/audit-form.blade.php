@@ -241,6 +241,52 @@
             </div>
         </div>
 
+        <!-- 2.4 Audit Type Selector -->
+        @if($canSelectAuditType)
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-gray-50 px-6 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Tipo de Auditoría</h3>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="relative cursor-pointer">
+                        <input type="radio" name="audit_type" wire:model.live="auditType" value="general" class="peer sr-only">
+                        <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
+                            peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:ring-2 peer-checked:ring-blue-500 peer-checked:ring-offset-1
+                            border-gray-200 hover:border-gray-300 hover:bg-gray-50">
+                            <div class="flex-shrink-0 p-2 rounded-lg bg-blue-100 text-blue-600">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">General</p>
+                                <p class="text-xs text-gray-500">Auditoría estándar</p>
+                            </div>
+                        </div>
+                    </label>
+
+                    <label class="relative cursor-pointer">
+                        <input type="radio" name="audit_type" wire:model.live="auditType" value="structural" class="peer sr-only">
+                        <div class="flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200
+                            peer-checked:border-purple-500 peer-checked:bg-purple-50 peer-checked:ring-2 peer-checked:ring-purple-500 peer-checked:ring-offset-1
+                            border-gray-200 hover:border-gray-300 hover:bg-gray-50">
+                            <div class="flex-shrink-0 p-2 rounded-lg bg-purple-100 text-purple-600">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1m-1 4h1m4-4h1m-1 4h1m-7 4h10" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-gray-900">Estructural</p>
+                                <p class="text-xs text-gray-500">Inspección estructural</p>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- 2.5 Purpose Selector -->
         @if($canSelectPurpose)
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -300,7 +346,7 @@
             <div class="divide-y divide-gray-100">
                 @foreach($this->criteria as $criterion)
                 @php($isLocked = in_array($criterion->id, $lockedCriteria))
-                <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div wire:key="criterion-{{ $auditType }}-{{ $criterion->id }}" class="px-6 py-4 hover:bg-gray-50 transition-colors">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <label class="text-sm font-medium text-gray-900 w-1/3 flex items-center gap-2">
                             {{ $criterion->name }}

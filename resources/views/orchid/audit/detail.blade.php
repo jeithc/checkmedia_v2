@@ -1259,8 +1259,8 @@
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Tipo de Mantenimiento</label>
-                        <input type="hidden" id="maintenance_type_input" value="preventive">
-                        <div class="form-control form-control-sm bg-light text-muted" style="pointer-events: none;">Preventivo</div>
+                        <input type="hidden" id="maintenance_type_input" value="corrective">
+                        <div class="form-control form-control-sm bg-light text-muted" style="pointer-events: none;">Correctivo</div>
                     </div>
                     <div class="col-12">
                         <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Criterios a corregir *</label>
