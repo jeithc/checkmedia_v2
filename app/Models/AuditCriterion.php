@@ -21,12 +21,12 @@ class AuditCriterion extends Model
         'type',
         'is_active',
         'order_index',
-        'category',
+        'applies_to',
     ];
 
-    public function scopeForCategory($query, $category)
+    public function scopeAppliesTo($query, $auditType)
     {
-        return $query->where('category', $category);
+        return $query->where('applies_to', $auditType);
     }
 
     /**

@@ -76,7 +76,7 @@ class AuditForm extends Component
     public function criteria()
     {
         return AuditCriterion::where('is_active', true)
-            ->forCategory($this->auditType)
+            ->appliesTo($this->auditType)
             ->orderBy('order_index')
             ->get();
     }

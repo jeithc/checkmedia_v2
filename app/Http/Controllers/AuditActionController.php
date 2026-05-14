@@ -225,7 +225,7 @@ class AuditActionController extends Controller
         $advisualService = app(AdvisualRequisitionService::class);
 
         $firstCriterion = $values->first()->criterion;
-        $primaryCategory = strtolower($firstCriterion->name ?? $firstCriterion->category ?? 'general');
+        $primaryCategory = strtolower($firstCriterion->name ?? $firstCriterion->applies_to ?? 'general');
 
         $maintenance = \DB::transaction(function () use ($audit, $request, $primaryCategory, $values) {
             $m = Maintenance::create([
@@ -253,7 +253,7 @@ class AuditActionController extends Controller
         }
 
         $criteriaNames = $values->pluck('criterion.name')->filter()->join(', ');
-        $criteriaCategories = $values->pluck('criterion.category')->filter()->unique()->join(', ');
+        $criteriaCategories = $values->pluck('criterion.applies_to')->filter()->unique()->join(', ');
 
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,

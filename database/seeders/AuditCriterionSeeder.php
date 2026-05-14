@@ -15,28 +15,28 @@ class AuditCriterionSeeder extends Seeder
                 'key' => 'structural',
                 'type' => 'boolean', // Good/Bad
                 'order_index' => 1,
-                'category' => 'general',
+                'applies_to' => 'general',
             ],
             [
                 'name' => 'Ambiental',
                 'key' => 'environmental',
                 'type' => 'boolean',
                 'order_index' => 2,
-                'category' => 'general',
+                'applies_to' => 'general',
             ],
             [
                 'name' => 'Eléctrico',
                 'key' => 'electrical',
                 'type' => 'boolean',
                 'order_index' => 3,
-                'category' => 'general',
+                'applies_to' => 'general',
             ],
             [
                 'name' => 'Material',
                 'key' => 'material',
                 'type' => 'boolean',
                 'order_index' => 4,
-                'category' => 'general',
+                'applies_to' => 'general',
             ],
         ];
 

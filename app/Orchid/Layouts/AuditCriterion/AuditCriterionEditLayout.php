@@ -47,13 +47,13 @@ class AuditCriterionEditLayout extends Rows
                 ->help('Orden de aparición en el formulario.')
                 ->required(),
 
-            Select::make('criterion.category')
-                ->title('Categoría')
+            Select::make('criterion.applies_to')
+                ->title('Aplica a')
                 ->options([
-                    'general' => 'General',
-                    'structural' => 'Estructural',
+                    'general' => 'Auditoría General',
+                    'structural' => 'Auditoría Estructural',
                 ])
-                ->help('Determina en qué tipo de auditoría aparece este criterio.')
+                ->help('Tipo de auditoría en la que aparece este criterio.')
                 ->required(),
 
             Switcher::make('criterion.is_active')

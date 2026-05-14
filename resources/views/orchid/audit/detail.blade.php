@@ -67,7 +67,7 @@
                                     {{ $val->criterion->name }}
                                     @if($val->value === 'bad' && !empty($val->comment))
                                         <div class="mt-1 small fw-normal text-danger d-flex align-items-start gap-1" style="border-left: 3px solid #dc3545; padding-left: 8px;">
-                                            <span>{{ $val->comment }}</span>
+                                            <span>{!! nl2br(e($val->comment)) !!}</span>
                                         </div>
                                     @endif
                                 </td>
@@ -579,7 +579,7 @@
                                                     {{ $val->criterion->name }}
                                                     @if($val->value === 'bad' && !empty($val->comment))
                                                         <div class="mt-1 text-danger" style="font-size: 0.75rem; border-left: 3px solid #dc3545; padding-left: 6px;">
-                                                            {{ $val->comment }}
+                                                            {!! nl2br(e($val->comment)) !!}
                                                         </div>
                                                     @endif
                                                 </td>
@@ -692,7 +692,7 @@
                                                     {{ $val->criterion->name }}
                                                     @if($val->value === 'bad' && !empty($val->comment))
                                                         <div class="mt-1 text-danger" style="font-size: 0.75rem; border-left: 3px solid #dc3545; padding-left: 6px;">
-                                                            {{ $val->comment }}
+                                                            {!! nl2br(e($val->comment)) !!}
                                                         </div>
                                                     @endif
                                                 </td>
@@ -1326,7 +1326,7 @@
                                     <label class="form-check-label d-flex align-items-center justify-content-between" for="av_{{ $val->id }}">
                                         <span>{{ $val->criterion->name }}</span>
                                         <span class="badge bg-secondary text-uppercase ms-2" style="font-size: 0.65rem;">
-                                            {{ $val->criterion->category ?? '—' }}
+                                            {{ $val->criterion->applies_to ?? '—' }}
                                         </span>
                                     </label>
                                 </div>
