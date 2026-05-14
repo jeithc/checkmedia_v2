@@ -1,0 +1,188 @@
+.fishbone {
+    position: relative;
+    padding: 24px 8px;
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.fishbone__track {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px 0 0 0;
+}
+.fishbone__spine {
+    position: absolute;
+    top: 70px;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 3px;
+    background: linear-gradient(180deg, #475569 0%, #cbd5e1 100%);
+    border-radius: 2px;
+    z-index: 0;
+}
+.fishbone__head {
+    position: relative;
+    z-index: 2;
+    margin: 0 auto 16px;
+    background: #0f172a;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: center;
+}
+.fishbone__head::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: #0f172a;
+}
+.fishbone__event {
+    position: relative;
+    width: 100%;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    z-index: 1;
+    margin-bottom: 12px;
+}
+.fishbone__bone {
+    position: absolute;
+    top: 50%;
+    height: 2px;
+    width: 110px;
+    background: #94a3b8;
+    z-index: 0;
+}
+.fishbone__event--left .fishbone__bone {
+    right: 50%;
+    transform-origin: right center;
+    transform: rotate(20deg);
+}
+.fishbone__event--right .fishbone__bone {
+    left: 50%;
+    transform-origin: left center;
+    transform: rotate(-20deg);
+}
+.fishbone__dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid #475569;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    box-shadow: 0 0 0 4px rgba(71, 85, 105, 0.1);
+}
+.fishbone__card {
+    position: absolute;
+    top: 50%;
+    width: 280px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+}
+.fishbone__card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+.fishbone__event--left .fishbone__card {
+    right: calc(50% + 100px);
+    transform: translateY(-50%);
+}
+.fishbone__event--right .fishbone__card {
+    left: calc(50% + 100px);
+    transform: translateY(-50%);
+}
+.fishbone__event--left .fishbone__card:hover,
+.fishbone__event--right .fishbone__card:hover {
+    transform: translateY(-50%) translateY(-2px);
+}
+.fishbone__card.is-current {
+    border-color: #0f172a;
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.15);
+}
+.fishbone__cat {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+.fishbone__title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+    margin-bottom: 4px;
+}
+.fishbone__meta {
+    font-size: 0.7rem;
+    color: #64748b;
+    line-height: 1.3;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+.fishbone__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 0.65rem;
+    color: #64748b;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed #e2e8f0;
+}
+.fishbone-toggle {
+    display: inline-flex;
+    gap: 4px;
+    background: #f1f5f9;
+    border-radius: 6px;
+    padding: 3px;
+}
+.fishbone-toggle button {
+    border: 0;
+    background: transparent;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.fishbone-toggle button.active {
+    background: #fff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+@media (max-width: 768px) {
+    .fishbone__card { width: 200px; }
+    .fishbone__event--left .fishbone__bone,
+    .fishbone__event--right .fishbone__bone { width: 60px; }
+    .fishbone__event--left .fishbone__card { right: calc(50% + 50px); }
+    .fishbone__event--right .fishbone__card { left: calc(50% + 50px); }
+}

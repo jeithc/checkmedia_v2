@@ -229,11 +229,112 @@
                 <span class="badge bg-secondary">{{ $audit->space->external_code }}</span>
             </div>
 
+
             <div>
-                    @if(isset($activityLogs) && $activityLogs->count() > 0)
-                        <div class="timeline-container" style="max-height: 400px; overflow-y: auto;">
-                            @foreach($activityLogs as $log)
-                                <div class="d-flex mb-3 pb-3 border-bottom" style="overflow: hidden;">
+                @php
+                    $catColors = [
+                        'audit_created' => ['bg' => '#dcfce7', 'fg' => '#166534'],
+                        'audit_updated' => ['bg' => '#dbeafe', 'fg' => '#1e40af'],
+                        'resolution_uploaded' => ['bg' => '#e0e7ff', 'fg' => '#3730a3'],
+                        'status_changed' => ['bg' => '#f1f5f9', 'fg' => '#334155'],
+                        'maintenance_requested' => ['bg' => '#fef3c7', 'fg' => '#92400e'],
+                        'maintenance_closed' => ['bg' => '#dcfce7', 'fg' => '#166534'],
+                    ];
+                    $catLabels = [
+                        'audit_created' => 'Auditoría',
+                        'audit_updated' => 'Auditoría',
+                        'resolution_uploaded' => 'Revisión',
+                        'status_changed' => 'Estado',
+                        'maintenance_requested' => 'Mantenimiento',
+                        'maintenance_closed' => 'Mantenimiento',
+                    ];
+                @endphp
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <small class="text-muted">Vista cronológica · arrastra horizontal para navegar</small>
+                    <div class="fishbone-toggle" id="historyViewToggle">
+                        <button type="button" class="active" data-view="fishbone">Espina</button>
+                        <button type="button" data-view="list">Lista</button>
+                    </div>
+                </div>
+
+                @if(isset($activityLogs) && $activityLogs->count() > 0)
+                    {{-- ESPINA DE PESCADO --}}
+                    <div class="fishbone" id="historyFishbone">
+                        <div class="fishbone__track">
+                            <div class="fishbone__spine"></div>
+
+                            <div class="fishbone__head">
+                                <i class="icon-flag"></i> Estado actual
+                            </div>
+
+                            @php $orderedLogs = $activityLogs->values(); @endphp
+                            @foreach($orderedLogs as $i => $log)
+                                @php
+                                    $position = $i % 2 === 0 ? 'left' : 'right';
+                                    $cat = $catColors[$log->activity_type] ?? ['bg' => '#f1f5f9', 'fg' => '#334155'];
+                                    $catLabel = $catLabels[$log->activity_type] ?? 'Evento';
+                                    $isCurrent = $log->audit_id && $log->audit_id === $audit->id;
+                                    $titleText = match($log->activity_type) {
+                                        'audit_created' => 'Auditoría Creada',
+                                        'audit_updated' => 'Auditoría Actualizada',
+                                        'resolution_uploaded' => 'Revisión Cargada',
+                                        'status_changed' => 'Estado Cambiado',
+                                        'maintenance_requested' => 'Mantenimiento Solicitado',
+                                        'maintenance_closed' => 'Mantenimiento Cerrado',
+                                        default => ucfirst(str_replace('_', ' ', $log->activity_type)),
+                                    };
+                                    $cleanDescription = preg_replace('/\s*con estado:\s*(good|bad)\s*\.?/i', '', $log->description);
+                                    $cleanDescription = preg_replace('/\s*Estado:\s*(good|bad)\s*\.?/i', '', $cleanDescription);
+                                    $statusValue = $log->metadata['general_status'] ?? null;
+                                @endphp
+                                <div class="fishbone__event fishbone__event--{{ $position }}">
+                                    <div class="fishbone__bone"></div>
+                                    <div class="fishbone__dot" style="border-color: {{ $cat['fg'] }};"></div>
+                                    <div class="fishbone__card {{ $isCurrent ? 'is-current' : '' }}">
+                                        <span class="fishbone__cat" style="background: {{ $cat['bg'] }}; color: {{ $cat['fg'] }};">{{ $catLabel }}</span>
+                                        @if($log->week && $log->year)
+                                            <span class="fishbone__cat" style="background: #f1f5f9; color: #475569;">S{{ $log->week }}/{{ $log->year }}</span>
+                                        @endif
+                                        <div class="fishbone__title">{{ $titleText }}</div>
+                                        <div class="fishbone__meta" title="{{ $log->description }}">
+                                            {{ \Illuminate\Support\Str::limit(trim($cleanDescription), 80) }}
+                                            @if($statusValue === 'good')
+                                                <span class="badge bg-success ms-1" style="font-size: 0.6rem;">Bueno</span>
+                                            @elseif($statusValue === 'bad')
+                                                <span class="badge bg-danger ms-1" style="font-size: 0.6rem;">Malo</span>
+                                            @endif
+                                        </div>
+                                        <div class="fishbone__foot">
+                                            <span title="{{ $log->user->name ?? ($log->metadata['user_name'] ?? 'Sistema') }}">
+                                                <i class="icon-user"></i> {{ \Illuminate\Support\Str::limit($log->user->name ?? ($log->metadata['user_name'] ?? 'Sistema'), 12) }}
+                                            </span>
+                                            <span>{{ $log->created_at->format('d/m H:i') }}</span>
+                                        </div>
+                                        @if($log->audit_id)
+                                            <div class="mt-2">
+                                                @if($isCurrent)
+                                                    <span class="badge bg-light text-dark border w-100" style="font-size: 0.65rem;">
+                                                        <i class="icon-eye me-1"></i> Vista actual
+                                                    </span>
+                                                @else
+                                                    <a href="{{ route('platform.audit.detail', $log->audit_id) }}"
+                                                       class="btn btn-sm btn-outline-primary py-0 px-2 w-100" style="font-size: 0.7rem;">
+                                                        <i class="icon-eye me-1"></i> Ver auditoría
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    {{-- LISTA (oculta por defecto) --}}
+                    <div class="timeline-container" id="historyList" style="display: none; max-height: 400px; overflow-y: auto;">
+                        @foreach($activityLogs as $log)
+                            <div class="d-flex mb-3 pb-3 border-bottom" style="overflow: hidden;">
                                     <div class="flex-shrink-0 me-3">
                                         @php
                                             $iconClass = match($log->activity_type) {
@@ -410,14 +511,22 @@
                                 </div>
                             @endforeach
                         </div>
-                    @else
-                        <div class="text-center py-4 text-muted">
-                            <i class="icon-clock" style="font-size: 3rem; opacity: 0.3;"></i>
-                            <p class="mt-2 mb-0">No hay actividad registrada para este espacio.</p>
-                            <small>Las actividades futuras aparecerán aquí.</small>
-                        </div>
-                    @endif
-                </div>
+                @else
+                    <div class="text-center py-4 text-muted">
+                        <i class="icon-clock" style="font-size: 3rem; opacity: 0.3;"></i>
+                        <p class="mt-2 mb-0">No hay actividad registrada para este espacio.</p>
+                        <small>Las actividades futuras aparecerán aquí.</small>
+                    </div>
+                @endif
+            </div>
+
+            @push('stylesheets')
+                <link rel="stylesheet" href="{{ asset('css/fishbone.css') }}">
+            @endpush
+
+            @push('scripts')
+                <script src="{{ asset('js/fishbone.js') }}"></script>
+            @endpush
 
             </div>
 
