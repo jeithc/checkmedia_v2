@@ -183,7 +183,7 @@ class AdvisualRequisitionService
             throw new \RuntimeException('AdvertisingSpace external_code is missing.');
         }
 
-        $row = DB::connection('advisual')->selectOne(
+        $row = $this->selectAdvisualOne(
             'SELECT TOP 1 e.EspacioLocacionCodigo, l.ProductoCodigo
              FROM Espacio e
              INNER JOIN Locacion l ON l.LocacionCodigo = e.EspacioLocacionCodigo
@@ -257,7 +257,7 @@ class AdvisualRequisitionService
         }
 
         try {
-            $row = DB::connection('advisual')->selectOne(
+            $row = $this->selectAdvisualOne(
                 "SELECT TOP 1 UnidadCodigo FROM Unidadmedida WHERE UnidadDefault = '1'"
             );
             if ($row && isset($row->UnidadCodigo)) {
@@ -303,6 +303,33 @@ class AdvisualRequisitionService
         } catch (\Exception $eOdbc) {
             try {
                 DB::connection('advisual')->statement($sql, $bindings);
+            } catch (\Exception $eNative) {
+                throw new \Exception('ODBC Error: ' . $eOdbc->getMessage() . ' | Native Error: ' . $eNative->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Run a SELECT on Advisual using FreeTDS ODBC first, native sqlsrv as fallback.
+     */
+    private function selectAdvisualOne(string $sql, array $bindings = [])
+    {
+        try {
+            $username = config('database.connections.advisual.username');
+            $password = config('database.connections.advisual.password');
+            $database = config('database.connections.advisual.database');
+            $host = config('database.connections.advisual.host');
+            $port = config('database.connections.advisual.port', '1433');
+
+            $dsn = "odbc:Driver=FreeTDS;Server={$host};Port={$port};Database={$database};TDS_Version=7.4;";
+            $pdo = new \PDO($dsn, $username, $password);
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($bindings);
+            $row = $stmt->fetch(\PDO::FETCH_OBJ);
+            return $row ?: null;
+        } catch (\Exception $eOdbc) {
+            try {
+                return DB::connection('advisual')->selectOne($sql, $bindings);
             } catch (\Exception $eNative) {
                 throw new \Exception('ODBC Error: ' . $eOdbc->getMessage() . ' | Native Error: ' . $eNative->getMessage());
             }
