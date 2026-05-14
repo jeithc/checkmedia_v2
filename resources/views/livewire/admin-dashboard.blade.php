@@ -1,23 +1,78 @@
 <div>
-    <!-- Date Range Filter -->
-    <div class="bg-white rounded shadow-sm p-4 mb-4 d-flex align-items-center gap-3 flex-wrap">
-        <span class="text-muted small text-uppercase fw-bold text-nowrap">Filtrar por fecha:</span>
-        <div class="d-flex align-items-center gap-2">
-            <label for="dateFrom" class="text-muted small mb-0 text-nowrap">Desde</label>
-            <input type="date" id="dateFrom" wire:model="dateFrom" class="form-control form-control-sm" style="width: auto;">
+    <!-- Filtros del Dashboard -->
+    <div class="bg-white rounded shadow-sm p-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0 text-muted small text-uppercase fw-bold">Filtros</h6>
+            @if(!$isDefaultWeek)
+                <button wire:click="resetFilters" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+                </button>
+            @endif
         </div>
-        <div class="d-flex align-items-center gap-2">
-            <label for="dateTo" class="text-muted small mb-0 text-nowrap">Hasta</label>
-            <input type="date" id="dateTo" wire:model="dateTo" class="form-control form-control-sm" style="width: auto;">
+        <div class="row g-2">
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small text-muted mb-1">Código espacio</label>
+                <input type="text" wire:model.defer="externalCode" class="form-control form-control-sm" placeholder="Ej: AER-001">
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small text-muted mb-1">Ciudad</label>
+                <select wire:model.defer="city" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    @foreach($filterOptions['cities'] as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small text-muted mb-1">Producto</label>
+                <select wire:model.defer="producto" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    @foreach($filterOptions['productos'] as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small text-muted mb-1">Categoría</label>
+                <select wire:model.defer="category" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    @foreach($filterOptions['categories'] as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small text-muted mb-1">Tipo mantenimiento</label>
+                <select wire:model.defer="maintenanceType" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    @foreach($filterOptions['maintenanceTypes'] as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small text-muted mb-1">Estado</label>
+                <select wire:model.defer="status" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    @foreach($filterOptions['auditStatuses'] as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small text-muted mb-1">Desde</label>
+                <input type="date" wire:model.defer="dateFrom" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small text-muted mb-1">Hasta</label>
+                <input type="date" wire:model.defer="dateTo" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3 col-lg-2 d-flex align-items-end">
+                <button wire:click="filter" class="btn btn-sm btn-primary w-100">
+                    <i class="bi bi-funnel"></i> Aplicar filtros
+                </button>
+            </div>
         </div>
-        <button wire:click="filter" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
-            <i class="bs.funnel"></i> Filtrar
-        </button>
-        @unless($isDefaultWeek)
-            <button wire:click="resetDates" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
-                <i class="bs.arrow-counterclockwise"></i> Semana actual
-            </button>
-        @endunless
     </div>
 
     <!-- Metrics Section -->
@@ -298,6 +353,63 @@
                 @endif
             </div>
         </div>
+    </div>
+
+    <!-- Listado de Auditorías -->
+    <div class="bg-white rounded shadow-sm overflow-hidden mb-4">
+        <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 text-muted small text-uppercase fw-bold">Auditorías</h6>
+            <small class="text-muted">{{ $audits->total() }} resultados</small>
+        </div>
+        <div class="table-responsive" wire:loading.class="opacity-50">
+            <table class="table table-hover mb-0">
+                <thead class="bg-light text-muted small text-uppercase fw-bold">
+                    <tr>
+                        <th class="px-4 py-3">Código</th>
+                        <th class="px-4 py-3">Ciudad</th>
+                        <th class="px-4 py-3">Producto</th>
+                        <th class="px-4 py-3">Tipo</th>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Auditor</th>
+                        <th class="px-4 py-3">Fecha</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($audits as $audit)
+                        <tr>
+                            <td class="px-4 py-3 fw-bold">{{ $audit->space->external_code ?? '—' }}</td>
+                            <td class="px-4 py-3">{{ $audit->space->city ?? '—' }}</td>
+                            <td class="px-4 py-3">{{ $audit->space->type ?? '—' }}</td>
+                            <td class="px-4 py-3">
+                                <span class="badge bg-{{ $audit->audit_type === 'structural' ? 'warning' : 'primary' }}">
+                                    {{ ['general' => 'General', 'structural' => 'Estructural'][$audit->audit_type] ?? '—' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="badge bg-{{ $audit->general_status === 'bad' ? 'danger' : 'success' }}">
+                                    {{ $audit->general_status === 'bad' ? 'Malo' : 'Bueno' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">{{ $audit->user->name ?? '—' }}</td>
+                            <td class="px-4 py-3">{{ optional($audit->audit_date)->format('Y-m-d') }}</td>
+                            <td class="px-4 py-3 text-end">
+                                <a href="{{ route('platform.audit.detail', $audit) }}" class="btn btn-sm btn-outline-primary">Ver</a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">Sin auditorías para los filtros aplicados.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($audits->hasPages())
+            <div class="px-4 py-3 border-top">
+                {{ $audits->links() }}
+            </div>
+        @endif
     </div>
 
     <!-- Top Espacios con Errores -->

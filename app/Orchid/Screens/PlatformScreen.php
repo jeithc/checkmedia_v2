@@ -6,7 +6,10 @@ namespace App\Orchid\Screens;
 
 use App\Models\Audit;
 use App\Models\Maintenance;
+use App\Services\AuditDashboardFilterService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
@@ -15,8 +18,9 @@ class PlatformScreen extends Screen
 {
     private bool $hasAuditData = false;
     private bool $hasPoValueData = false;
+    private bool $hasMonthlyData = false;
 
-    public function query(): iterable
+    public function query(Request $request, AuditDashboardFilterService $filterService): iterable
     {
         $dateFrom = request('from', now()->startOfWeek()->format('Y-m-d'));
         $dateTo = request('to', now()->endOfWeek()->format('Y-m-d'));
@@ -24,43 +28,75 @@ class PlatformScreen extends Screen
         $dateFromCarbon = Carbon::parse($dateFrom);
         $dateToCarbon = Carbon::parse($dateTo);
 
+        $filters = $filterService->parseFromRequest($request);
+
         $this->hasAuditData = Audit::whereDate('audit_date', '>=', $dateFrom)
             ->whereDate('audit_date', '<=', $dateTo)
             ->exists();
 
         $poValueStatus = $this->buildPoValueStatusData();
 
+        $driver = DB::connection()->getDriverName();
+        $monthAudit = $this->monthExpr($driver, 'audits.audit_date');
+        $monthPo    = $this->monthExpr($driver, 'maintenances.advisual_purchase_order_created_at');
+
+        // 1) Auditorías por mes (SQL GROUP BY)
+        $auditMonthRows = $filterService->applyToAuditQuery(Audit::query(), $filters)
+            ->selectRaw("$monthAudit as month, COUNT(*) as total")
+            ->groupBy('month')
+            ->orderBy('month')
+            ->pluck('total', 'month');
+
+        // 2) Novedades por estado + categoría (SQL GROUP BY)
+        $maintCategoryRows = $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters)
+            ->selectRaw('maintenances.category as category, maintenances.status as status, COUNT(*) as total')
+            ->whereNotNull('maintenances.category')
+            ->groupBy('maintenances.category', 'maintenances.status')
+            ->get();
+
+        // 3) Costo OC por mes (SQL GROUP BY + SUM)
+        $poCostRows = $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters)
+            ->whereNotNull('maintenances.advisual_purchase_order_id')
+            ->whereNotNull('maintenances.advisual_purchase_order_created_at')
+            ->selectRaw("$monthPo as month, COALESCE(SUM(maintenances.advisual_purchase_order_total), 0) as total")
+            ->groupBy('month')
+            ->orderBy('month')
+            ->pluck('total', 'month');
+
+        $auditsOverTime = $this->shapeSingleSeries('Auditorías', $auditMonthRows);
+        $maintenanceStatus = $this->shapeMaintenanceStatus($maintCategoryRows);
+        $purchaseOrderCostTrend = $this->shapeSingleSeries('Costo OC', $poCostRows);
+
+        $this->hasMonthlyData = $auditMonthRows->isNotEmpty() || $maintCategoryRows->isNotEmpty() || $poCostRows->isNotEmpty();
+
+        $payload = [
+            'purchase_order_value_status' => $poValueStatus,
+            'audits_over_time' => $auditsOverTime,
+            'maintenance_status' => $maintenanceStatus,
+            'purchase_order_cost_trend' => $purchaseOrderCostTrend,
+        ];
+
         if (!$this->hasAuditData) {
-            return [
-                'purchase_order_value_status' => $poValueStatus,
-            ];
+            return $payload;
         }
 
-        $goodAudits = Audit::where('audit_date', '>=', $dateFromCarbon)
-            ->where('audit_date', '<=', $dateToCarbon)
-            ->where('general_status', 'good')
-            ->countByDays($dateFromCarbon, $dateToCarbon, 'audit_date')
-            ->toChart('Bueno', fn($label) => Carbon::parse($label)->format('d/m'));
+        $auditQueryFiltered = fn () => $filterService->applyToAuditQuery(Audit::query(), $filters);
 
-        $badAudits = Audit::where('audit_date', '>=', $dateFromCarbon)
-            ->where('audit_date', '<=', $dateToCarbon)
-            ->where('general_status', 'bad')
-            ->countByDays($dateFromCarbon, $dateToCarbon, 'audit_date')
-            ->toChart('Malo', fn($label) => Carbon::parse($label)->format('d/m'));
+        $goodAudits = (clone $auditQueryFiltered())
+            ->where('audits.general_status', 'good')
+            ->countByDays($dateFromCarbon, $dateToCarbon, 'audits.audit_date')
+            ->toChart('Bueno', fn ($label) => Carbon::parse($label)->format('d/m'));
 
-        $goodCount = Audit::whereDate('audit_date', '>=', $dateFrom)
-            ->whereDate('audit_date', '<=', $dateTo)
-            ->where('general_status', 'good')
-            ->count();
+        $badAudits = (clone $auditQueryFiltered())
+            ->where('audits.general_status', 'bad')
+            ->countByDays($dateFromCarbon, $dateToCarbon, 'audits.audit_date')
+            ->toChart('Malo', fn ($label) => Carbon::parse($label)->format('d/m'));
 
-        $badCount = Audit::whereDate('audit_date', '>=', $dateFrom)
-            ->whereDate('audit_date', '<=', $dateTo)
-            ->where('general_status', 'bad')
-            ->count();
+        $goodCount = (clone $auditQueryFiltered())->where('audits.general_status', 'good')->count();
+        $badCount  = (clone $auditQueryFiltered())->where('audits.general_status', 'bad')->count();
 
-        return [
+        return array_merge($payload, [
             'audit_line_chart' => [$goodAudits, $badAudits],
-            'purchase_order_value_status' => $poValueStatus,
             'audit_pie_chart' => [
                 [
                     'name' => 'Estado de Auditorías',
@@ -75,6 +111,51 @@ class PlatformScreen extends Screen
                     })(),
                 ],
             ],
+        ]);
+    }
+
+    private function monthExpr(string $driver, string $column): string
+    {
+        return $driver === 'sqlite'
+            ? "strftime('%Y-%m', $column)"
+            : "DATE_FORMAT($column, '%Y-%m')";
+    }
+
+    private function shapeSingleSeries(string $name, \Illuminate\Support\Collection $rows): array
+    {
+        $labels = $rows->keys()->values()->all();
+        $values = $rows->values()->map(fn ($v) => round((float) $v, 2))->all();
+
+        return [
+            [
+                'name'   => $name,
+                'values' => empty($values) ? [0] : $values,
+                'labels' => empty($labels) ? ['N/A'] : $labels,
+            ],
+        ];
+    }
+
+    private function shapeMaintenanceStatus(\Illuminate\Support\Collection $rows): array
+    {
+        if ($rows->isEmpty()) {
+            return [
+                ['name' => 'Abiertas', 'values' => [0], 'labels' => ['N/A']],
+                ['name' => 'Cerradas', 'values' => [0], 'labels' => ['N/A']],
+            ];
+        }
+
+        $categories = $rows->pluck('category')->unique()->values();
+
+        $open = [];
+        $closed = [];
+        foreach ($categories as $cat) {
+            $open[]   = (int) $rows->where('category', $cat)->where('status', '!=', Maintenance::STATUS_CLOSED)->sum('total');
+            $closed[] = (int) $rows->where('category', $cat)->where('status', Maintenance::STATUS_CLOSED)->sum('total');
+        }
+
+        return [
+            ['name' => 'Abiertas', 'values' => $open, 'labels' => $categories->all()],
+            ['name' => 'Cerradas', 'values' => $closed, 'labels' => $categories->all()],
         ];
     }
 
@@ -145,6 +226,14 @@ class PlatformScreen extends Screen
 
         if ($this->hasPoValueData) {
             $layouts[] = \App\Orchid\Layouts\Dashboard\PurchaseOrderValueStatusChart::class;
+        }
+
+        if ($this->hasMonthlyData) {
+            $layouts[] = Layout::columns([
+                \App\Orchid\Layouts\Dashboard\AuditsOverTimeChart::class,
+                \App\Orchid\Layouts\Dashboard\PurchaseOrderCostTrendChart::class,
+            ]);
+            $layouts[] = \App\Orchid\Layouts\Dashboard\MaintenanceStatusChart::class;
         }
 
         return $layouts;
