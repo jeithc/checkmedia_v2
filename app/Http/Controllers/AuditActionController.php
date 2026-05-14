@@ -281,7 +281,7 @@ class AuditActionController extends Controller
                 'audit_id' => $audit->id,
                 'requested_by' => auth()->id(),
                 'requested_at' => now(),
-                'type' => 'preventive',
+                'type' => Maintenance::TYPE_CORRECTIVE,
                 'category' => $primaryCategory,
                 'status' => Maintenance::STATUS_REPORTED,
                 'priority' => $request->input('maintenance_priority'),
@@ -306,11 +306,11 @@ class AuditActionController extends Controller
         SpaceActivityLog::log(
             spaceId: $audit->advertising_space_id,
             type: SpaceActivityLog::TYPE_MAINTENANCE_REQUESTED,
-            description: "Mantenimiento preventivo solicitado para: {$criteriaNames}. Prioridad: " . $request->input('maintenance_priority'),
+            description: "Mantenimiento correctivo solicitado para: {$criteriaNames}. Prioridad: " . $request->input('maintenance_priority'),
             auditId: $audit->id,
             metadata: [
                 'maintenance_id' => $maintenance->id,
-                'type' => 'preventive',
+                'type' => Maintenance::TYPE_CORRECTIVE,
                 'category' => $primaryCategory,
                 'categories' => $criteriaCategories,
                 'criteria_names' => $criteriaNames,
