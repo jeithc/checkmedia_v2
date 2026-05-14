@@ -15,54 +15,6 @@ use Orchid\Support\Facades\Toast;
 class AuditActionController extends Controller
 {
     /**
-     * Mark audit as Third Party and approve all criteria.
-     */
-    public function markAsThirdParty(Audit $audit)
-    {
-        abort_unless(auth()->user()->hasAccess('audit.close_with_error'), 403);
-        $oldStatus = $audit->general_status;
-
-        // 1. Update Space
-        $audit->space->is_third_party = true;
-        $audit->space->third_party_user_id = auth()->id();
-        $audit->space->third_party_modified_at = now();
-        $audit->space->save();
-
-        // 2. Update Audit Values
-        foreach ($audit->values as $value) {
-            $value->value = 'good';
-            // Comment removed from audit_values table
-            $value->save();
-        }
-
-        // 3. Update Audit Status
-        $audit->general_status = 'good';
-        if (!str_contains($audit->observation ?? '', '[Marcado como Tercero]')) {
-            $audit->observation = trim(($audit->observation ?? '') . " [Marcado como Tercero]");
-        }
-        $audit->save();
-
-        // 4. Log Activity
-        SpaceActivityLog::log(
-            spaceId: $audit->advertising_space_id,
-            type: SpaceActivityLog::TYPE_MARKED_THIRD_PARTY,
-            description: 'Espacio marcado como TERCERO. Todos los criterios aprobados automáticamente.',
-            auditId: $audit->id,
-            metadata: [
-                'old_status' => $oldStatus,
-                'new_status' => 'good',
-                'user_name' => auth()->user()->name,
-            ],
-            year: $audit->year,
-            week: $audit->week
-        );
-
-        Toast::info('La auditoría se ha marcado como Tercero y todos los criterios están Aprobados.');
-
-        return back();
-    }
-
-    /**
      * Handle "Cargar Revisión" - Upload proof of fix.
      */
     public function uploadRevision(Request $request, Audit $audit)

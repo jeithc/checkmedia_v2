@@ -105,18 +105,6 @@
                 </div>
             </div>
 
-            <!-- Third Party Filter -->
-            <div class="col-12 col-sm-6 col-lg-2">
-                <div class="filter-group">
-                    <label class="small text-muted fw-bold mb-1 d-block">Tercerizado</label>
-                    <select class="form-select form-select-sm" wire:model.live="filterIsThirdParty">
-                        <option value="">(Todos)</option>
-                        <option value="1">Sí</option>
-                        <option value="0">No</option>
-                    </select>
-                </div>
-            </div>
-
             <!-- Search -->
             <div class="col-12 col-sm-6 col-lg-2">
                 <div class="filter-group">

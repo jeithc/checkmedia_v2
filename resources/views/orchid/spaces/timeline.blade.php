@@ -234,7 +234,6 @@
                 <option value="">Todos los tipos</option>
                 <option value="audit_created" @selected($activityFilters['activity_type'] === 'audit_created')>Auditoría Creada</option>
                 <option value="audit_updated" @selected($activityFilters['activity_type'] === 'audit_updated')>Auditoría Actualizada</option>
-                <option value="marked_third_party" @selected($activityFilters['activity_type'] === 'marked_third_party')>Marcado Tercero</option>
                 <option value="resolution_uploaded" @selected($activityFilters['activity_type'] === 'resolution_uploaded')>Revisión Cargada</option>
                 <option value="maintenance_requested" @selected($activityFilters['activity_type'] === 'maintenance_requested')>Mantenimiento Solicitado</option>
                 <option value="maintenance_closed" @selected($activityFilters['activity_type'] === 'maintenance_closed')>Mantenimiento Cerrado</option>

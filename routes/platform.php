@@ -57,8 +57,6 @@ Route::screen('/dashboard2', AuditDashboardScreen::class)
 // Audit Actions - Using distinct path to avoid Orchid screen route conflict
 use App\Http\Controllers\AuditActionController;
 
-Route::post('audit-action/{audit}/third-party', [AuditActionController::class, 'markAsThirdParty'])
-    ->name('platform.audit.action.third-party');
 Route::post('audit-action/{audit}/upload-revision', [AuditActionController::class, 'uploadRevision'])
     ->name('platform.audit.action.upload-revision');
 Route::post('audit-action/{audit}/update', [AuditActionController::class, 'updateAudit'])

@@ -84,15 +84,6 @@
 
             <!-- Action Buttons -->
             <div class="d-flex gap-2 mb-3">
-                @if(auth()->user()->hasAccess('audit.close_with_error'))
-                    <!-- Tercero Button (Orange) - Uses fetch API to submit -->
-                    <button type="button" class="btn text-white fw-bold px-4"
-                        style="background-color: #FFA500; border: none;"
-                        onclick="submitTercero()">
-                            Tercero
-                        </button>
-                @endif
-
                 @if(auth()->user()->hasAccess('audit.upload_fixes') && !$audit->hasOpenMaintenance())
                     <!-- Cargar Revisión (Green) - Triggers Modal -->
                     <button type="button" class="btn btn-success text-white fw-bold px-4" data-bs-toggle="modal"
@@ -164,56 +155,6 @@
             
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
             <script>
-                function submitTercero() {
-                    Swal.fire({
-                        title: '¿Marcar como TERCERO?',
-                        html: `
-                            <div class="text-start">
-                                <p class="mb-2">Al colocar estado <strong class="text-warning">TERCERO</strong> ocurrirá lo siguiente:</p>
-                                <ul class="text-muted small">
-                                    <li>Todos los reportes anteriores cambiarán a estado <strong class="text-success">OK</strong></li>
-                                    <li>Este espacio quedará marcado como gestionado por terceros</li>
-                                </ul>
-                            </div>
-                        `,
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonColor: '#FFA500',
-                        cancelButtonColor: '#6c757d',
-                        confirmButtonText: 'Sí, marcar como Tercero',
-                        cancelButtonText: 'Cancelar',
-                        reverseButtons: true
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            // Show loading
-                            Swal.fire({
-                                title: 'Procesando...',
-                                text: 'Actualizando estado del espacio',
-                                allowOutsideClick: false,
-                                allowEscapeKey: false,
-                                didOpen: () => {
-                                    Swal.showLoading();
-                                }
-                            });
-                            
-                            // Create and submit form dynamically
-                            var form = document.createElement('form');
-                            form.method = 'POST';
-                            form.action = '{{ url("/admin/audit-action/" . $audit->id . "/third-party") }}';
-                            
-                            var csrf = document.createElement('input');
-                            csrf.type = 'hidden';
-                            csrf.name = '_token';
-                            csrf.value = '{{ csrf_token() }}';
-                            form.appendChild(csrf);
-                            
-                            bypassOrchidDirtyCheck();
-                            document.body.appendChild(form);
-                            form.submit();
-                        }
-                    });
-                }
-                
                 // Función para evitar la alerta de cambios sin guardar de Orchid
                 function bypassOrchidDirtyCheck() {
                     const postForm = document.getElementById('post-form');
@@ -480,24 +421,6 @@
 
             </div>
 
-            <!-- Third Party Info (if applicable) -->
-            @if($audit->space->is_third_party)
-                <div class="alert alert-warning mt-3 mb-0 d-flex align-items-center">
-                    <i class="icon-people me-2" style="font-size: 1.5rem;"></i>
-                    <div>
-                        <strong>Este espacio está marcado como TERCERO</strong>
-                        @if($audit->space->third_party_modified_at)
-                            <br>
-                            <small class="text-muted">
-                                Marcado el {{ \Carbon\Carbon::parse($audit->space->third_party_modified_at)->format('d/m/Y H:i') }}
-                                @if($audit->space->third_party_user_id)
-                                    por {{ \App\Models\User::find($audit->space->third_party_user_id)?->name ?? 'Usuario desconocido' }}
-                                @endif
-                            </small>
-                        @endif
-                    </div>
-                </div>
-            @endif
         </div>
     </div>
 </div>

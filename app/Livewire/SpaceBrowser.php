@@ -14,7 +14,6 @@ class SpaceBrowser extends Component
     public $filterCity = '';
     public $filterLocation = '';
     public $filterStatus = '';
-    public $filterIsThirdParty = '';
     public $search = '';
 
     use WithPagination;
@@ -40,19 +39,15 @@ class SpaceBrowser extends Component
 
     public function render()
     {
-        // Helper to apply "orthogonal" filters (Status, ThirdParty)
         $applyOrthogonal = function ($q) {
             if (!empty($this->filterStatus)) {
                 $q->whereHas('latestAudit', function ($subQ) {
                     $subQ->where('general_status', $this->filterStatus);
                 });
             }
-            if ($this->filterIsThirdParty !== '') {
-                $q->where('is_third_party', $this->filterIsThirdParty);
-            }
         };
 
-        // 1. Load Categories (Filtered by Status & ThirdParty)
+        // 1. Load Categories (Filtered by Status)
         $categoriesQuery = AdvertisingSpace::select('category')
             ->distinct()
             ->whereNotNull('category');

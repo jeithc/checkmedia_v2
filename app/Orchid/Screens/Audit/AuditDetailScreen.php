@@ -137,32 +137,4 @@ class AuditDetailScreen extends Screen
         ];
     }
 
-    /**
-     * Mark audit as Third Party (Tercero).
-     */
-    public function markAsThirdParty(Audit $audit)
-    {
-        // 1. Mark Space as third party
-        $audit->space->is_third_party = true;
-        // Optionally store WHO marked it and WHEN
-        if (\Illuminate\Support\Facades\Schema::hasColumn('advertising_spaces', 'third_party_user_id')) {
-            $audit->space->third_party_user_id = auth()->id();
-            $audit->space->third_party_modified_at = now();
-        }
-        $audit->space->save();
-
-        // 2. Update all values to 'good'
-        foreach ($audit->values as $value) {
-            $value->value = 'good';
-            $value->comment = 'Marcado como Tercero - Automático';
-            $value->save();
-        }
-
-        // 3. Update General Status
-        $audit->general_status = 'good';
-        $audit->observation = trim($audit->observation . " [Marcado como Tercero]");
-        $audit->save();
-
-        Toast::info('La auditoría se ha marcado como Tercero y todos los criterios están Aprobados.');
-    }
 }
