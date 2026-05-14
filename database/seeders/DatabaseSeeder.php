@@ -31,5 +31,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(AuditCriterionSeeder::class);
+        $this->call(MaintenanceCategorySeeder::class);
     }
 }

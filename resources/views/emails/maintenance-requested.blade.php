@@ -16,7 +16,7 @@
         </tr>
         <tr>
             <td style="padding: 8px 12px; border-bottom: 1px solid #eee; font-weight: bold;">Categoría</td>
-            <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">{{ ucfirst($maintenance->category ?? 'N/A') }}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">{{ $maintenance->category_label }}</td>
         </tr>
         <tr>
             <td style="padding: 8px 12px; border-bottom: 1px solid #eee; font-weight: bold;">Unidad de Negocio</td>

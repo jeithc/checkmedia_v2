@@ -23,13 +23,6 @@ class Maintenance extends Model
 
     const TYPE_PREVENTIVE = 'preventive';
 
-    public const CATEGORIES = [
-        'estructural' => 'Estructural',
-        'ambiental' => 'Ambiental',
-        'electrico' => 'Eléctrico',
-        'material' => 'Material',
-    ];
-
     protected $fillable = [
         'advertising_space_id',
         'audit_id',
@@ -127,6 +120,11 @@ class Maintenance extends Model
     public function hasPurchaseOrder(): bool
     {
         return ! empty($this->advisual_purchase_order_id);
+    }
+
+    public function getCategoryLabelAttribute(): string
+    {
+        return MaintenanceCategory::label($this->category);
     }
 
     public function getStatusLabelAttribute(): string

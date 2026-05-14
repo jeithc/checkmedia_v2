@@ -31,7 +31,7 @@ class MaintenanceListLayout extends Table
 
             TD::make('category', 'Categoría')
                 ->sort()
-                ->render(fn(Maintenance $m) => ucfirst($m->category ?? 'N/A')),
+                ->render(fn(Maintenance $m) => $m->category_label),
 
             TD::make('priority', 'Prioridad')
                 ->sort()

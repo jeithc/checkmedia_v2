@@ -35,7 +35,7 @@
             <table class="table table-sm table-borderless mb-0">
                 <tr>
                     <td class="text-muted fw-bold" style="width: 40%;">Categoría</td>
-                    <td>{{ ucfirst($maintenance->category ?? 'N/A') }}</td>
+                    <td>{{ $maintenance->category_label }}</td>
                 </tr>
                 <tr>
                     <td class="text-muted fw-bold">Tipo</td>

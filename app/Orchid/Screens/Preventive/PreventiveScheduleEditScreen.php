@@ -73,7 +73,7 @@ class PreventiveScheduleEditScreen extends Screen
      */
     public function layout(): iterable
     {
-        $elementTypes = \App\Models\Maintenance::CATEGORIES;
+        $elementTypes = \App\Models\MaintenanceCategory::options();
         $units = \App\Models\AdvertisingSpace::select('category')->distinct()->whereNotNull('category')->where('category', '!=', '')->pluck('category', 'category')->toArray();
         $cities = \App\Models\AdvertisingSpace::select('city')->distinct()->whereNotNull('city')->where('city', '!=', '')->pluck('city', 'city')->toArray();
 
