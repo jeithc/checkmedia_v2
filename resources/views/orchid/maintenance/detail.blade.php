@@ -115,6 +115,86 @@
         </div>
     </div>
 
+    <!-- Orden de Compra (Advisual) -->
+    @if($maintenance->advisual_requisition_id)
+    <div class="col-12 mb-3">
+        <div class="bg-white rounded shadow-sm p-3">
+            <h6 class="text-dark fw-bold border-bottom pb-2 mb-3 d-flex justify-content-between align-items-center">
+                <span><i class="icon-doc me-2"></i>Orden de Compra (Advisual)</span>
+                @if($maintenance->advisual_purchase_order_id)
+                    <span class="badge bg-success">OC #{{ $maintenance->advisual_purchase_order_id }}</span>
+                @elseif($maintenance->advisual_purchase_order_sync_error)
+                    <span class="badge bg-danger">Error</span>
+                @else
+                    <span class="badge bg-warning text-dark">Requisición sin OC todavía</span>
+                @endif
+            </h6>
+
+            @if($maintenance->advisual_purchase_order_sync_error)
+                <div class="alert alert-danger py-2 mb-3 small">
+                    <i class="icon-exclamation me-1"></i>{{ $maintenance->advisual_purchase_order_sync_error }}
+                </div>
+            @endif
+
+            @if($maintenance->advisual_purchase_order_id)
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted fw-bold" style="width: 45%;">OC / Línea</td>
+                            <td>{{ $maintenance->advisual_purchase_order_id }} / {{ $maintenance->advisual_purchase_order_line_id ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-bold">Descripción</td>
+                            <td>{{ $maintenance->advisual_purchase_order_description ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-bold">Cantidad</td>
+                            <td>{{ $maintenance->advisual_purchase_order_quantity ? rtrim(rtrim(number_format((float) $maintenance->advisual_purchase_order_quantity, 4, '.', ','), '0'), '.') : '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-bold">Valor unitario</td>
+                            <td>{{ $maintenance->advisual_purchase_order_unit_price ? '$ ' . number_format((float) $maintenance->advisual_purchase_order_unit_price, 2, ',', '.') : '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-bold">Total</td>
+                            <td><strong class="text-success">{{ $maintenance->advisual_purchase_order_total ? '$ ' . number_format((float) $maintenance->advisual_purchase_order_total, 2, ',', '.') : '-' }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted fw-bold" style="width: 45%;">Creación OC</td>
+                            <td>{{ $maintenance->advisual_purchase_order_created_at?->format('d/m/Y') ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-bold">Fecha compromiso</td>
+                            <td>{{ $maintenance->advisual_purchase_order_committed_at?->format('d/m/Y') ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-bold">Fecha ejecución</td>
+                            <td>{{ $maintenance->advisual_purchase_order_executed_at?->format('d/m/Y') ?? '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted fw-bold">Última verificación</td>
+                            <td>{{ $maintenance->advisual_purchase_order_last_checked_at?->format('d/m/Y H:i') ?? '-' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            @else
+            <p class="text-muted mb-0 small">
+                La requisición {{ $maintenance->advisual_requisition_id }} aún no ha sido convertida en orden de compra en Advisual.
+                @if($maintenance->advisual_purchase_order_last_checked_at)
+                    Última verificación: {{ $maintenance->advisual_purchase_order_last_checked_at->format('d/m/Y H:i') }}.
+                @endif
+            </p>
+            @endif
+        </div>
+    </div>
+    @endif
+
     <!-- Close Form (if open) -->
     @if($maintenance->canBeClosed() && auth()->user()->hasAccess('maintenance.close'))
     <div class="col-12 mb-3">
