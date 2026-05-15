@@ -184,9 +184,22 @@ class AdminDashboard extends Component
             ],
         ];
 
-        // --- KPI: Open vs Closed maintenances (con filtros aplicados) ---
-        $openMaintenances = (clone $maintenanceBase())->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])->count();
-        $closedMaintenances = (clone $maintenanceBase())->where('maintenances.status', Maintenance::STATUS_CLOSED)->count();
+        // --- KPI: Novedades Abiertas vs Cerradas ---
+        // Una novedad = audit_value vinculado a maintenance via pivot. Una maintenance puede cubrir varios audit_values.
+        $novedadesBase = fn () => (clone $maintenanceBase())
+            ->join('maintenance_audit_value as mav', 'mav.maintenance_id', '=', 'maintenances.id')
+            ->join('audit_values as av', 'av.id', '=', 'mav.audit_value_id');
+
+        $openMaintenances = $novedadesBase()
+            ->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])
+            ->distinct('av.id')
+            ->count('av.id');
+
+        $closedMaintenances = $novedadesBase()
+            ->where('maintenances.status', Maintenance::STATUS_CLOSED)
+            ->distinct('av.id')
+            ->count('av.id');
+
         $totalMaintenances = $openMaintenances + $closedMaintenances;
 
         // --- KPI: Average closure time (days) — single SQL aggregate, driver-portable ---
