@@ -3,12 +3,20 @@
 namespace App\Services;
 
 use App\Models\Maintenance;
+use App\Services\Advisual\AdvisualConnector;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AdvisualRequisitionService
 {
     private ?int $cachedUnidadCodigo = null;
+
+    protected AdvisualConnector $connector;
+
+    public function __construct(?AdvisualConnector $connector = null)
+    {
+        $this->connector = $connector ?? new AdvisualConnector();
+    }
 
     /**
      * Create a requisition in Advisual (SQL Server) for the given maintenance.
@@ -283,57 +291,14 @@ class AdvisualRequisitionService
         );
     }
 
-    /**
-     * Run a write statement on Advisual using FreeTDS ODBC first, native sqlsrv as fallback.
-     * Mirrors the dual-path strategy used by the parent Requisicion insert above.
-     */
     private function executeAdvisualWrite(string $sql, array $bindings): void
     {
-        try {
-            $username = config('database.connections.advisual.username');
-            $password = config('database.connections.advisual.password');
-            $database = config('database.connections.advisual.database');
-            $host = config('database.connections.advisual.host');
-            $port = config('database.connections.advisual.port', '1433');
-
-            $dsn = "odbc:Driver=FreeTDS;Server={$host};Port={$port};Database={$database};TDS_Version=7.4;";
-            $pdo = new \PDO($dsn, $username, $password);
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($bindings);
-        } catch (\Exception $eOdbc) {
-            try {
-                DB::connection('advisual')->statement($sql, $bindings);
-            } catch (\Exception $eNative) {
-                throw new \Exception('ODBC Error: ' . $eOdbc->getMessage() . ' | Native Error: ' . $eNative->getMessage());
-            }
-        }
+        $this->connector->statement($sql, $bindings);
     }
 
-    /**
-     * Run a SELECT on Advisual using FreeTDS ODBC first, native sqlsrv as fallback.
-     */
     private function selectAdvisualOne(string $sql, array $bindings = [])
     {
-        try {
-            $username = config('database.connections.advisual.username');
-            $password = config('database.connections.advisual.password');
-            $database = config('database.connections.advisual.database');
-            $host = config('database.connections.advisual.host');
-            $port = config('database.connections.advisual.port', '1433');
-
-            $dsn = "odbc:Driver=FreeTDS;Server={$host};Port={$port};Database={$database};TDS_Version=7.4;";
-            $pdo = new \PDO($dsn, $username, $password);
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($bindings);
-            $row = $stmt->fetch(\PDO::FETCH_OBJ);
-            return $row ?: null;
-        } catch (\Exception $eOdbc) {
-            try {
-                return DB::connection('advisual')->selectOne($sql, $bindings);
-            } catch (\Exception $eNative) {
-                throw new \Exception('ODBC Error: ' . $eOdbc->getMessage() . ' | Native Error: ' . $eNative->getMessage());
-            }
-        }
+        return $this->connector->selectOne($sql, $bindings);
     }
 
     protected function markError(Maintenance $maintenance, string $error): void

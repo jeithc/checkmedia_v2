@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Maintenance;
+use App\Services\Advisual\AdvisualConnector;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\DatabaseManager;
@@ -11,9 +12,12 @@ use Illuminate\Support\Facades\Log;
 
 class AdvisualPurchaseOrderSyncService
 {
-    public function __construct(
-        protected DatabaseManager $database
-    ) {}
+    protected AdvisualConnector $connector;
+
+    public function __construct(DatabaseManager $database, ?AdvisualConnector $connector = null)
+    {
+        $this->connector = $connector ?? new AdvisualConnector($database);
+    }
 
     /**
      * Sync purchase orders for recent maintenances with an Advisual requisition.
@@ -141,8 +145,7 @@ class AdvisualPurchaseOrderSyncService
      */
     protected function fetchPurchaseOrder(int $requisitionId): ?object
     {
-        $rows = $this->database
-            ->connection('advisual')
+        $rows = $this->connector
             ->select(
                 'SELECT TOP 1
                     OrdenCodigo,
