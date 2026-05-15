@@ -163,11 +163,11 @@ class AdvisualPurchaseOrderSyncService
      * The reliable link is OrdenCompraReqCodigo = Requisicion.id.
      * OrdenCodigo is the order header id and OrdenCompraCodigo is the order line id.
      */
-    protected function fetchPurchaseOrder(int $requisitionId): ?object
+    protected function fetchPurchaseOrders(int $requisitionId): array
     {
-        $rows = $this->connector
+        return $this->connector
             ->select(
-                'SELECT TOP 1
+                'SELECT
                     oc.OrdenCodigo,
                     oc.OrdenCompraCodigo,
                     oc.OrdenCompraReqCodigo,
@@ -197,8 +197,6 @@ class AdvisualPurchaseOrderSyncService
                     oc.OrdenCompraCodigo DESC',
                 [$requisitionId]
             );
-
-        return $rows[0] ?? null;
     }
 
     protected function fetchRequisitionStatus(int $requisitionId): ?object
@@ -236,26 +234,57 @@ class AdvisualPurchaseOrderSyncService
         }
     }
 
-    protected function buildPayload(object $purchaseOrder, CarbonInterface $checkedAt): array
+    protected function buildPayload(array $purchaseOrders, CarbonInterface $checkedAt): array
     {
-        $quantity = $this->normalizeDecimal($purchaseOrder->OrdenCompraCantidad ?? null, 4);
-        $unitPrice = $this->normalizeDecimal($purchaseOrder->OrdenCompraValorUnitario ?? null, 2);
-        $certifiedValue = $this->normalizeDecimal($purchaseOrder->OrdenCompraValorCertificado ?? null, 2);
-        $total = $this->resolveTotal($quantity, $unitPrice, $certifiedValue);
+        $primary = $purchaseOrders[0];
+        $aggregate = $this->aggregateTotals($purchaseOrders);
 
         return [
-            'advisual_purchase_order_id' => $purchaseOrder->OrdenCodigo ?? null,
-            'advisual_purchase_order_line_id' => $purchaseOrder->OrdenCompraCodigo ?? null,
-            'advisual_purchase_order_description' => $purchaseOrder->OrdenCompraDescripcion ?? null,
-            'advisual_purchase_order_quantity' => $quantity,
-            'advisual_purchase_order_unit_price' => $unitPrice,
-            'advisual_purchase_order_total' => $total,
-            'advisual_purchase_order_created_at' => $this->normalizeDate($purchaseOrder->OrdenCompraCreaFecha ?? null),
-            'advisual_purchase_order_committed_at' => $this->normalizeDate($purchaseOrder->OrdenCompraFechaCompromiso ?? null),
-            'advisual_purchase_order_executed_at' => $this->normalizeDate($purchaseOrder->OrdenCompraFechaEjecucion ?? null),
+            'advisual_purchase_order_id' => $primary->OrdenCodigo ?? null,
+            'advisual_purchase_order_line_id' => $primary->OrdenCompraCodigo ?? null,
+            'advisual_purchase_order_description' => $primary->OrdenCompraDescripcion ?? null,
+            'advisual_purchase_order_quantity' => $aggregate['quantity'],
+            'advisual_purchase_order_unit_price' => $this->normalizeDecimal($primary->OrdenCompraValorUnitario ?? null, 2),
+            'advisual_purchase_order_total' => $aggregate['total'],
+            'advisual_purchase_order_created_at' => $this->normalizeDate($primary->OrdenCompraCreaFecha ?? null),
+            'advisual_purchase_order_committed_at' => $this->normalizeDate($primary->OrdenCompraFechaCompromiso ?? null),
+            'advisual_purchase_order_executed_at' => $this->normalizeDate($primary->OrdenCompraFechaEjecucion ?? null),
             'advisual_purchase_order_last_checked_at' => $checkedAt->format('Y-m-d H:i:s'),
             'advisual_purchase_order_sync_error' => null,
-            'final_cost' => $total,
+            'final_cost' => $aggregate['total'],
+        ];
+    }
+
+    /**
+     * Aggregate totals across every active OC line tied to the requisition.
+     * Prefer ValorCertificado per line; fall back to Cantidad * ValorUnitario when missing.
+     */
+    protected function aggregateTotals(array $purchaseOrders): array
+    {
+        $quantityTotal = 0.0;
+        $valueTotal = 0.0;
+        $anyValue = false;
+
+        foreach ($purchaseOrders as $oc) {
+            $quantity = (float) ($oc->OrdenCompraCantidad ?? 0);
+            $unitPrice = (float) ($oc->OrdenCompraValorUnitario ?? 0);
+            $certifiedRaw = $oc->OrdenCompraValorCertificado ?? null;
+            $certified = $certifiedRaw === null || $certifiedRaw === '' ? null : (float) $certifiedRaw;
+
+            $quantityTotal += $quantity;
+
+            if ($certified !== null && $certified > 0) {
+                $valueTotal += $certified;
+                $anyValue = true;
+            } elseif ($quantity > 0 && $unitPrice > 0) {
+                $valueTotal += $quantity * $unitPrice;
+                $anyValue = true;
+            }
+        }
+
+        return [
+            'quantity' => $quantityTotal > 0 ? number_format($quantityTotal, 4, '.', '') : null,
+            'total' => $anyValue ? number_format(round($valueTotal, 2), 2, '.', '') : null,
         ];
     }
 
@@ -310,19 +339,6 @@ class AdvisualPurchaseOrderSyncService
         }
 
         return (string) $value;
-    }
-
-    protected function resolveTotal(?string $quantity, ?string $unitPrice, ?string $certifiedValue): ?string
-    {
-        if ($certifiedValue !== null) {
-            return $certifiedValue;
-        }
-
-        if ($quantity === null || $unitPrice === null) {
-            return null;
-        }
-
-        return number_format(round(((float) $quantity) * ((float) $unitPrice), 2), 2, '.', '');
     }
 
     protected function getLookbackMonths(): int

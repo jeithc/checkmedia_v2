@@ -192,6 +192,65 @@ test('it only syncs maintenances inside the configured search window', function 
         ->and($oldMaintenance->advisual_purchase_order_last_checked_at)->toBeNull();
 });
 
+test('it aggregates totals across multiple purchase orders for a single requisicion', function () {
+    $maintenance = createMaintenanceForPurchaseOrderTest($this->space, [
+        'advisual_requisition_id' => 9020,
+    ]);
+
+    $database = Mockery::mock(DatabaseManager::class);
+    $connection = Mockery::mock();
+
+    $database->shouldReceive('connection')->with('advisual')->andReturn($connection);
+
+    $connection->shouldReceive('selectOne')
+        ->withArgs(fn (string $sql) => str_contains($sql, 'FROM Requisicion'))
+        ->andReturn((object) [
+            'RequisicionCodigo' => 9020,
+            'RequisicionEstado' => 1,
+            'RequisicionAnulacionFecha' => null,
+            'RequisicionAnulacionUsuario' => null,
+        ]);
+
+    $connection->shouldReceive('select')
+        ->once()
+        ->andReturn([
+            (object) [
+                'OrdenCodigo' => 200001,
+                'OrdenCompraCodigo' => 1,
+                'OrdenCompraDescripcion' => 'Primera OC',
+                'OrdenCompraCantidad' => 2,
+                'OrdenCompraValorUnitario' => 500000,
+                'OrdenCompraFechaCompromiso' => '2026-02-15 00:00:00',
+                'OrdenCompraFechaEjecucion' => '2026-02-20 00:00:00',
+                'OrdenCompraCreaFecha' => '2026-02-10 00:00:00',
+                'OrdenCompraValorCertificado' => 1000000,
+            ],
+            (object) [
+                'OrdenCodigo' => 200002,
+                'OrdenCompraCodigo' => 1,
+                'OrdenCompraDescripcion' => 'Segunda OC',
+                'OrdenCompraCantidad' => 1,
+                'OrdenCompraValorUnitario' => 300000,
+                'OrdenCompraFechaCompromiso' => '2026-02-18 00:00:00',
+                'OrdenCompraFechaEjecucion' => '2026-02-22 00:00:00',
+                'OrdenCompraCreaFecha' => '2026-02-12 00:00:00',
+                'OrdenCompraValorCertificado' => null,
+            ],
+        ]);
+
+    $service = new AdvisualPurchaseOrderSyncService($database);
+    $summary = $service->syncPendingMaintenances(Carbon::parse('2026-03-23 09:00:00'));
+
+    expect($summary['found'])->toBe(1)
+        ->and($summary['with_value'])->toBe(1);
+
+    $maintenance->refresh();
+    expect($maintenance->advisual_purchase_order_id)->toBe(200001)
+        ->and((string) $maintenance->advisual_purchase_order_total)->toBe('1300000.00')
+        ->and((string) $maintenance->final_cost)->toBe('1300000.00')
+        ->and((string) $maintenance->advisual_purchase_order_quantity)->toBe('3.0000');
+});
+
 test('it records an error when requisicion no longer exists in Advisual', function () {
     $maintenance = createMaintenanceForPurchaseOrderTest($this->space, [
         'advisual_requisition_id' => 9010,
