@@ -122,13 +122,16 @@ class PreventiveMatrixScreen extends Screen
         $status = $matrix['status'];
         $statusColor = $matrix['status_color'];
 
-        // Map status color to Bootstrap badge class
         $badgeClass = match ($statusColor) {
             'danger' => 'bg-danger',
             'warning' => 'bg-warning',
             'success' => 'bg-success',
             default => 'bg-secondary',
         };
+
+        if ($daysRemaining === null) {
+            return sprintf('<span class="badge %s text-white">%s</span>', $badgeClass, $status);
+        }
 
         return sprintf(
             '<span class="badge %s text-white">%d %s</span>',

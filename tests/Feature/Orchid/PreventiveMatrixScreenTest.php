@@ -78,9 +78,10 @@ test('spaces are ordered by urgency (days_remaining ascending)', function () {
 });
 
 test('badge colors render correctly', function () {
-    // Create preventive schedules with different frequencies
+    // Schedules scoped by unit so each space only matches one cadence.
     PreventiveSchedule::create([
         'element_type' => 'ESTRUCTURAL',
+        'unit' => 'estructural_unit',
         'city' => 'CDMX',
         'frequency_days' => 30,
         'is_active' => true,
@@ -88,6 +89,7 @@ test('badge colors render correctly', function () {
 
     PreventiveSchedule::create([
         'element_type' => 'DIGITAL',
+        'unit' => 'digital_unit',
         'city' => 'CDMX',
         'frequency_days' => 60,
         'is_active' => true,
@@ -105,6 +107,7 @@ test('badge colors render correctly', function () {
     $space1 = AdvertisingSpace::create([
         'external_code' => 'VENC-BADGE',
         'type' => 'ESTRUCTURAL',
+        'category' => 'estructural_unit',
         'city' => 'CDMX',
     ]);
     $auditDate1 = now()->subDays(40)->toDateString();
@@ -124,6 +127,7 @@ test('badge colors render correctly', function () {
     $space2 = AdvertisingSpace::create([
         'external_code' => 'CRIT-BADGE',
         'type' => 'ESTRUCTURAL',
+        'category' => 'estructural_unit',
         'city' => 'CDMX',
     ]);
     $auditDate2 = now()->subDays(15)->toDateString();
@@ -143,6 +147,7 @@ test('badge colors render correctly', function () {
     $space3 = AdvertisingSpace::create([
         'external_code' => 'OK-BADGE',
         'type' => 'DIGITAL',
+        'category' => 'digital_unit',
         'city' => 'CDMX',
     ]);
     $auditDate3 = now()->subDays(2)->toDateString();

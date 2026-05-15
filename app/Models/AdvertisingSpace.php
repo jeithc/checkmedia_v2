@@ -98,16 +98,41 @@ class AdvertisingSpace extends Model
 
     /**
      * Get the applicable PreventiveSchedule for this space.
-     * Prefers city-specific rule over national rule.
+     * Prefers city-specific rule over national rule; falls back to category match.
+     * Kept for backward compatibility — the matrix uses getApplicablePreventiveSchedules().
      */
     public function getPreventiveSchedule(): ?PreventiveSchedule
     {
-        return PreventiveSchedule::where('element_type', $this->type)
+        return $this->getApplicablePreventiveSchedules()->first();
+    }
+
+    /**
+     * Get every active PreventiveSchedule that applies to this space.
+     * A schedule applies when:
+     *   - City matches the space city OR is null (national).
+     *   - Unit matches the space category OR is null (covers all units).
+     * One preventive audit covers all aspects, so we evaluate every applicable
+     * cadence and pick the earliest due_date downstream.
+     */
+    public function getApplicablePreventiveSchedules(): \Illuminate\Database\Eloquent\Collection
+    {
+        return PreventiveSchedule::query()
             ->where('is_active', true)
-            ->orderByDesc('city') // city-specific (non-null) comes first
-            ->when($this->city, fn ($q) => $q->where(fn ($subQ) => $subQ->where('city', $this->city)->orWhereNull('city')
-            ), fn ($q) => $q->whereNull('city'))
-            ->first();
+            ->where(function ($q) {
+                if ($this->city) {
+                    $q->where('city', $this->city)->orWhereNull('city');
+                } else {
+                    $q->whereNull('city');
+                }
+            })
+            ->where(function ($q) {
+                if ($this->category) {
+                    $q->where('unit', $this->category)->orWhereNull('unit');
+                } else {
+                    $q->whereNull('unit');
+                }
+            })
+            ->get();
     }
 
     /**
@@ -117,21 +142,19 @@ class AdvertisingSpace extends Model
     public function getPreventiveMatrix(): array
     {
         $lastAudit = $this->lastPreventiveAudit();
-        $schedule = $this->getPreventiveSchedule();
+        $schedules = $this->getApplicablePreventiveSchedules();
 
-        if (! $schedule) {
-            // No schedule found — treat as critical
+        if ($schedules->isEmpty()) {
             return [
                 'last_audit_date' => $lastAudit?->audit_date,
                 'due_date' => null,
-                'days_remaining' => -999,
-                'status' => 'VENCIDO',
-                'status_color' => 'danger',
+                'days_remaining' => null,
+                'status' => 'SIN FRECUENCIA',
+                'status_color' => 'secondary',
             ];
         }
 
         if (! $lastAudit) {
-            // No audit yet — treat as already overdue
             return [
                 'last_audit_date' => null,
                 'due_date' => null,
@@ -141,8 +164,9 @@ class AdvertisingSpace extends Model
             ];
         }
 
-        $dueDate = $lastAudit->audit_date->copy()->addDays($schedule->frequency_days);
-        $daysRemaining = now()->diffInDays($dueDate, false); // false = signed
+        $minFrequency = $schedules->min('frequency_days');
+        $dueDate = $lastAudit->audit_date->copy()->addDays($minFrequency);
+        $daysRemaining = (int) now()->diffInDays($dueDate, false);
 
         if ($daysRemaining < 0) {
             $status = 'VENCIDO';
@@ -158,7 +182,7 @@ class AdvertisingSpace extends Model
         return [
             'last_audit_date' => $lastAudit->audit_date,
             'due_date' => $dueDate,
-            'days_remaining' => (int) $daysRemaining,
+            'days_remaining' => $daysRemaining,
             'status' => $status,
             'status_color' => $statusColor,
         ];
