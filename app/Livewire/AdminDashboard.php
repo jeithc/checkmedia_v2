@@ -95,7 +95,18 @@ class AdminDashboard extends Component
 
         $auditBase = fn () => $filterService->applyToAuditQuery(Audit::query(), $filters);
 
-        $auditsWithIssues = (clone $auditBase())->where('audits.general_status', 'bad')->count();
+        // "Con novedades" = audits que actualmente están bad O tuvieron al menos un audit_value
+        // vinculado a una maintenance (historial preservado aunque ya se haya resuelto).
+        $hasIssueExpr = fn ($q) => $q->where(function ($outer) {
+            $outer->where('audits.general_status', 'bad')
+                ->orWhereExists(function ($sub) {
+                    $sub->from('audit_values as av')
+                        ->join('maintenance_audit_value as mav', 'mav.audit_value_id', '=', 'av.id')
+                        ->whereColumn('av.audit_id', 'audits.id');
+                });
+        });
+
+        $auditsWithIssues = $hasIssueExpr(clone $auditBase())->count();
 
         $criticalAudits = (clone $auditBase())
             ->where('audits.general_status', 'bad')
@@ -205,18 +216,24 @@ class AdminDashboard extends Component
             ->paginate(25);
 
         // --- Chart: Criterios con más fallas ---
-        $criteriaFailures = AuditValue::whereIn('audit_id', (clone $auditBase())->select('audits.id'))
-            ->where('value', 'bad')
+        // Una "falla" = audit_value que está bad O fue resuelto via maintenance (pivot).
+        // El flip bad→good al cerrar maintenance no debe ocultarlo del histórico.
+        $criteriaFailures = AuditValue::query()
+            ->whereIn('audit_values.audit_id', (clone $auditBase())->select('audits.id'))
             ->join('audit_criteria', 'audit_values.audit_criterion_id', '=', 'audit_criteria.id')
-            ->select('audit_criteria.name', DB::raw('COUNT(*) as total'))
+            ->leftJoin('maintenance_audit_value as mav', 'mav.audit_value_id', '=', 'audit_values.id')
+            ->where(function ($q) {
+                $q->where('audit_values.value', 'bad')
+                    ->orWhereNotNull('mav.maintenance_id');
+            })
+            ->select('audit_criteria.name', DB::raw('COUNT(DISTINCT audit_values.id) as total'))
             ->groupBy('audit_criteria.name')
             ->orderByDesc('total')
             ->limit(10)
             ->get();
 
-        // --- Chart: Top espacios con errores ---
-        $topBadSpaces = (clone $auditBase())
-            ->where('audits.general_status', 'bad')
+        // --- Chart: Top espacios con errores (incluye históricos via pivot) ---
+        $topBadSpaces = $hasIssueExpr(clone $auditBase())
             ->select('audits.advertising_space_id', DB::raw('COUNT(*) as total'))
             ->groupBy('audits.advertising_space_id')
             ->orderByDesc('total')
