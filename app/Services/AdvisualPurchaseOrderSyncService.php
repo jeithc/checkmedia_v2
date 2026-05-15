@@ -78,9 +78,29 @@ class AdvisualPurchaseOrderSyncService
         }
 
         try {
-            $purchaseOrder = $this->fetchPurchaseOrder($maintenance->advisual_requisition_id);
+            $requisitionStatus = $this->fetchRequisitionStatus($maintenance->advisual_requisition_id);
 
-            if (! $purchaseOrder) {
+            if (! $requisitionStatus) {
+                $maintenance->update([
+                    'advisual_purchase_order_last_checked_at' => $checkedAt,
+                    'advisual_purchase_order_sync_error' => 'Requisición no encontrada en Advisual.',
+                ]);
+
+                return $this->result('missing');
+            }
+
+            if ($this->isRequisitionCancelled($requisitionStatus)) {
+                $maintenance->update([
+                    'advisual_purchase_order_last_checked_at' => $checkedAt,
+                    'advisual_purchase_order_sync_error' => 'Requisición anulada en Advisual.',
+                ]);
+
+                return $this->result('missing');
+            }
+
+            $purchaseOrders = $this->fetchPurchaseOrders($maintenance->advisual_requisition_id);
+
+            if (empty($purchaseOrders)) {
                 $maintenance->update([
                     'advisual_purchase_order_last_checked_at' => $checkedAt,
                     'advisual_purchase_order_sync_error' => null,
@@ -89,7 +109,7 @@ class AdvisualPurchaseOrderSyncService
                 return $this->result('missing');
             }
 
-            $payload = $this->buildPayload($purchaseOrder, $checkedAt);
+            $payload = $this->buildPayload($purchaseOrders, $checkedAt);
             $hasChanges = $this->hasChanges($maintenance, $payload);
 
             $maintenance->fill($payload);
@@ -148,32 +168,72 @@ class AdvisualPurchaseOrderSyncService
         $rows = $this->connector
             ->select(
                 'SELECT TOP 1
-                    OrdenCodigo,
-                    OrdenCompraCodigo,
-                    OrdenCompraReqCodigo,
-                    OrdenCompraReqDetCodigo,
-                    OrdenCompraDescripcion,
-                    OrdenCompraCantidad,
-                    OrdenCompraValorUnitario,
-                    OrdenCompraFechaCompromiso,
-                    OrdenCompraFechaEjecucion,
-                    OrdenCompraCreaFecha,
-                    OrdenCompraValorCertificado
-                FROM OrdenCompra
-                WHERE OrdenCompraReqCodigo = ?
-                  AND ISNULL(OrdenCompraItemDel, 0) = 0
+                    oc.OrdenCodigo,
+                    oc.OrdenCompraCodigo,
+                    oc.OrdenCompraReqCodigo,
+                    oc.OrdenCompraReqDetCodigo,
+                    oc.OrdenCompraDescripcion,
+                    oc.OrdenCompraCantidad,
+                    oc.OrdenCompraValorUnitario,
+                    oc.OrdenCompraFechaCompromiso,
+                    oc.OrdenCompraFechaEjecucion,
+                    oc.OrdenCompraCreaFecha,
+                    oc.OrdenCompraValorCertificado,
+                    o.OrdenEstado,
+                    o.OrdenAnulaFecha,
+                    o.OrdenAnulaUsuario
+                FROM OrdenCompra oc
+                INNER JOIN Orden o ON o.OrdenCodigo = oc.OrdenCodigo
+                WHERE oc.OrdenCompraReqCodigo = ?
+                  AND ISNULL(oc.OrdenCompraItemDel, 0) = 0
+                  AND ISNULL(o.OrdenEstado, 1) <> 2
                 ORDER BY
                     CASE
-                        WHEN ISNULL(OrdenCompraValorCertificado, 0) > 0 OR ISNULL(OrdenCompraValorUnitario, 0) > 0 THEN 0
+                        WHEN ISNULL(oc.OrdenCompraValorCertificado, 0) > 0 OR ISNULL(oc.OrdenCompraValorUnitario, 0) > 0 THEN 0
                         ELSE 1
                     END,
-                    OrdenCompraCreaFecha DESC,
-                    OrdenCodigo DESC,
-                    OrdenCompraCodigo DESC',
+                    oc.OrdenCompraCreaFecha DESC,
+                    oc.OrdenCodigo DESC,
+                    oc.OrdenCompraCodigo DESC',
                 [$requisitionId]
             );
 
         return $rows[0] ?? null;
+    }
+
+    protected function fetchRequisitionStatus(int $requisitionId): ?object
+    {
+        return $this->connector->selectOne(
+            'SELECT TOP 1
+                RequisicionCodigo,
+                RequisicionEstado,
+                RequisicionAnulacionFecha,
+                RequisicionAnulacionUsuario
+            FROM Requisicion
+            WHERE RequisicionCodigo = ?',
+            [$requisitionId]
+        );
+    }
+
+    protected function isRequisitionCancelled(object $status): bool
+    {
+        $user = trim((string) ($status->RequisicionAnulacionUsuario ?? ''));
+
+        if ($user !== '') {
+            return true;
+        }
+
+        $date = $status->RequisicionAnulacionFecha ?? null;
+
+        if (! $date) {
+            return false;
+        }
+
+        try {
+            return Carbon::parse($date)->year > 1900;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     protected function buildPayload(object $purchaseOrder, CarbonInterface $checkedAt): array

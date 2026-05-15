@@ -40,9 +40,17 @@ test('it syncs purchase order data into maintenance final cost', function () {
     $connection = Mockery::mock();
 
     $database->shouldReceive('connection')
-        ->once()
         ->with('advisual')
         ->andReturn($connection);
+
+    $connection->shouldReceive('selectOne')
+        ->withArgs(fn (string $sql) => str_contains($sql, 'FROM Requisicion'))
+        ->andReturn((object) [
+            'RequisicionCodigo' => $maintenance->advisual_requisition_id,
+            'RequisicionEstado' => 1,
+            'RequisicionAnulacionFecha' => null,
+            'RequisicionAnulacionUsuario' => null,
+        ]);
 
     $connection->shouldReceive('select')
         ->once()
@@ -99,9 +107,17 @@ test('it marks the maintenance as checked when no purchase order exists yet', fu
     $connection = Mockery::mock();
 
     $database->shouldReceive('connection')
-        ->once()
         ->with('advisual')
         ->andReturn($connection);
+
+    $connection->shouldReceive('selectOne')
+        ->withArgs(fn (string $sql) => str_contains($sql, 'FROM Requisicion'))
+        ->andReturn((object) [
+            'RequisicionCodigo' => 9002,
+            'RequisicionEstado' => 1,
+            'RequisicionAnulacionFecha' => null,
+            'RequisicionAnulacionUsuario' => null,
+        ]);
 
     $connection->shouldReceive('select')
         ->once()
@@ -145,9 +161,17 @@ test('it only syncs maintenances inside the configured search window', function 
     $connection = Mockery::mock();
 
     $database->shouldReceive('connection')
-        ->once()
         ->with('advisual')
         ->andReturn($connection);
+
+    $connection->shouldReceive('selectOne')
+        ->withArgs(fn (string $sql) => str_contains($sql, 'FROM Requisicion'))
+        ->andReturn((object) [
+            'RequisicionCodigo' => $recentMaintenance->advisual_requisition_id,
+            'RequisicionEstado' => 1,
+            'RequisicionAnulacionFecha' => null,
+            'RequisicionAnulacionUsuario' => null,
+        ]);
 
     $connection->shouldReceive('select')
         ->once()
@@ -166,6 +190,64 @@ test('it only syncs maintenances inside the configured search window', function 
 
     expect($recentMaintenance->advisual_purchase_order_last_checked_at)->not->toBeNull()
         ->and($oldMaintenance->advisual_purchase_order_last_checked_at)->toBeNull();
+});
+
+test('it records an error when requisicion no longer exists in Advisual', function () {
+    $maintenance = createMaintenanceForPurchaseOrderTest($this->space, [
+        'advisual_requisition_id' => 9010,
+    ]);
+
+    $database = Mockery::mock(DatabaseManager::class);
+    $connection = Mockery::mock();
+
+    $database->shouldReceive('connection')->with('advisual')->andReturn($connection);
+
+    $connection->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn (string $sql) => str_contains($sql, 'FROM Requisicion'))
+        ->andReturn(null);
+
+    $connection->shouldNotReceive('select');
+
+    $service = new AdvisualPurchaseOrderSyncService($database);
+    $summary = $service->syncPendingMaintenances(Carbon::parse('2026-03-23 09:00:00'));
+
+    expect($summary['missing'])->toBe(1)
+        ->and($summary['found'])->toBe(0);
+
+    $maintenance->refresh();
+    expect($maintenance->advisual_purchase_order_sync_error)->toBe('Requisición no encontrada en Advisual.');
+});
+
+test('it records an error when requisicion is cancelled in Advisual', function () {
+    $maintenance = createMaintenanceForPurchaseOrderTest($this->space, [
+        'advisual_requisition_id' => 9011,
+    ]);
+
+    $database = Mockery::mock(DatabaseManager::class);
+    $connection = Mockery::mock();
+
+    $database->shouldReceive('connection')->with('advisual')->andReturn($connection);
+
+    $connection->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn (string $sql) => str_contains($sql, 'FROM Requisicion'))
+        ->andReturn((object) [
+            'RequisicionCodigo' => 9011,
+            'RequisicionEstado' => 5,
+            'RequisicionAnulacionFecha' => '2026-03-10 12:00:00',
+            'RequisicionAnulacionUsuario' => 'cojeda',
+        ]);
+
+    $connection->shouldNotReceive('select');
+
+    $service = new AdvisualPurchaseOrderSyncService($database);
+    $summary = $service->syncPendingMaintenances(Carbon::parse('2026-03-23 09:00:00'));
+
+    expect($summary['missing'])->toBe(1);
+
+    $maintenance->refresh();
+    expect($maintenance->advisual_purchase_order_sync_error)->toBe('Requisición anulada en Advisual.');
 });
 
 test('command shows the purchase order synchronization summary', function () {
