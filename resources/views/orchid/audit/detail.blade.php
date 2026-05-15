@@ -1128,7 +1128,6 @@
 
     function submitCloseMaintenance() {
         var closureDoc = document.getElementById('closure_document_input');
-        var supportFiles = document.getElementById('support_files_input');
         var closureComment = document.getElementById('closure_comment_input');
 
         if (!closureDoc.files || closureDoc.files.length === 0) {
@@ -1136,21 +1135,9 @@
             return;
         }
 
-        @if(isset($openMaintenance) && $openMaintenance->advisual_requisition_id)
-        if (!supportFiles.files || supportFiles.files.length === 0) {
-            supportFiles.classList.add('is-invalid');
-            return;
-        }
-        @endif
-
         var formData = new FormData();
         formData.append('_token', '{{ csrf_token() }}');
         formData.append('closure_document', closureDoc.files[0]);
-        if (supportFiles.files) {
-            for (var i = 0; i < supportFiles.files.length; i++) {
-                formData.append('support_files[]', supportFiles.files[i]);
-            }
-        }
         formData.append('closure_comment', closureComment.value);
 
         var maintenanceSelect = document.getElementById('close_maintenance_id_input');
@@ -1387,22 +1374,6 @@
                         <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Documento de Cierre (PDF o Imagen) *</label>
                         <input type="file" id="closure_document_input" class="form-control form-control-sm" accept=".pdf,image/*" required>
                         <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">
-                            Archivos de Soporte (PDF o Imagen)
-                            @if(isset($openMaintenance) && $openMaintenance->advisual_requisition_id)
-                                *
-                            @endif
-                        </label>
-                        @if(isset($openMaintenance) && $openMaintenance->advisual_requisition_id)
-                            <div class="alert alert-danger py-1 px-2 mb-2" style="font-size: 0.8rem;">
-                                <i class="icon-exclamation me-1"></i> Obligatorio: este mantenimiento tiene RQ asociada.
-                            </div>
-                        @endif
-                        <input type="file" id="support_files_input" class="form-control form-control-sm" accept=".pdf,image/*" multiple
-                            {{ isset($openMaintenance) && $openMaintenance->advisual_requisition_id ? 'required' : '' }}>
-                        <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB por archivo. Puede seleccionar varios.</small>
                     </div>
                     <div class="col-12">
                         <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Comentario de Cierre</label>

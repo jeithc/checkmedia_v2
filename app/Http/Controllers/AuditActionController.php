@@ -307,36 +307,17 @@ class AuditActionController extends Controller
             return back();
         }
 
-        // Conditional validation: support files required when maintenance has RQ
-        $supportFilesRule = $maintenance->hasRequisition() ? 'required|array|min:1' : 'nullable|array';
-
         $request->validate([
             'closure_document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'closure_comment' => 'nullable|string|max:1000',
-            'support_files' => $supportFilesRule,
-            'support_files.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
         ], [
             'closure_document.required' => 'El documento de cierre es requerido.',
             'closure_document.mimes' => 'El archivo debe ser PDF o imagen (JPG, PNG).',
             'closure_document.max' => 'El archivo no debe superar 10MB.',
-            'support_files.required' => 'Los archivos de soporte son obligatorios cuando el mantenimiento tiene RQ.',
-            'support_files.min' => 'Debe adjuntar al menos un archivo de soporte.',
-            'support_files.*.mimes' => 'Los archivos de soporte deben ser PDF o imagen (JPG, PNG).',
-            'support_files.*.max' => 'Cada archivo de soporte no debe superar 10MB.',
         ]);
 
-        // Store closure document
         $path = $request->file('closure_document')->store('maintenance-closures', 'public');
 
-        // Store support files
-        $supportFilesPaths = [];
-        if ($request->hasFile('support_files')) {
-            foreach ($request->file('support_files') as $file) {
-                $supportFilesPaths[] = $file->store('maintenance-closures/support', 'public');
-            }
-        }
-
-        // Close the maintenance
         $updateData = [
             'status' => Maintenance::STATUS_CLOSED,
             'closed_by' => auth()->id(),
@@ -344,10 +325,6 @@ class AuditActionController extends Controller
             'closure_document_path' => $path,
             'closure_comment' => $request->input('closure_comment'),
         ];
-
-        if (!empty($supportFilesPaths)) {
-            $updateData['support_files_paths'] = $supportFilesPaths;
-        }
 
         $resolvedNames = '';
         \DB::transaction(function () use ($maintenance, $updateData, $audit, &$resolvedNames) {
@@ -373,7 +350,6 @@ class AuditActionController extends Controller
                 'maintenance_id' => $maintenance->id,
                 'closed_by' => auth()->user()->name,
                 'document_path' => $path,
-                'support_files_count' => count($supportFilesPaths),
             ],
             year: $audit->year,
             week: $audit->week

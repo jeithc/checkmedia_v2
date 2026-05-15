@@ -101,16 +101,6 @@
                     </a>
                 </div>
                 @endif
-                @if($maintenance->support_files_paths && count($maintenance->support_files_paths) > 0)
-                <div class="mb-2">
-                    <small class="text-muted fw-bold d-block mb-1">Archivos de Soporte:</small>
-                    @foreach($maintenance->support_files_paths as $index => $supportPath)
-                        <a href="{{ asset('storage/' . $supportPath) }}" target="_blank" class="btn btn-sm btn-outline-secondary me-1 mb-1">
-                            <i class="icon-doc me-1"></i> Soporte {{ $index + 1 }}
-                        </a>
-                    @endforeach
-                </div>
-                @endif
             @endif
         </div>
     </div>
@@ -209,20 +199,6 @@
                         <label class="form-label fw-bold">Documento de Cierre (PDF o Imagen) *</label>
                         <input type="file" name="closure_document" class="form-control" accept=".pdf,image/*" required>
                         <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">
-                            Archivos de Soporte (PDF o Imagen)
-                            @if($maintenance->advisual_requisition_id) * @endif
-                        </label>
-                        @if($maintenance->advisual_requisition_id)
-                            <div class="alert alert-danger py-1 px-2 mb-2" style="font-size: 0.85rem;">
-                                <i class="icon-exclamation me-1"></i> Obligatorio: este mantenimiento tiene RQ asociada.
-                            </div>
-                        @endif
-                        <input type="file" name="support_files[]" class="form-control" accept=".pdf,image/*" multiple
-                            {{ $maintenance->advisual_requisition_id ? 'required' : '' }}>
-                        <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB por archivo.</small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Comentario de Cierre</label>
