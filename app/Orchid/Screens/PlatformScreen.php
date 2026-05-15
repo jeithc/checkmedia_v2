@@ -47,11 +47,15 @@ class PlatformScreen extends Screen
             ->orderBy('month')
             ->pluck('total', 'month');
 
-        // 2) Novedades por estado + categoría (SQL GROUP BY)
+        // 2) Novedades por estado + categoría
+        // Una novedad = audit_value vinculado a maintenance via pivot. Una maintenance puede cubrir varios criterios.
+        // Categoría se toma de audit_criteria.name (Estructural/Eléctrico/Ambiental).
         $maintCategoryRows = $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters)
-            ->selectRaw('maintenances.category as category, maintenances.status as status, COUNT(*) as total')
-            ->whereNotNull('maintenances.category')
-            ->groupBy('maintenances.category', 'maintenances.status')
+            ->join('maintenance_audit_value as mav', 'mav.maintenance_id', '=', 'maintenances.id')
+            ->join('audit_values as av', 'av.id', '=', 'mav.audit_value_id')
+            ->join('audit_criteria as ac', 'ac.id', '=', 'av.audit_criterion_id')
+            ->selectRaw('ac.name as category, maintenances.status as status, COUNT(av.id) as total')
+            ->groupBy('ac.name', 'maintenances.status')
             ->get();
 
         // 3) Costo OC por mes (SQL GROUP BY + SUM)
