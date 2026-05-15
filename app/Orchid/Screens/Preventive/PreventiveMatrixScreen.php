@@ -18,6 +18,7 @@ class PreventiveMatrixScreen extends Screen
     {
         return [
             'spaces' => AdvertisingSpace::with(['audits'])
+                ->filters()
                 ->paginate(20),
         ];
     }

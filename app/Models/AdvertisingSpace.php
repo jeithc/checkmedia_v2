@@ -4,11 +4,27 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Orchid\Filters\Filterable;
+use Orchid\Filters\Types\Like;
 use Orchid\Screen\AsSource;
 
 class AdvertisingSpace extends Model
 {
-    use AsSource, HasFactory;
+    use AsSource, Filterable, HasFactory;
+
+    protected $allowedFilters = [
+        'external_code' => Like::class,
+        'city' => Like::class,
+        'type' => Like::class,
+        'provider' => Like::class,
+        'category' => Like::class,
+    ];
+
+    protected $allowedSorts = [
+        'external_code',
+        'city',
+        'type',
+    ];
 
     protected $fillable = [
         'external_code',
