@@ -125,10 +125,24 @@ class AdminDashboard extends Component
             && $dateTo === now()->endOfWeek()->format('Y-m-d')
             && ! $hasNonDateFilter;
 
+        $maintenanceBase = fn () => $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters);
+
+        $spaceQuery = AdvertisingSpace::query();
+        if (!empty($filters['external_code'])) {
+            $spaceQuery->where('external_code', 'like', '%'.$filters['external_code'].'%');
+        }
+        if (!empty($filters['city'])) {
+            $spaceQuery->where('city', $filters['city']);
+        }
+        if (!empty($filters['producto'])) {
+            $spaceQuery->where('type', $filters['producto']);
+        }
+        $totalSpaces = (clone $spaceQuery)->count();
+
         $metrics = [
             'total_spaces' => [
                 'label' => 'Espacios Publicitarios',
-                'value' => number_format(AdvertisingSpace::count()),
+                'value' => number_format($totalSpaces),
                 'subtext' => 'Total Activos',
                 'icon' => 'bs.geo-alt',
                 'color' => 'primary',
@@ -149,7 +163,7 @@ class AdminDashboard extends Component
             ],
             'pending_maint' => [
                 'label' => 'Mantenimientos Pend.',
-                'value' => number_format(Maintenance::whereNotIn('status', [Maintenance::STATUS_CLOSED])->count()),
+                'value' => number_format((clone $maintenanceBase())->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])->count()),
                 'subtext' => 'Por Atender',
                 'icon' => 'bs.tools',
                 'color' => 'primary',
@@ -170,9 +184,9 @@ class AdminDashboard extends Component
             ],
         ];
 
-        // --- KPI: Open vs Closed maintenances ---
-        $openMaintenances = Maintenance::whereNotIn('status', [Maintenance::STATUS_CLOSED])->count();
-        $closedMaintenances = Maintenance::where('status', Maintenance::STATUS_CLOSED)->count();
+        // --- KPI: Open vs Closed maintenances (con filtros aplicados) ---
+        $openMaintenances = (clone $maintenanceBase())->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])->count();
+        $closedMaintenances = (clone $maintenanceBase())->where('maintenances.status', Maintenance::STATUS_CLOSED)->count();
         $totalMaintenances = $openMaintenances + $closedMaintenances;
 
         // --- KPI: Average closure time (days) — single SQL aggregate, driver-portable ---
@@ -181,9 +195,10 @@ class AdminDashboard extends Component
             ? 'AVG(julianday(closed_at) - julianday(requested_at))'
             : 'AVG(DATEDIFF(closed_at, requested_at))';
 
-        $avgClosureRaw = Maintenance::where('status', Maintenance::STATUS_CLOSED)
-            ->whereNotNull('closed_at')
-            ->whereNotNull('requested_at')
+        $avgClosureRaw = (clone $maintenanceBase())
+            ->where('maintenances.status', Maintenance::STATUS_CLOSED)
+            ->whereNotNull('maintenances.closed_at')
+            ->whereNotNull('maintenances.requested_at')
             ->selectRaw("$diffExpr as avg_days")
             ->value('avg_days');
 

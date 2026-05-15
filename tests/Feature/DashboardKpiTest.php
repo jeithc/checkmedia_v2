@@ -135,7 +135,10 @@ test('average closure time is calculated from closed maintenances', function () 
         'type' => Maintenance::TYPE_CORRECTIVE,
     ]);
 
-    $response = $this->get(route('platform.main'));
+    $response = $this->get(route('platform.main', [
+        'from' => now()->subDays(15)->format('Y-m-d'),
+        'to' => now()->format('Y-m-d'),
+    ]));
 
     $response->assertOk();
     $response->assertSee('días promedio');
