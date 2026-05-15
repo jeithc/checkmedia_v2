@@ -128,36 +128,46 @@
             @php
                 $openMaintenances = $audit->maintenances()->with('auditValues.criterion')->whereNotIn('status', ['closed'])->orderBy('requested_at')->get();
                 $openMaintenance = $openMaintenances->first();
-                $closedMaintenance = !$openMaintenance ? $audit->maintenances()->where('status', 'closed')->latest()->first() : null;
-                $displayMaintenance = $openMaintenance ?? $closedMaintenance;
+                $closedMaintenances = $audit->maintenances()->where('status', 'closed')->latest()->get();
+                $displayMaintenances = $openMaintenances->isNotEmpty() ? $openMaintenances : $closedMaintenances->take(1);
             @endphp
-            @if($displayMaintenance)
-                <div class="alert {{ $displayMaintenance->status === 'closed' ? 'alert-success' : 'alert-info' }} d-flex align-items-center mb-3">
-                    <i class="icon-wrench me-3" style="font-size: 1.5rem;"></i>
-                    <div class="flex-grow-1">
-                        <strong>Mantenimiento: <span class="badge bg-{{ $displayMaintenance->status_color }}">{{ $displayMaintenance->status_label }}</span></strong>
-                        <div class="small text-muted mt-1">
-                            <span class="me-3"><i class="icon-calendar me-1"></i>Solicitado: {{ $displayMaintenance->requested_at?->format('d/m/Y H:i') ?? $displayMaintenance->created_at->format('d/m/Y H:i') }}</span>
-                            <span class="me-3"><i class="icon-user me-1"></i>Por: {{ $displayMaintenance->requestedBy?->name ?? 'N/A' }}</span>
-                            @if($displayMaintenance->advisual_requisition_id)
-                                <span class="me-3"><i class="icon-tag me-1"></i>Advisual: {{ $displayMaintenance->advisual_requisition_id }}</span>
-                            @endif
-                            @if($displayMaintenance->closed_at)
-                                <span><i class="icon-check me-1"></i>Cerrado: {{ $displayMaintenance->closed_at->format('d/m/Y H:i') }}</span>
+            @if($displayMaintenances->isNotEmpty())
+                @if($openMaintenances->count() + $closedMaintenances->count() > 1)
+                    <div class="small text-muted fw-bold mb-2">
+                        <i class="icon-wrench me-1"></i>{{ $openMaintenances->count() }} abiertas · {{ $closedMaintenances->count() }} cerradas
+                    </div>
+                @endif
+                @foreach($displayMaintenances as $dm)
+                    <div class="alert {{ $dm->status === 'closed' ? 'alert-success' : 'alert-info' }} d-flex align-items-center mb-2 py-2">
+                        <i class="icon-wrench me-3" style="font-size: 1.3rem;"></i>
+                        <div class="flex-grow-1">
+                            <strong>#{{ $dm->id }} <span class="badge bg-{{ $dm->status_color }}">{{ $dm->status_label }}</span>
+                                @if($dm->category)
+                                    <span class="badge bg-light text-dark border ms-1">{{ ucfirst($dm->category) }}</span>
+                                @endif
+                            </strong>
+                            <div class="small text-muted mt-1">
+                                <span class="me-3"><i class="icon-calendar me-1"></i>{{ $dm->requested_at?->format('d/m/Y H:i') ?? $dm->created_at->format('d/m/Y H:i') }}</span>
+                                <span class="me-3"><i class="icon-user me-1"></i>{{ $dm->requestedBy?->name ?? 'N/A' }}</span>
+                                @if($dm->advisual_requisition_id)
+                                    <span class="me-3"><i class="icon-tag me-1"></i>RQ {{ $dm->advisual_requisition_id }}</span>
+                                @endif
+                                @if($dm->advisual_purchase_order_id)
+                                    <span class="me-3 text-success"><i class="icon-doc me-1"></i>OC {{ $dm->advisual_purchase_order_id }}@if($dm->advisual_purchase_order_total) — $ {{ number_format((float) $dm->advisual_purchase_order_total, 0, ',', '.') }}@endif</span>
+                                @endif
+                                @if($dm->closed_at)
+                                    <span><i class="icon-check me-1"></i>{{ $dm->closed_at->format('d/m/Y H:i') }}</span>
+                                @endif
+                            </div>
+                            @if($dm->advisual_sync_error)
+                                <div class="small text-danger mt-1"><i class="icon-exclamation me-1"></i>{{ $dm->advisual_sync_error }}</div>
                             @endif
                         </div>
-                        @if($displayMaintenance->advisual_sync_error)
-                            <div class="small text-danger mt-1">
-                                <i class="icon-exclamation me-1"></i>Error Advisual: {{ $displayMaintenance->advisual_sync_error }}
-                            </div>
-                        @endif
-                    </div>
-                    @if($displayMaintenance->id)
-                        <a href="{{ route('platform.maintenances.detail', $displayMaintenance) }}" class="btn btn-sm btn-outline-dark ms-2">
-                            <i class="icon-eye"></i> Ver Detalle
+                        <a href="{{ route('platform.maintenances.detail', $dm) }}" class="btn btn-sm btn-outline-dark ms-2">
+                            <i class="icon-eye"></i> Detalle
                         </a>
-                    @endif
-                </div>
+                    </div>
+                @endforeach
             @endif
             
             <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
