@@ -275,9 +275,11 @@ class AdminDashboard extends Component
                 'total' => $a->total,
             ]);
 
-        // --- Chart: Mantenimientos por estado (filtered) ---
+        // --- Chart: Mantenimientos por estado (filtered, solo correctivos) ---
         $maintQuery = $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters);
-        $maintByStatus = (clone $maintQuery)->select('maintenances.status', DB::raw('COUNT(*) as total'))
+        $maintByStatus = (clone $maintQuery)
+            ->where('maintenances.type', Maintenance::TYPE_CORRECTIVE)
+            ->select('maintenances.status', DB::raw('COUNT(*) as total'))
             ->groupBy('maintenances.status')
             ->pluck('total', 'status');
 

@@ -34,7 +34,7 @@ class PlatformScreen extends Screen
             ->whereDate('audit_date', '<=', $dateTo)
             ->exists();
 
-        $poValueStatus = $this->buildPoValueStatusData();
+        $poValueStatus = $this->buildPoValueStatusData($filterService, $filters);
 
         $driver = DB::connection()->getDriverName();
         $monthAudit = $this->monthExpr($driver, 'audits.audit_date');
@@ -183,9 +183,13 @@ class PlatformScreen extends Screen
         ];
     }
 
-    private function buildPoValueStatusData(): array
+    private function buildPoValueStatusData(\App\Services\AuditDashboardFilterService $filterService, array $filters): array
     {
-        $maintenances = Maintenance::all();
+        // Aplica filtros del dashboard + solo correctivos (preventivos no generan OC).
+        $maintenances = $filterService
+            ->applyToMaintenanceQuery(Maintenance::query(), $filters)
+            ->where('maintenances.type', Maintenance::TYPE_CORRECTIVE)
+            ->get();
 
         $withPurchaseOrder = $maintenances->whereNotNull('advisual_purchase_order_id');
         $withRequisition = $maintenances->whereNotNull('advisual_requisition_id');
