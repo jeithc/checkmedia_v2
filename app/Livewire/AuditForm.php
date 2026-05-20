@@ -339,6 +339,12 @@ class AuditForm extends Component
         $space = $this->space;
         $existingAudit = $this->existingAudit;
 
+        if ($existingAudit && $existingAudit->hasOpenMaintenance()) {
+            $this->addError('values', 'No se puede editar esta auditoría porque tiene un mantenimiento abierto. Ciérrelo antes de modificarla.');
+
+            return;
+        }
+
         $totalPhotos = count($this->photos);
         if ($existingAudit) {
             $totalPhotos += $existingAudit->photos->count();

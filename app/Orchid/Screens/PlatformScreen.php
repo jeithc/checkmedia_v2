@@ -58,18 +58,19 @@ class PlatformScreen extends Screen
             ->groupBy('ac.name', 'maintenances.status')
             ->get();
 
-        // 3) Costo OC por mes (SQL GROUP BY + SUM)
+        // 3) Costo OC por mes (agrupado por OrdenCompraCreaFecha, valores en millones COP)
         $poCostRows = $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters)
             ->whereNotNull('maintenances.advisual_purchase_order_id')
             ->whereNotNull('maintenances.advisual_purchase_order_created_at')
-            ->selectRaw("$monthPo as month, COALESCE(SUM(maintenances.advisual_purchase_order_total), 0) as total")
+            ->whereNotNull('maintenances.advisual_purchase_order_total')
+            ->selectRaw("$monthPo as month, COALESCE(SUM(maintenances.advisual_purchase_order_total), 0) / 1000000 as total")
             ->groupBy('month')
             ->orderBy('month')
             ->pluck('total', 'month');
 
         $auditsOverTime = $this->shapeSingleSeries('Auditorías', $auditMonthRows);
         $maintenanceStatus = $this->shapeMaintenanceStatus($maintCategoryRows);
-        $purchaseOrderCostTrend = $this->shapeSingleSeries('Costo OC', $poCostRows);
+        $purchaseOrderCostTrend = $this->shapeSingleSeries('Costo OC ejecutado', $poCostRows);
 
         $this->hasMonthlyData = $auditMonthRows->isNotEmpty() || $maintCategoryRows->isNotEmpty() || $poCostRows->isNotEmpty();
 
