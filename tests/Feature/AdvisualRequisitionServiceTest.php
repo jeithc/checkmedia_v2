@@ -115,8 +115,9 @@ test('it inserts both Requisicion and RequisicionProductiva on happy path', func
 
     expect($result)->toBeTrue();
 
-    [$reqCodigo, $espacioCodigo, $productoCodigo, $locacionCodigo, $descripcion, $cantidad, $unidad, $canPedida] = $detailBindingsCaptured;
+    [$reqCodigo, $codigo, $espacioCodigo, $productoCodigo, $locacionCodigo, $descripcion, $cantidad, $unidad, $canPedida] = $detailBindingsCaptured;
     expect($reqCodigo)->toBe(99001)
+        ->and($codigo)->toBe(1)
         ->and($espacioCodigo)->toBe('18094')
         ->and($productoCodigo)->toBe(2)
         ->and($locacionCodigo)->toBe(1465)
@@ -246,4 +247,71 @@ test('it fails when AdvertisingSpace external_code is missing', function () {
 
     $maintenance->refresh();
     expect($maintenance->advisual_sync_error)->toContain('external_code');
+});
+
+test('it inserts one RequisicionProductiva detail per linked criterion', function () {
+    $secondCriterion = AuditCriterion::create([
+        'name' => 'Estructura',
+        'key' => 'structure',
+        'order_index' => 2,
+        'is_active' => true,
+    ]);
+
+    $secondValue = AuditValue::create([
+        'audit_id' => $this->audit->id,
+        'audit_criterion_id' => $secondCriterion->id,
+        'value' => 'bad',
+    ]);
+
+    $maintenance = makeMaintenance($this->space, $this->audit, $this->user);
+    $maintenance->auditValues()->attach([$this->auditValue->id, $secondValue->id]);
+
+    $detailCalls = [];
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO Requisicion'))
+        ->andReturn((object) ['id' => 99010]);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Espacio'))
+        ->andReturn((object) ['EspacioLocacionCodigo' => 1465, 'ProductoCodigo' => 2]);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))
+        ->andReturn((object) ['UnidadCodigo' => 13]);
+
+    $conn->shouldReceive('statement')
+        ->twice()
+        ->withArgs(function ($sql, $bindings) use (&$detailCalls) {
+            if (str_contains($sql, 'INSERT INTO RequisicionProductiva')) {
+                $detailCalls[] = $bindings;
+                return true;
+            }
+            return false;
+        })
+        ->andReturn(true);
+
+    $service = new AdvisualRequisitionService();
+    $result = $service->createRequisition($maintenance);
+
+    expect($result)->toBeTrue()
+        ->and($detailCalls)->toHaveCount(2);
+
+    [$req1, $cod1, , , , $desc1] = array_pad($detailCalls[0], 9, null);
+    [$req2, $cod2, , , , $desc2] = array_pad($detailCalls[1], 9, null);
+
+    expect($req1)->toBe(99010)
+        ->and($req2)->toBe(99010)
+        ->and($cod1)->toBe(1)
+        ->and($cod2)->toBe(2);
+
+    $descriptions = strtolower($desc1 . '|' . $desc2);
+    expect($descriptions)->toContain('iluminación')
+        ->and($descriptions)->toContain('estructura');
 });

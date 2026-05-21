@@ -48,7 +48,7 @@ class AdvisualRequisitionService
             $serialAdmin = config('services.advisual.serial_admin', 0);
 
             // Observación incluye código de espacio + criterios linkeados + descripción
-            $categoryLabel = $maintenance->auditValues()
+            $criterionLabels = $maintenance->auditValues()
                 ->with('criterion')
                 ->get()
                 ->pluck('criterion.name')
@@ -56,11 +56,13 @@ class AdvisualRequisitionService
                 ->map(fn ($c) => strtoupper($c))
                 ->unique()
                 ->values()
-                ->join(', ');
+                ->all();
 
-            if ($categoryLabel === '') {
-                $categoryLabel = strtoupper($maintenance->category ?? 'GENERAL');
+            if (empty($criterionLabels)) {
+                $criterionLabels = [strtoupper($maintenance->category ?? 'GENERAL')];
             }
+
+            $categoryLabel = implode(', ', $criterionLabels);
 
             $observacion = $space->external_code . ' - ' . $categoryLabel . ' - ' . ($maintenance->description ?: 'Sin observaciones');
 
@@ -145,7 +147,7 @@ class AdvisualRequisitionService
             $reqId = (int) $requisitionId->id;
 
             try {
-                $this->insertRequisitionProductiva($reqId, $maintenance, $categoryLabel);
+                $this->insertRequisitionProductiva($reqId, $maintenance, $criterionLabels);
             } catch (\Exception $eDetail) {
                 try {
                     $this->deleteRequisicion($reqId);
@@ -180,9 +182,9 @@ class AdvisualRequisitionService
     }
 
     /**
-     * Insert one detail line in dbo.RequisicionProductiva for the just-created Requisicion.
+     * Insert one detail line per criterion in dbo.RequisicionProductiva for the just-created Requisicion.
      */
-    private function insertRequisitionProductiva(int $requisicionCodigo, Maintenance $maintenance, string $categoryLabel): void
+    private function insertRequisitionProductiva(int $requisicionCodigo, Maintenance $maintenance, array $criterionLabels): void
     {
         $space = $maintenance->advertisingSpace;
         $externalCode = $space?->external_code;
@@ -207,12 +209,6 @@ class AdvisualRequisitionService
         $productoCodigo = (int) $row->ProductoCodigo;
         $unidadCodigo = $this->resolveDefaultUnidadCodigo();
 
-        $description = $categoryLabel;
-        if (!empty($maintenance->description)) {
-            $description .= ' - ' . $maintenance->description;
-        }
-        $description = mb_substr($description, 0, 8000);
-
         $cantidad = (float) config('services.advisual.requiprod_cantidad', 1);
         $canPedida = (float) config('services.advisual.requiprod_can_pedida', 0);
 
@@ -228,30 +224,46 @@ class AdvisualRequisitionService
                 RequiProdCantidad,
                 RequiProdUnidadCodigo,
                 RequiProdCanPedida
-            ) VALUES (?, 1, 1, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?);
         ';
 
-        $bindings = [
-            $requisicionCodigo,
-            $externalCode,
-            $productoCodigo,
-            $locacionCodigo,
-            $description,
-            $cantidad,
-            $unidadCodigo,
-            $canPedida,
-        ];
+        $labels = empty($criterionLabels) ? [strtoupper($maintenance->category ?? 'GENERAL')] : $criterionLabels;
 
-        $this->executeAdvisualWrite($sql, $bindings);
+        $codigo = 1;
+        foreach ($labels as $label) {
+            $description = $label;
+            if (!empty($maintenance->description)) {
+                $description .= ' - ' . $maintenance->description;
+            }
+            $description = mb_substr($description, 0, 8000);
 
-        Log::info('Advisual RequisicionProductiva inserted', [
-            'requisicion_id' => $requisicionCodigo,
-            'maintenance_id' => $maintenance->id,
-            'espacio_codigo' => $externalCode,
-            'producto_codigo' => $productoCodigo,
-            'locacion_codigo' => $locacionCodigo,
-            'unidad_codigo' => $unidadCodigo,
-        ]);
+            $bindings = [
+                $requisicionCodigo,
+                $codigo,
+                $externalCode,
+                $productoCodigo,
+                $locacionCodigo,
+                $description,
+                $cantidad,
+                $unidadCodigo,
+                $canPedida,
+            ];
+
+            $this->executeAdvisualWrite($sql, $bindings);
+
+            Log::info('Advisual RequisicionProductiva inserted', [
+                'requisicion_id' => $requisicionCodigo,
+                'requi_prod_codigo' => $codigo,
+                'criterion_label' => $label,
+                'maintenance_id' => $maintenance->id,
+                'espacio_codigo' => $externalCode,
+                'producto_codigo' => $productoCodigo,
+                'locacion_codigo' => $locacionCodigo,
+                'unidad_codigo' => $unidadCodigo,
+            ]);
+
+            $codigo++;
+        }
     }
 
     /**

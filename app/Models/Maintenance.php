@@ -124,6 +124,18 @@ class Maintenance extends Model
 
     public function getCategoryLabelAttribute(): string
     {
+        $names = $this->auditValues()
+            ->with('criterion')
+            ->get()
+            ->pluck('criterion.name')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($names->isNotEmpty()) {
+            return $names->join(', ');
+        }
+
         return MaintenanceCategory::label($this->category);
     }
 
