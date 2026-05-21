@@ -355,59 +355,55 @@
         </div>
     </div>
 
-    <!-- Listado de Auditorías -->
+    <!-- Pendientes por solicitar mantenimiento -->
     <div class="bg-white rounded shadow-sm overflow-hidden mb-4">
         <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 text-muted small text-uppercase fw-bold">Auditorías</h6>
-            <small class="text-muted">{{ $audits->total() }} resultados</small>
+            <h6 class="text-muted small text-uppercase fw-bold mb-0">
+                Pendientes por solicitar mantenimiento
+                @if($pendingTotal > 0)
+                    <span class="badge bg-warning text-dark ms-2">{{ $pendingTotal }}</span>
+                @endif
+            </h6>
+            @if($pendingTotal > count($pendingRequisitions))
+                <small class="text-muted">Mostrando {{ count($pendingRequisitions) }} de {{ $pendingTotal }}</small>
+            @endif
         </div>
-        <div class="table-responsive" wire:loading.class="opacity-50">
-            <table class="table table-hover mb-0">
-                <thead class="bg-light text-muted small text-uppercase fw-bold">
-                    <tr>
-                        <th class="px-4 py-3">Código</th>
-                        <th class="px-4 py-3">Ciudad</th>
-                        <th class="px-4 py-3">Producto</th>
-                        <th class="px-4 py-3">Tipo</th>
-                        <th class="px-4 py-3">Estado</th>
-                        <th class="px-4 py-3">Auditor</th>
-                        <th class="px-4 py-3">Fecha</th>
-                        <th class="px-4 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($audits as $audit)
+        @if(count($pendingRequisitions) > 0)
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-light">
                         <tr>
-                            <td class="px-4 py-3 fw-bold">{{ $audit->space->external_code ?? '—' }}</td>
-                            <td class="px-4 py-3">{{ $audit->space->city ?? '—' }}</td>
-                            <td class="px-4 py-3">{{ $audit->space->type ?? '—' }}</td>
-                            <td class="px-4 py-3">
-                                <span class="badge bg-{{ $audit->audit_type === 'structural' ? 'warning' : 'primary' }}">
-                                    {{ ['general' => 'General', 'structural' => 'Estructural'][$audit->audit_type] ?? '—' }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="badge bg-{{ $audit->general_status === 'bad' ? 'danger' : 'success' }}">
-                                    {{ $audit->general_status === 'bad' ? 'Malo' : 'Bueno' }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">{{ $audit->user->name ?? '—' }}</td>
-                            <td class="px-4 py-3">{{ optional($audit->audit_date)->format('Y-m-d') }}</td>
-                            <td class="px-4 py-3 text-end">
-                                <a href="{{ route('platform.audit.detail', $audit) }}" class="btn btn-sm btn-outline-primary">Ver</a>
-                            </td>
+                            <th class="px-4">Auditoría</th>
+                            <th>Espacio</th>
+                            <th>Ciudad</th>
+                            <th>Criterios pendientes</th>
+                            <th>Fecha auditoría</th>
+                            <th class="text-end pe-4">Días en espera</th>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-4">Sin auditorías para los filtros aplicados.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        @if($audits->hasPages())
-            <div class="px-4 py-3 border-top">
-                {{ $audits->links() }}
+                    </thead>
+                    <tbody>
+                        @foreach($pendingRequisitions as $row)
+                            <tr>
+                                <td class="px-4 fw-bold">
+                                    <a href="{{ route('platform.audit.detail', $row['audit_id']) }}" class="text-decoration-none">
+                                        #{{ $row['audit_id'] }}
+                                    </a>
+                                </td>
+                                <td>{{ $row['space_code'] }}</td>
+                                <td>{{ $row['city'] }}</td>
+                                <td><span class="small text-danger">{{ $row['criteria'] }}</span></td>
+                                <td><small class="text-muted">{{ optional($row['audit_date'])->format('d/m/Y') ?? '—' }}</small></td>
+                                <td class="text-end pe-4">
+                                    <span class="badge bg-light text-dark border">{{ $row['days_waiting'] ?? 0 }} d</span>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="text-center text-muted py-4">
+                <p class="mb-0">Sin auditorías pendientes por solicitar mantenimiento en el período.</p>
             </div>
         @endif
     </div>

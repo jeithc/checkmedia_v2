@@ -10,5 +10,5 @@ class MaintenanceStatusChart extends Chart
     protected $height = 300;
     protected $type = 'bar';
     protected $target = 'maintenance_status';
-    protected $colors = ['#198754', '#dc3545'];
+    protected $colors = ['#dc3545', '#198754'];
 }

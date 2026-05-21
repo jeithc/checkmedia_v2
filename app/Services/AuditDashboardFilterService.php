@@ -90,7 +90,7 @@ class AuditDashboardFilterService
                     $q->where('city', $f['city']);
                 }
                 if (!empty($f['producto'])) {
-                    $q->where('type', $f['producto']);
+                    $q->where('category', $f['producto']);
                 }
             });
         }
@@ -126,7 +126,7 @@ class AuditDashboardFilterService
                     $q->where('city', $f['city']);
                 }
                 if (!empty($f['producto'])) {
-                    $q->where('type', $f['producto']);
+                    $q->where('category', $f['producto']);
                 }
             });
         }
@@ -175,12 +175,12 @@ class AuditDashboardFilterService
     public function productos(): array
     {
         return AdvertisingSpace::query()
-            ->select('type')
-            ->whereNotNull('type')
-            ->where('type', '!=', '')
+            ->select('category')
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
             ->distinct()
-            ->orderBy('type')
-            ->pluck('type', 'type')
+            ->orderBy('category')
+            ->pluck('category', 'category')
             ->toArray();
     }
 

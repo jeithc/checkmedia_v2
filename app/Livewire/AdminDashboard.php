@@ -238,11 +238,6 @@ class AdminDashboard extends Component
             ->limit(10)
             ->get();
 
-        // Paginated audit list for the table
-        $audits = (clone $auditBase())->with('space', 'user')
-            ->orderBy('audits.audit_date', 'desc')
-            ->paginate(25);
-
         // --- Chart: Criterios con más fallas ---
         // Una "falla" = audit_value que está bad O fue resuelto via maintenance (pivot).
         // El flip bad→good al cerrar maintenance no debe ocultarlo del histórico.
@@ -283,15 +278,59 @@ class AdminDashboard extends Component
             ->groupBy('maintenances.status')
             ->pluck('total', 'status');
 
+        // --- Chart: Pendientes por solicitar mantenimiento ---
+        // Auditorías con audit_values "bad" no cubiertos por mantenimiento abierto.
+        $pendingFilter = function ($q) {
+            $q->where('audit_values.value', 'bad')
+                ->whereDoesntHave('maintenances', fn ($mq) =>
+                    $mq->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])
+                );
+        };
+
+        $pendingRequisitions = (clone $auditBase())
+            ->whereHas('values', $pendingFilter)
+            ->with([
+                'space',
+                'values' => function ($q) use ($pendingFilter) {
+                    $pendingFilter($q);
+                    $q->with('criterion');
+                },
+            ])
+            ->orderBy('audits.audit_date', 'asc')
+            ->limit(20)
+            ->get()
+            ->map(function (Audit $a) {
+                $criteria = $a->values
+                    ->pluck('criterion.name')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->join(', ');
+
+                return [
+                    'audit_id' => $a->id,
+                    'space_code' => $a->space?->external_code ?? '—',
+                    'city' => $a->space?->city ?? '—',
+                    'criteria' => $criteria !== '' ? $criteria : '—',
+                    'audit_date' => $a->audit_date,
+                    'days_waiting' => $a->audit_date ? (int) floor($a->audit_date->diffInDays(now())) : 0,
+                ];
+            });
+
+        $pendingTotal = (clone $auditBase())
+            ->whereHas('values', $pendingFilter)
+            ->count();
+
         return view('livewire.admin-dashboard', [
             'metrics' => $metrics,
             'kpis' => $kpis,
             'recentAudits' => $recentAudits,
-            'audits' => $audits,
             'isDefaultWeek' => $isDefaultWeek,
             'criteriaFailures' => $criteriaFailures,
             'topBadSpaces' => $topBadSpaces,
             'maintByStatus' => $maintByStatus,
+            'pendingRequisitions' => $pendingRequisitions,
+            'pendingTotal' => $pendingTotal,
             'filterOptions' => [
                 'cities' => $filterService->cities(),
                 'productos' => $filterService->productos(),

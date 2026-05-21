@@ -20,12 +20,14 @@ beforeEach(function () {
         'external_code' => 'AER-001',
         'city' => 'Bogotá',
         'type' => 'Aeropuertos',
+        'category' => 'Aeropuertos',
     ]);
 
     $this->spaceB = AdvertisingSpace::create([
         'external_code' => 'CC-002',
         'city' => 'Medellín',
         'type' => 'Centros comerciales',
+        'category' => 'Centros comerciales',
     ]);
 
     $this->critStructural = AuditCriterion::create([
