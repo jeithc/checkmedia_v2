@@ -38,6 +38,14 @@ class AuditCriterionSeeder extends Seeder
                 'order_index' => 4,
                 'applies_to' => 'general',
             ],
+            [
+                'name' => 'Vandalismo',
+                'key' => 'vandalism',
+                'type' => 'boolean',
+                'is_active' => false,
+                'order_index' => 5,
+                'applies_to' => 'general',
+            ],
         ];
 
         foreach ($criteria as $criterion) {
