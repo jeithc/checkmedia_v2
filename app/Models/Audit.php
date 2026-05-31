@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 use Orchid\Metrics\Chartable;
 use Orchid\Screen\AsSource;
 
@@ -41,13 +40,6 @@ class Audit extends Model
         'audit_date' => 'datetime',
         'resolved_at' => 'datetime',
     ];
-
-    public function getResolutionPhotoUrlAttribute(): ?string
-    {
-        return $this->resolution_photo_path
-            ? Storage::disk('s3')->url($this->resolution_photo_path)
-            : null;
-    }
 
     public function space()
     {
