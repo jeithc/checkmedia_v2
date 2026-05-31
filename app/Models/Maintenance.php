@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 use Orchid\Filters\Filterable;
 use Orchid\Screen\AsSource;
 
@@ -73,6 +74,13 @@ class Maintenance extends Model
         'closed_at' => 'datetime',
         'support_files_paths' => 'array',
     ];
+
+    public function getClosureDocumentUrlAttribute(): ?string
+    {
+        return $this->closure_document_path
+            ? Storage::disk('s3')->url($this->closure_document_path)
+            : null;
+    }
 
     protected $allowedSorts = [
         'status',

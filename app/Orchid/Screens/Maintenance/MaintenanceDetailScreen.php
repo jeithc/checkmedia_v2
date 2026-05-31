@@ -83,7 +83,7 @@ class MaintenanceDetailScreen extends Screen
             'closure_comment' => 'nullable|string|max:1000',
         ]);
 
-        $path = $request->file('closure_document')->store('maintenance-closures', 'public');
+        $path = $request->file('closure_document')->store('maintenance-closures', 's3');
 
         $maintenance->update([
             'status' => Maintenance::STATUS_CLOSED,

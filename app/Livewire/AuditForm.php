@@ -425,7 +425,7 @@ class AuditForm extends Component
                 $photoDateTime->format('Y-m-d g:i a')
             );
 
-            $path = $watermarkedPhoto->store('audit-photos', 'public');
+            $path = $watermarkedPhoto->store('audit-photos', 's3');
 
             AuditPhoto::create([
                 'audit_id' => $audit->id,
