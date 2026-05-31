@@ -11,6 +11,7 @@ use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
 use App\Services\ImageWatermarkService;
 use App\Services\MaintenanceNotificationService;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -378,61 +379,74 @@ class AuditForm extends Component
 
         $date = now();
         $weekData = Audit::getCalendarYearAndWeek($date);
-        $audit = Audit::updateOrCreate(
-            [
-                'advertising_space_id' => $space->id,
-                'year' => $weekData['year'],
-                'week' => $weekData['week'],
-                'audit_type' => $this->auditType,
-            ],
-            [
-                'user_id' => $user->id ?? 1,
-                'audit_date' => $existingAudit ? $existingAudit->audit_date : $date,
-                'audit_purpose' => $effectivePurpose,
-                'observation' => $this->observation,
-                'general_status' => 'good',
-            ]
-        );
+        $photoDateTime = $existingAudit ? ($existingAudit->audit_date ?? $date) : $date;
 
-        // Si el audit ya existía (updateOrCreate lo encontró), purgar valores previos
-        // para evitar duplicados cuando se complementa o recarga (reupload borra existingAuditId)
-        if (! $audit->wasRecentlyCreated) {
-            $audit->values()->delete();
-        }
-
-        $generalStatus = 'good';
-        foreach ($this->values as $criterionId => $data) {
-            AuditValue::create([
-                'audit_id' => $audit->id,
-                'audit_criterion_id' => $criterionId,
-                'value' => $data['value'],
-                'comment' => $data['value'] === 'bad' ? trim($data['comment'] ?? '') : null,
-            ]);
-
-            if ($data['value'] === 'bad') {
-                $generalStatus = 'bad';
-            }
-        }
-
-        $audit->update(['general_status' => $generalStatus]);
-
+        // Subir las fotos a S3 ANTES de tocar la base de datos. Si la subida
+        // falla, la excepción se lanza aquí y no se crea ninguna auditoría,
+        // evitando auditorías huérfanas sin imágenes.
         $watermarkService = new ImageWatermarkService;
-        $photoDateTime = $audit->audit_date ?? now();
-
+        $uploadedPaths = [];
         foreach ($this->photos as $photo) {
             $watermarkedPhoto = $watermarkService->addWatermark(
                 $photo,
                 $photoDateTime->format('Y-m-d g:i a')
             );
 
-            $path = $watermarkedPhoto->store('audit-photos', 's3');
-
-            AuditPhoto::create([
-                'audit_id' => $audit->id,
-                'file_path' => $path,
-                'file_type' => 'image',
-            ]);
+            $uploadedPaths[] = $watermarkedPhoto->store('audit-photos', 's3');
         }
+
+        $generalStatus = 'good';
+        foreach ($this->values as $data) {
+            if (($data['value'] ?? null) === 'bad') {
+                $generalStatus = 'bad';
+                break;
+            }
+        }
+
+        $audit = DB::transaction(function () use (
+            $space, $weekData, $user, $existingAudit, $date, $effectivePurpose, $generalStatus, $uploadedPaths
+        ) {
+            $audit = Audit::updateOrCreate(
+                [
+                    'advertising_space_id' => $space->id,
+                    'year' => $weekData['year'],
+                    'week' => $weekData['week'],
+                    'audit_type' => $this->auditType,
+                ],
+                [
+                    'user_id' => $user->id ?? 1,
+                    'audit_date' => $existingAudit ? $existingAudit->audit_date : $date,
+                    'audit_purpose' => $effectivePurpose,
+                    'observation' => $this->observation,
+                    'general_status' => $generalStatus,
+                ]
+            );
+
+            // Si el audit ya existía (updateOrCreate lo encontró), purgar valores previos
+            // para evitar duplicados cuando se complementa o recarga (reupload borra existingAuditId)
+            if (! $audit->wasRecentlyCreated) {
+                $audit->values()->delete();
+            }
+
+            foreach ($this->values as $criterionId => $data) {
+                AuditValue::create([
+                    'audit_id' => $audit->id,
+                    'audit_criterion_id' => $criterionId,
+                    'value' => $data['value'],
+                    'comment' => $data['value'] === 'bad' ? trim($data['comment'] ?? '') : null,
+                ]);
+            }
+
+            foreach ($uploadedPaths as $path) {
+                AuditPhoto::create([
+                    'audit_id' => $audit->id,
+                    'file_path' => $path,
+                    'file_type' => 'image',
+                ]);
+            }
+
+            return $audit;
+        });
 
         $this->createMaintenanceIfNeeded($audit, $space, $effectivePurpose);
 
