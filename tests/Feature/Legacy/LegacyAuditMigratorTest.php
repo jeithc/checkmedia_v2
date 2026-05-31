@@ -2,6 +2,7 @@
 
 use App\Services\Legacy\LegacyAuditMigrator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Feature\Legacy\LegacyTestSchema;
 
 uses(RefreshDatabase::class);
 
@@ -40,4 +41,56 @@ test('criterionId resolves seeded keys to ids', function () {
     $id = $migrator->criterionId('structural');
 
     expect($id)->toBe(\DB::table('audit_criteria')->where('key', 'structural')->value('id'));
+});
+
+test('upsertSpace maps elemento columns to advertising_spaces', function () {
+    LegacyTestSchema::build();
+    \DB::connection('legacy')->table('elemento')->insert([
+        'espacioCod' => 'SP100',
+        'proveedorEle' => 'ProvX',
+        'tipoEle' => 'Valla',
+        'productoEle' => 'Coca-Cola',
+        'illuminacionEle' => 'SI',
+        'espacioProEle' => 'P',
+        'ciudadEle' => 'Bogotá',
+        'locacionEle' => 'Calle 1',
+        'ubicacionEle' => 'Norte',
+        'localizacionEle' => 'Zona A',
+    ]);
+
+    $migrator = new LegacyAuditMigrator();
+    $space = $migrator->upsertSpace('SP100');
+
+    expect($space->external_code)->toBe('SP100');
+    expect($space->provider)->toBe('ProvX');
+    expect($space->type)->toBe('Valla');
+    expect($space->category)->toBe('Coca-Cola');
+    expect($space->illumination_type)->toBe('SI');
+    expect($space->ownership)->toBe('P');
+    expect($space->city)->toBe('Bogotá');
+    expect($space->location_name)->toBe('Calle 1');
+    expect($space->address)->toBe('Norte');
+    expect($space->zone)->toBe('Zona A');
+});
+
+test('upsertSpace creates a minimal space when elemento row is missing', function () {
+    LegacyTestSchema::build();
+    $migrator = new LegacyAuditMigrator();
+
+    $space = $migrator->upsertSpace('GHOST');
+
+    expect($space->external_code)->toBe('GHOST');
+    expect($space->city)->toBe('Unknown');
+});
+
+test('upsertSpace is idempotent', function () {
+    LegacyTestSchema::build();
+    \DB::connection('legacy')->table('elemento')->insert(['espacioCod' => 'SP1', 'ciudadEle' => 'Cali']);
+    $migrator = new LegacyAuditMigrator();
+
+    $a = $migrator->upsertSpace('SP1');
+    $b = $migrator->upsertSpace('SP1');
+
+    expect($a->id)->toBe($b->id);
+    expect(\App\Models\AdvertisingSpace::where('external_code', 'SP1')->count())->toBe(1);
 });

@@ -54,4 +54,31 @@ class LegacyAuditMigrator
 
         return $this->criterionIds[$key];
     }
+
+    public function upsertSpace(string $espacioCod): AdvertisingSpace
+    {
+        $row = DB::connection('legacy')->table('elemento')->where('espacioCod', $espacioCod)->first();
+
+        $attributes = [
+            'provider' => $row->proveedorEle ?? null,
+            'type' => $row->tipoEle ?? null,
+            'category' => $row->productoEle ?? null,
+            'illumination_type' => $row->illuminacionEle ?? null,
+            'ownership' => $row->espacioProEle ?? null,
+            'city' => $row->ciudadEle ?? 'Unknown',
+            'location_name' => $row->locacionEle ?? null,
+            'address' => $row->ubicacionEle ?? null,
+            'zone' => $row->localizacionEle ?? null,
+        ];
+
+        // city is NOT NULL in the schema; guarantee a value.
+        if (empty($attributes['city'])) {
+            $attributes['city'] = 'Unknown';
+        }
+
+        return AdvertisingSpace::updateOrCreate(
+            ['external_code' => $espacioCod],
+            $attributes
+        );
+    }
 }
