@@ -96,7 +96,7 @@
                 @if($maintenance->closure_document_path)
                 <div class="mb-2">
                     <small class="text-muted fw-bold d-block mb-1">Documento:</small>
-                    <a href="{{ asset('storage/' . $maintenance->closure_document_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <a href="{{ $maintenance->closure_document_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
                         <i class="icon-doc me-1"></i> Ver Documento
                     </a>
                 </div>

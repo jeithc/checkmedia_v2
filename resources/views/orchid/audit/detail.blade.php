@@ -222,7 +222,7 @@
                                 <a href="#" data-bs-toggle="modal" data-bs-target="#galleryModal"
                                    onclick="var myCarousel = document.getElementById('carouselGallery'); var carousel = bootstrap.Carousel.getOrCreateInstance(myCarousel); carousel.to({{ $key }}); return false;"
                                    class="d-block ratio ratio-4x3 border rounded overflow-hidden position-relative">
-                                    <img src="{{ asset('storage/' . $photo->file_path) }}" alt="Foto"
+                                    <img src="{{ $photo->url }}" alt="Foto"
                                         class="w-100 h-100 object-fit-cover" style="object-fit: cover;">
                                 </a>
                             </div>
@@ -469,7 +469,7 @@
                                                 <button type="button" 
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#singlePhotoModal"
-                                                    data-photo-url="{{ asset('storage/' . $log->metadata['photo_path']) }}"
+                                                    data-photo-url="{{ \Storage::disk('s3')->url($log->metadata['photo_path']) }}"
                                                     class="btn btn-sm btn-outline-success py-0 px-2 btn-view-photo" style="font-size: 0.75rem;">
                                                     <i class="icon-camera me-1"></i> Ver Foto
                                                 </button>
@@ -1273,7 +1273,7 @@
                         @foreach($audit->photos as $key => $photo)
                             <div class="carousel-item h-100 {{ $key == 0 ? 'active' : '' }}">
                                 <div class="d-flex justify-content-center align-items-center" style="height: 80vh;">
-                                    <img src="{{ asset('storage/' . $photo->file_path) }}" 
+                                    <img src="{{ $photo->url }}"
                                          class="mw-100 mh-100" 
                                          alt="Foto {{ $key + 1 }}" 
                                          style="object-fit: contain;">

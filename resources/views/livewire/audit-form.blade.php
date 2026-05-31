@@ -165,8 +165,8 @@
                 <h4 class="text-sm font-bold text-gray-700 mb-4">Fotos registradas</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     @foreach($this->existingAudit->photos as $photo)
-                    <a href="{{ asset('storage/'.$photo->file_path) }}" target="_blank" class="block aspect-square rounded-lg overflow-hidden border border-gray-200 group">
-                        <img src="{{ asset('storage/'.$photo->file_path) }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                    <a href="{{ $photo->url }}" target="_blank" class="block aspect-square rounded-lg overflow-hidden border border-gray-200 group">
+                        <img src="{{ $photo->url }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                     </a>
                     @endforeach
                 </div>
