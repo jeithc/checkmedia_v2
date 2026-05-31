@@ -56,7 +56,7 @@ class LegacyTestSchema
         $schema->create('observaciones', function ($table) {
             $table->integer('idObserv')->primary();
             $table->integer('idEstado');
-            $table->text('texto')->nullable();
+            $table->text('notaObserv')->nullable();
         });
     }
 }

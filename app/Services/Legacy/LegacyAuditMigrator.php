@@ -102,14 +102,18 @@ class LegacyAuditMigrator
     {
         $parts = [];
 
-        $comments = DB::connection('legacy')->table('observaciones')
-            ->where('idEstado', $legacyRow->idEstado)
-            ->orderBy('idObserv')
-            ->pluck('texto')
-            ->filter()
-            ->all();
-        if (! empty($comments)) {
-            $parts[] = implode("\n", $comments);
+        try {
+            $comments = DB::connection('legacy')->table('observaciones')
+                ->where('idEstado', $legacyRow->idEstado)
+                ->orderBy('idObserv')
+                ->pluck('notaObserv')
+                ->filter()
+                ->all();
+            if (! empty($comments)) {
+                $parts[] = implode("\n", $comments);
+            }
+        } catch (\Throwable $e) {
+            // observaciones unavailable or schema mismatch: keep only the traceability note.
         }
 
         $parts[] = '[Migrado del sistema viejo · idEstado='.$legacyRow->idEstado
