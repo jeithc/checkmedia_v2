@@ -32,7 +32,8 @@ class MigrateLegacyAudits extends Command
         $migrator = new LegacyAuditMigrator;
         $photoMigrator = new LegacyPhotoMigrator(config('services.legacy_photos_path'));
 
-        $counters = ['audits' => 0, 'skipped' => 0, 'photos' => 0];
+        $counters = ['audits' => 0, 'skipped' => 0, 'photos' => 0, 'collisions' => 0];
+        $seen = [];
 
         $rows = DB::connection('legacy')->table('estado_ele')
             ->where('fechaEstado', 'like', $year.'-%')
@@ -50,6 +51,12 @@ class MigrateLegacyAudits extends Command
             }
             $counters['audits']++;
 
+            if (isset($seen[$audit->id])) {
+                $counters['collisions']++;
+            } else {
+                $seen[$audit->id] = true;
+            }
+
             $counters['photos'] += $photoMigrator->migratePhotosFor(
                 $audit,
                 (int) $row->idEstado,
@@ -61,6 +68,7 @@ class MigrateLegacyAudits extends Command
         $this->info("Migrated audits: {$counters['audits']}");
         $this->info("Skipped (invalid date): {$counters['skipped']}");
         $this->info("Photos uploaded: {$counters['photos']}");
+        $this->info("Collisions (same space+week collapsed): {$counters['collisions']}");
 
         return self::SUCCESS;
     }

@@ -22,7 +22,7 @@ class LegacyAuditMigrator
 
     public static function scaleToValue($legacyValue): string
     {
-        return ((int) $legacyValue) === 1 ? 'good' : (((int) $legacyValue) >= 2 ? 'bad' : 'good');
+        return ((int) $legacyValue) >= 2 ? 'bad' : 'good';
     }
 
     private ?User $migrationUser = null;
@@ -59,12 +59,13 @@ class LegacyAuditMigrator
     public function upsertSpace(string $espacioCod): AdvertisingSpace
     {
         $row = DB::connection('legacy')->table('elemento')->where('espacioCod', $espacioCod)->first();
+        $row = $row ?? new \stdClass;
 
         $attributes = [
             'provider' => $row->proveedorEle ?? null,
             'type' => $row->tipoEle ?? null,
             'category' => $row->productoEle ?? null,
-            'illumination_type' => $row->illuminacionEle ?? null,
+            'illumination_type' => $row->illuminacionEle ?? $row->iluminacionEle ?? null,
             'ownership' => $row->espacioProEle ?? null,
             'city' => $row->ciudadEle ?? 'Unknown',
             'location_name' => $row->locacionEle ?? null,
@@ -129,45 +130,47 @@ class LegacyAuditMigrator
         $space = $this->upsertSpace($legacyRow->espacioCod);
         $weekData = Audit::getCalendarYearAndWeek($legacyRow->fechaEstado);
 
-        $audit = Audit::updateOrCreate(
-            [
-                'advertising_space_id' => $space->id,
-                'year' => $weekData['year'],
-                'week' => $weekData['week'],
-                'audit_type' => Audit::TYPE_GENERAL,
-            ],
-            [
-                'user_id' => $this->migrationUser()->id,
-                'audit_date' => Carbon::parse($legacyRow->fechaEstado)->toDateString(),
-                'audit_purpose' => Audit::PURPOSE_AUDIT_ONLY,
-                'observation' => $this->buildObservation($legacyRow),
-                'general_status' => 'good',
-            ]
-        );
+        return DB::transaction(function () use ($legacyRow, $space, $weekData) {
+            $audit = Audit::updateOrCreate(
+                [
+                    'advertising_space_id' => $space->id,
+                    'year' => $weekData['year'],
+                    'week' => $weekData['week'],
+                    'audit_type' => Audit::TYPE_GENERAL,
+                ],
+                [
+                    'user_id' => $this->migrationUser()->id,
+                    'audit_date' => Carbon::parse($legacyRow->fechaEstado)->toDateString(),
+                    'audit_purpose' => Audit::PURPOSE_AUDIT_ONLY,
+                    'observation' => $this->buildObservation($legacyRow),
+                    'general_status' => 'good',
+                ]
+            );
 
-        // Rebuild values idempotently.
-        $audit->values()->delete();
+            // Rebuild values idempotently.
+            $audit->values()->delete();
 
-        $generalStatus = 'good';
-        foreach (self::CRITERION_MAP as $legacyColumn => $criterionKey) {
-            $criterionId = $this->criterionId($criterionKey);
-            if ($criterionId === null) {
-                continue; // criterion not seeded; skip defensively
+            $generalStatus = 'good';
+            foreach (self::CRITERION_MAP as $legacyColumn => $criterionKey) {
+                $criterionId = $this->criterionId($criterionKey);
+                if ($criterionId === null) {
+                    continue; // criterion not seeded; skip defensively
+                }
+                $value = self::scaleToValue($legacyRow->{$legacyColumn} ?? 1);
+                if ($value === 'bad') {
+                    $generalStatus = 'bad';
+                }
+                AuditValue::create([
+                    'audit_id' => $audit->id,
+                    'audit_criterion_id' => $criterionId,
+                    'value' => $value,
+                    'comment' => null,
+                ]);
             }
-            $value = self::scaleToValue($legacyRow->{$legacyColumn} ?? 1);
-            if ($value === 'bad') {
-                $generalStatus = 'bad';
-            }
-            AuditValue::create([
-                'audit_id' => $audit->id,
-                'audit_criterion_id' => $criterionId,
-                'value' => $value,
-                'comment' => null,
-            ]);
-        }
 
-        $audit->update(['general_status' => $generalStatus]);
+            $audit->update(['general_status' => $generalStatus]);
 
-        return $audit;
+            return $audit;
+        });
     }
 }

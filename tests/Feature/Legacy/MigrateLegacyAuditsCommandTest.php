@@ -56,3 +56,25 @@ test('command is idempotent', function () {
     expect(\App\Models\AuditValue::count())->toBe(5);
     expect(AuditPhoto::count())->toBe(1);
 });
+
+test('command reports week-bucket collisions', function () {
+    \DB::connection('legacy')->table('estado_ele')->insert([
+        [
+            'idEstado' => 50, 'espacioCod' => 'SP1', 'fechaEstado' => '2026-01-01', 'semanaEstado' => 1,
+            'iluminacionEstado' => 1, 'estadoEstado' => 1, 'materialEstado' => 1,
+            'entornoEstado' => 1, 'anomaliaEstado' => 1, 'idUsuario' => 9,
+        ],
+        [
+            'idEstado' => 51, 'espacioCod' => 'SP1', 'fechaEstado' => '2026-01-05', 'semanaEstado' => 1,
+            'iluminacionEstado' => 1, 'estadoEstado' => 1, 'materialEstado' => 1,
+            'entornoEstado' => 1, 'anomaliaEstado' => 1, 'idUsuario' => 9,
+        ],
+    ]);
+
+    $this->artisan('migrate:legacy-audits')
+        ->expectsOutputToContain('Collisions')
+        ->assertSuccessful();
+
+    // SP1 week-1 bucket collapsed to a single audit (plus the unrelated week-10 row from beforeEach).
+    expect(\App\Models\Audit::where('week', \App\Models\Audit::getCalendarYearAndWeek('2026-01-01')['week'])->count())->toBe(1);
+});
