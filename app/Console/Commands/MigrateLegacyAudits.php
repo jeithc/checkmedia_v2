@@ -29,7 +29,7 @@ class MigrateLegacyAudits extends Command
 
         $this->call('db:seed', ['--class' => AuditCriterionSeeder::class, '--force' => true]);
 
-        $migrator = new LegacyAuditMigrator();
+        $migrator = new LegacyAuditMigrator;
         $photoMigrator = new LegacyPhotoMigrator(config('services.legacy_photos_path'));
 
         $counters = ['audits' => 0, 'skipped' => 0, 'photos' => 0];

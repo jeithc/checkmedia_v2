@@ -2,9 +2,9 @@
 
 namespace App\Services\Legacy;
 
+use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\AuditValue;
-use App\Models\AdvertisingSpace;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +26,7 @@ class LegacyAuditMigrator
     }
 
     private ?User $migrationUser = null;
+
     private array $criterionIds = [];
 
     public function migrationUser(): User
@@ -89,6 +90,7 @@ class LegacyAuditMigrator
         }
         try {
             $t = Carbon::parse($d);
+
             return $t && $t->year > 1900;
         } catch (\Throwable $e) {
             return false;
@@ -116,7 +118,7 @@ class LegacyAuditMigrator
     }
 
     /**
-     * @return Audit|null  null when the legacy date is invalid (row skipped)
+     * @return Audit|null null when the legacy date is invalid (row skipped)
      */
     public function migrateAudit($legacyRow): ?Audit
     {

@@ -9,9 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class LegacyPhotoMigrator
 {
-    public function __construct(private string $basePath)
-    {
-    }
+    public function __construct(private string $basePath) {}
 
     /**
      * Migrate all legacy photos for one audit. Files live at
