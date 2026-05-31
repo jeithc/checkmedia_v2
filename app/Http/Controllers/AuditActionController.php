@@ -49,7 +49,7 @@ class AuditActionController extends Controller
 
         // 2. Upload Photo
         if ($request->hasFile('revision_photo')) {
-            $path = $request->file('revision_photo')->store('audit_resolutions', 'public');
+            $path = $request->file('revision_photo')->store('audit_resolutions', 's3');
             $audit->resolution_photo_path = $path;
         }
 
@@ -316,7 +316,7 @@ class AuditActionController extends Controller
             'closure_document.max' => 'El archivo no debe superar 10MB.',
         ]);
 
-        $path = $request->file('closure_document')->store('maintenance-closures', 'public');
+        $path = $request->file('closure_document')->store('maintenance-closures', 's3');
 
         $updateData = [
             'status' => Maintenance::STATUS_CLOSED,
