@@ -49,4 +49,6 @@ return [
         'requiprod_unidad_fallback' => env('ADVISUAL_REQUIPROD_UNIDAD_FALLBACK', 13),
     ],
 
+    'legacy_photos_path' => env('LEGACY_PHOTOS_PATH', base_path('../auditoriaefectimedios.com/public_html')),
+
 ];
