@@ -71,7 +71,7 @@ beforeEach(function () {
         'product_name' => 'Test Product',
     ]);
 
-    Storage::fake('public');
+    Storage::fake('s3');
 });
 
 test('it creates audit with correct week and year', function () {
@@ -262,6 +262,11 @@ test('it can complement existing audit', function () {
     $this->assertDatabaseHas('audit_photos', [
         'audit_id' => $existingAudit->id,
     ]);
+
+    // Verify the photo file landed on the s3 disk
+    $photoRecord = \App\Models\AuditPhoto::where('audit_id', $existingAudit->id)->latest('id')->first();
+    expect($photoRecord)->not->toBeNull();
+    Storage::disk('s3')->assertExists($photoRecord->file_path);
 });
 
 test('it can reupload audit', function () {
