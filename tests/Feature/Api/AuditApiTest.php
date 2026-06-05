@@ -16,7 +16,7 @@ beforeEach(function () {
 
 function apiUser(): User
 {
-    return User::factory()->create();
+    return User::factory()->create(['permissions' => ['audit.can_audit' => true]]);
 }
 
 function authHeaders(User $user): array
@@ -130,4 +130,32 @@ it('requires authentication', function () {
     $space = apiSpace();
     $criterion = apiCriterion();
     $this->postJson('/api/audits', auditPayload($space, $criterion))->assertStatus(401);
+});
+
+it('forbids a user without any audit permission', function () {
+    $user = User::factory()->create(['permissions' => []]);
+    $space = apiSpace();
+    $criterion = apiCriterion();
+
+    $payload = auditPayload($space, $criterion);
+    $payload['photos'] = [UploadedFile::fake()->image('p.jpg')];
+
+    $this->withHeaders(authHeaders($user))
+        ->post('/api/audits', $payload)
+        ->assertStatus(403);
+
+    expect(Audit::count())->toBe(0);
+});
+
+it('forbids a general-only auditor from submitting a structural audit', function () {
+    $user = User::factory()->create(['permissions' => ['audit.can_audit' => true]]);
+    $space = apiSpace();
+    $criterion = apiCriterion();
+
+    $payload = auditPayload($space, $criterion, ['audit_type' => Audit::TYPE_STRUCTURAL]);
+    $payload['photos'] = [UploadedFile::fake()->image('p.jpg')];
+
+    $this->withHeaders(authHeaders($user))
+        ->post('/api/audits', $payload)
+        ->assertStatus(403);
 });

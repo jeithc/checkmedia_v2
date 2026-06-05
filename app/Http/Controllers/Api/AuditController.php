@@ -45,6 +45,21 @@ class AuditController extends Controller
         $space = AdvertisingSpace::findOrFail($validated['space_id']);
         $user = $request->user();
 
+        // Authorize: the user must be allowed to audit, and may only submit an
+        // audit_type they hold the matching permission for (admins may do both).
+        // Mirrors the capability gating in AuditForm::mount().
+        $isStructural = $user->hasAccess('audit.can_audit_structural');
+        $isGeneral = $user->hasAccess('audit.can_audit');
+        $isAdmin = $user->hasAccess('platform.index');
+
+        abort_unless($isStructural || $isGeneral || $isAdmin, 403, 'No tiene permiso para auditar.');
+
+        if ($validated['audit_type'] === Audit::TYPE_STRUCTURAL) {
+            abort_unless($isStructural || $isAdmin, 403, 'No tiene permiso para auditorías estructurales.');
+        } else {
+            abort_unless($isGeneral || $isAdmin, 403, 'No tiene permiso para auditorías generales.');
+        }
+
         $purpose = $validated['purpose'];
         $canDoPreventive = $user->hasAccess('platform.index') || $user->hasAccess('audit.can_select_purpose');
         if ($purpose === Audit::PURPOSE_PREVENTIVE && ! $canDoPreventive) {
