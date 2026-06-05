@@ -22,6 +22,7 @@ class Audit extends Model
     const PURPOSE_CORRECTIVE = 'corrective_maintenance';
 
     protected $fillable = [
+        'client_uuid',
         'advertising_space_id',
         'user_id',
         'year',
