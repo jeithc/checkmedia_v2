@@ -5,13 +5,6 @@ namespace App\Livewire;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\AuditCriterion;
-use App\Models\AuditPhoto;
-use App\Models\AuditValue;
-use App\Models\Maintenance;
-use App\Models\SpaceActivityLog;
-use App\Services\ImageWatermarkService;
-use App\Services\MaintenanceNotificationService;
-use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -99,7 +92,7 @@ class AuditForm extends Component
         /** @var \App\Models\User|null $user */
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('platform.login');
         }
 
@@ -319,7 +312,7 @@ class AuditForm extends Component
         /** @var \App\Models\User|null $user */
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
@@ -378,99 +371,26 @@ class AuditForm extends Component
         }
 
         $date = now();
-        $weekData = Audit::getCalendarYearAndWeek($date);
-        $photoDateTime = $existingAudit ? ($existingAudit->audit_date ?? $date) : $date;
 
-        // Subir las fotos a S3 ANTES de tocar la base de datos. Si la subida
-        // falla, la excepción se lanza aquí y no se crea ninguna auditoría,
-        // evitando auditorías huérfanas sin imágenes.
-        $watermarkService = new ImageWatermarkService;
-        $uploadedPaths = [];
-        foreach ($this->photos as $photo) {
-            $watermarkedPhoto = $watermarkService->addWatermark(
-                $photo,
-                $photoDateTime->format('Y-m-d g:i a')
-            );
-
-            $uploadedPaths[] = $watermarkedPhoto->store('audit-photos', 's3');
-        }
-
-        $generalStatus = 'good';
-        foreach ($this->values as $data) {
-            if (($data['value'] ?? null) === 'bad') {
-                $generalStatus = 'bad';
-                break;
-            }
-        }
-
-        $audit = DB::transaction(function () use (
-            $space, $weekData, $user, $existingAudit, $date, $effectivePurpose, $generalStatus, $uploadedPaths
-        ) {
-            $audit = Audit::updateOrCreate(
-                [
-                    'advertising_space_id' => $space->id,
-                    'year' => $weekData['year'],
-                    'week' => $weekData['week'],
-                    'audit_type' => $this->auditType,
-                ],
-                [
-                    'user_id' => $user->id ?? 1,
-                    'audit_date' => $existingAudit ? $existingAudit->audit_date : $date,
-                    'audit_purpose' => $effectivePurpose,
-                    'observation' => $this->observation,
-                    'general_status' => $generalStatus,
-                ]
-            );
-
-            // Si el audit ya existía (updateOrCreate lo encontró), purgar valores previos
-            // para evitar duplicados cuando se complementa o recarga (reupload borra existingAuditId)
-            if (! $audit->wasRecentlyCreated) {
-                $audit->values()->delete();
-            }
-
-            foreach ($this->values as $criterionId => $data) {
-                AuditValue::create([
-                    'audit_id' => $audit->id,
-                    'audit_criterion_id' => $criterionId,
-                    'value' => $data['value'],
-                    'comment' => $data['value'] === 'bad' ? trim($data['comment'] ?? '') : null,
-                ]);
-            }
-
-            foreach ($uploadedPaths as $path) {
-                AuditPhoto::create([
-                    'audit_id' => $audit->id,
-                    'file_path' => $path,
-                    'file_type' => 'image',
-                ]);
-            }
-
-            return $audit;
-        });
-
-        $this->createMaintenanceIfNeeded($audit, $space, $effectivePurpose);
-
-        $isNew = ! $existingAudit;
-        $purposeLabel = $this->getPurposeLabel($effectivePurpose);
-        SpaceActivityLog::log(
-            spaceId: $space->id,
-            type: $isNew ? SpaceActivityLog::TYPE_AUDIT_CREATED : SpaceActivityLog::TYPE_AUDIT_UPDATED,
-            description: $isNew
-                ? "Auditoría creada ({$purposeLabel}) con estado: {$generalStatus}"
-                : "Auditoría actualizada ({$purposeLabel}). Estado: {$generalStatus}",
-            auditId: $audit->id,
-            metadata: [
-                'general_status' => $generalStatus,
-                'audit_purpose' => $effectivePurpose,
-                'photos_count' => count($this->photos),
-                'user_name' => $user->name ?? 'Sistema',
-            ],
-            year: $weekData['year'],
-            week: $weekData['week']
+        $data = new \App\Services\AuditSubmissionData(
+            user: $user,
+            space: $space,
+            auditType: $this->auditType,
+            purpose: $effectivePurpose,
+            values: $this->values,
+            observation: $this->observation,
+            capturedAt: $existingAudit && $existingAudit->audit_date ? $existingAudit->audit_date : $date,
+            photos: $this->photos,
+            clientUuid: null,
+            allowOverwriteExisting: true,
         );
 
-        if ($generalStatus === 'bad') {
-            app(MaintenanceNotificationService::class)->notify('audit_bad_created', $audit);
+        try {
+            $audit = app(\App\Services\AuditSubmissionService::class)->submit($data);
+        } catch (\App\Exceptions\AuditOpenMaintenanceException $e) {
+            $this->addError('values', 'No se puede editar esta auditoría porque tiene un mantenimiento abierto. Ciérrelo antes de modificarla.');
+
+            return;
         }
 
         $this->resetForm(true);
@@ -482,44 +402,6 @@ class AuditForm extends Component
         }
 
         session()->flash('message', $flashMessage);
-    }
-
-    protected function createMaintenanceIfNeeded(Audit $audit, AdvertisingSpace $space, string $purpose): void
-    {
-        if ($purpose === Audit::PURPOSE_AUDIT_ONLY) {
-            return;
-        }
-
-        /** @var \App\Models\User|null $user */
-        $user = auth()->user();
-        $userId = $user ? $user->id : 1;
-
-        $category = $this->isStructuralAuditor
-            ? strtolower($space->type ?? 'estructural')
-            : 'estructural';
-
-        if ($purpose === Audit::PURPOSE_PREVENTIVE) {
-            Maintenance::create([
-                'advertising_space_id' => $space->id,
-                'audit_id' => $audit->id,
-                'requested_by' => $userId,
-                'requested_at' => now(),
-                'type' => Maintenance::TYPE_PREVENTIVE,
-                'category' => $category,
-                'status' => Maintenance::STATUS_CLOSED,
-                'closed_by' => $userId,
-                'closed_at' => now(),
-                'description' => 'Mantenimiento preventivo realizado durante auditoría #'.$audit->id,
-            ]);
-        }
-    }
-
-    protected function getPurposeLabel(string $purpose): string
-    {
-        return match ($purpose) {
-            Audit::PURPOSE_PREVENTIVE => 'Mant. Preventivo',
-            default => 'Solo Auditoría',
-        };
     }
 
     public function removePhoto($index)
