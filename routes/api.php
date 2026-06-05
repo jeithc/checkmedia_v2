@@ -12,4 +12,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/spaces/search', [\App\Http\Controllers\Api\SpaceController::class, 'search']);
     Route::get('/criteria', [\App\Http\Controllers\Api\CriterionController::class, 'index']);
+    Route::post('/audits', [\App\Http\Controllers\Api\AuditController::class, 'store']);
 });
