@@ -9,6 +9,7 @@ use App\Models\AuditPhoto;
 use App\Models\AuditValue;
 use App\Models\Maintenance;
 use App\Models\SpaceActivityLog;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class AuditSubmissionService
@@ -58,47 +59,61 @@ class AuditSubmissionService
             }
         }
 
-        $audit = DB::transaction(function () use ($data, $weekData, $existing, $generalStatus, $uploadedPaths) {
-            $audit = Audit::updateOrCreate(
-                [
-                    'advertising_space_id' => $data->space->id,
-                    'year' => $weekData['year'],
-                    'week' => $weekData['week'],
-                    'audit_type' => $data->auditType,
-                ],
-                [
-                    'client_uuid' => $data->clientUuid,
-                    'user_id' => $data->user->id,
-                    'audit_date' => $existing ? $existing->audit_date : $data->capturedAt,
-                    'audit_purpose' => $data->purpose,
-                    'observation' => $data->observation,
-                    'general_status' => $generalStatus,
-                ]
-            );
+        try {
+            $audit = DB::transaction(function () use ($data, $weekData, $existing, $generalStatus, $uploadedPaths) {
+                $audit = Audit::updateOrCreate(
+                    [
+                        'advertising_space_id' => $data->space->id,
+                        'year' => $weekData['year'],
+                        'week' => $weekData['week'],
+                        'audit_type' => $data->auditType,
+                    ],
+                    [
+                        'client_uuid' => $data->clientUuid,
+                        'user_id' => $data->user->id,
+                        'audit_date' => $existing ? $existing->audit_date : $data->capturedAt,
+                        'audit_purpose' => $data->purpose,
+                        'observation' => $data->observation,
+                        'general_status' => $generalStatus,
+                    ]
+                );
 
-            if (! $audit->wasRecentlyCreated) {
-                $audit->values()->delete();
+                if (! $audit->wasRecentlyCreated) {
+                    $audit->values()->delete();
+                }
+
+                foreach ($data->values as $criterionId => $val) {
+                    AuditValue::create([
+                        'audit_id' => $audit->id,
+                        'audit_criterion_id' => $criterionId,
+                        'value' => $val['value'],
+                        'comment' => $val['value'] === 'bad' ? trim($val['comment'] ?? '') : null,
+                    ]);
+                }
+
+                foreach ($uploadedPaths as $path) {
+                    AuditPhoto::create([
+                        'audit_id' => $audit->id,
+                        'file_path' => $path,
+                        'file_type' => 'image',
+                    ]);
+                }
+
+                return $audit;
+            });
+        } catch (QueryException $e) {
+            // Concurrent retry of the same offline submission: another request won the
+            // race on the client_uuid UNIQUE index. Treat as idempotent success and
+            // return the audit that was persisted by the winning request.
+            if ($data->clientUuid) {
+                $raced = Audit::where('client_uuid', $data->clientUuid)->first();
+                if ($raced) {
+                    return $raced;
+                }
             }
 
-            foreach ($data->values as $criterionId => $val) {
-                AuditValue::create([
-                    'audit_id' => $audit->id,
-                    'audit_criterion_id' => $criterionId,
-                    'value' => $val['value'],
-                    'comment' => $val['value'] === 'bad' ? trim($val['comment'] ?? '') : null,
-                ]);
-            }
-
-            foreach ($uploadedPaths as $path) {
-                AuditPhoto::create([
-                    'audit_id' => $audit->id,
-                    'file_path' => $path,
-                    'file_type' => 'image',
-                ]);
-            }
-
-            return $audit;
-        });
+            throw $e;
+        }
 
         $this->createMaintenanceIfNeeded($audit, $data);
 

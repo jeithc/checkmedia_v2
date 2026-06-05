@@ -130,3 +130,25 @@ it('overwrites and replaces values when an audit already exists and overwrite al
         ->and($audit->values()->count())->toBe(1)
         ->and($audit->values()->first()->value)->toBe('bad');
 });
+
+it('conflict exception carries the existing audit', function () {
+    $space = makeSpace();
+    $criterion = makeCriterion();
+
+    $first = app(AuditSubmissionService::class)->submit(makeSubmission([
+        'space' => $space, 'criterion' => $criterion,
+        'values' => [$criterion->id => ['value' => 'good', 'comment' => '']],
+    ]));
+
+    $conflicting = makeSubmission([
+        'space' => $space, 'criterion' => $criterion, 'allowOverwriteExisting' => false,
+        'values' => [$criterion->id => ['value' => 'good', 'comment' => '']],
+    ]);
+
+    try {
+        app(AuditSubmissionService::class)->submit($conflicting);
+        $this->fail('expected AuditConflictException');
+    } catch (App\Exceptions\AuditConflictException $e) {
+        expect($e->existing->id)->toBe($first->id);
+    }
+});
