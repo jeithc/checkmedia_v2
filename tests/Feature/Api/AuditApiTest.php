@@ -132,6 +132,23 @@ it('requires authentication', function () {
     $this->postJson('/api/audits', auditPayload($space, $criterion))->assertStatus(401);
 });
 
+it('rejects a non-existent criterion_id with 422', function () {
+    $user = apiUser();
+    $space = apiSpace();
+    apiCriterion();
+
+    $payload = auditPayload($space, apiCriterion(), [
+        'values' => [['criterion_id' => 999999, 'value' => 'good', 'comment' => '']],
+    ]);
+    $payload['photos'] = [UploadedFile::fake()->image('p.jpg')];
+
+    $this->withHeaders(authHeaders($user))
+        ->post('/api/audits', $payload)
+        ->assertStatus(422);
+
+    expect(Audit::count())->toBe(0);
+});
+
 it('forbids a user without any audit permission', function () {
     $user = User::factory()->create(['permissions' => []]);
     $space = apiSpace();

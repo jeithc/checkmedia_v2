@@ -27,7 +27,7 @@ class AuditController extends Controller
             'captured_at' => ['required', 'date', 'before_or_equal:now'],
             'mode' => ['required', 'in:new,complement'],
             'values' => ['required', 'array', 'min:1'],
-            'values.*.criterion_id' => ['required', 'integer'],
+            'values.*.criterion_id' => ['required', 'integer', 'exists:audit_criteria,id'],
             'values.*.value' => ['required', 'in:good,bad'],
             'values.*.comment' => ['nullable', 'string'],
             'photos' => ['required', 'array', 'min:1'],

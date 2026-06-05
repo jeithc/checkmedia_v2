@@ -112,6 +112,18 @@ class AuditSubmissionService
                 }
             }
 
+            // A different submission won the race on the [space, year, week, audit_type]
+            // unique index. Surface it as a conflict (not a 500) so the caller can
+            // complement or discard, matching the pre-insert conflict path.
+            $tupleWinner = Audit::where('advertising_space_id', $data->space->id)
+                ->where('year', $weekData['year'])
+                ->where('week', $weekData['week'])
+                ->where('audit_type', $data->auditType)
+                ->first();
+            if ($tupleWinner && ! $data->allowOverwriteExisting) {
+                throw new AuditConflictException($tupleWinner);
+            }
+
             throw $e;
         }
 
