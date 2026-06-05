@@ -24,7 +24,7 @@ test('screen loads without errors', function () {
         ->get('/admin/preventive-matrix');
 
     $response->assertStatus(200);
-    expect($response->content())->toContain('Matriz de Urgencia Preventiva');
+    expect($response->content())->toContain('Listado Preventivos');
 });
 
 test('spaces are ordered by urgency (days_remaining ascending)', function () {

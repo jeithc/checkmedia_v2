@@ -150,11 +150,14 @@ test('it only syncs maintenances inside the configured search window', function 
         'advisual_requisition_id' => 9004,
     ]);
 
+    // Anchor the "old" maintenance to the service reference date (not real now()),
+    // so it stays before the lookback cutoff regardless of when the suite runs.
+    $beforeWindow = Carbon::parse('2026-03-23')->subMonths(7);
     $oldMaintenance->forceFill([
-        'created_at' => now()->subMonths(7),
-        'updated_at' => now()->subMonths(7),
-        'requested_at' => now()->subMonths(7),
-        'advisual_synced_at' => now()->subMonths(7),
+        'created_at' => $beforeWindow,
+        'updated_at' => $beforeWindow,
+        'requested_at' => $beforeWindow,
+        'advisual_synced_at' => $beforeWindow,
     ])->save();
 
     $database = Mockery::mock(DatabaseManager::class);
