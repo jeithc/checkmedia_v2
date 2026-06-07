@@ -46,6 +46,10 @@ export default function AuditFormScreen() {
     const photo = await capturePhoto();
     if (photo) {
       setPhotos((p) => [...p, photo]);
+      // Capture time of the first photo, stamped on-device (not at server
+      // receipt) so the server watermarks and computes the week from it. This
+      // is the post-shutter callback time (shutter + ~resize), an accepted
+      // approximation of the true EXIF shutter time.
       if (!capturedAt) setCapturedAt(new Date().toISOString());
     }
   };
