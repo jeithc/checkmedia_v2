@@ -33,6 +33,11 @@ export interface SpaceSearchResult {
   duplicate: boolean;
   existing_audit_id: number | null;
   booking: Booking | null;
+  city: string | null;
+  location_name: string | null;
+  address: string | null;
+  zone: string | null;
+  provider: string | null;
 }
 
 export interface Criterion {

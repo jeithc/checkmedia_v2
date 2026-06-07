@@ -35,6 +35,7 @@ it('renders the space and a duplicate warning', async () => {
   jest.spyOn(spacesApi, 'searchSpace').mockResolvedValue({
     id: 3, external_code: 'ABC', type: 'Billboard', duplicate: true, existing_audit_id: 99,
     booking: { id: 1, client_name: 'ACME', contract_code: 'C1', product_name: 'P' },
+    city: null, location_name: null, address: null, zone: null, provider: null,
   });
 
   const { findByText } = await wrap(<SpaceScreen />);
@@ -46,6 +47,7 @@ it('renders the space and a duplicate warning', async () => {
 it('navigates to the audit form on Auditar', async () => {
   jest.spyOn(spacesApi, 'searchSpace').mockResolvedValue({
     id: 3, external_code: 'ABC', type: 'Billboard', duplicate: false, existing_audit_id: null, booking: null,
+    city: null, location_name: null, address: null, zone: null, provider: null,
   });
 
   const { findByText } = await wrap(<SpaceScreen />);
@@ -56,6 +58,7 @@ it('navigates to the audit form on Auditar', async () => {
 it('offers Ver/Complementar/Cancelar when the space already has an audit', async () => {
   jest.spyOn(spacesApi, 'searchSpace').mockResolvedValue({
     id: 3, external_code: 'ABC', type: 'Billboard', duplicate: true, existing_audit_id: 99, booking: null,
+    city: null, location_name: null, address: null, zone: null, provider: null,
   });
 
   const { findByText } = await wrap(<SpaceScreen />);

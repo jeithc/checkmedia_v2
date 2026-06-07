@@ -26,6 +26,7 @@ describe('HomeScreen', () => {
   it('navigates to the space route on a successful search', async () => {
     jest.spyOn(spacesApi, 'searchSpace').mockResolvedValue({
       id: 3, external_code: 'ABC', type: 'Billboard', duplicate: false, existing_audit_id: null, booking: null,
+      city: null, location_name: null, address: null, zone: null, provider: null,
     });
 
     const { getByTestId, getByText } = await render(<HomeScreen />);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable, Image } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../src/auth/AuthContext';
@@ -10,10 +11,17 @@ import { validateAudit } from '../../../src/audit/validation';
 import { submitBuiltAudit } from '../../../src/audit/useAuditSubmit';
 import { capturePhoto } from '../../../src/photos/capture';
 import type { UploadPhoto } from '../../../src/photos/resize';
-import type { CriterionValue } from '../../../src/api/types';
+import type { CriterionValue, AuditType, AuditPurpose } from '../../../src/api/types';
 import { ApiError } from '../../../src/api/errors';
-import { Field } from '../../../src/ui/Field';
+import { colors, spacing, radius, typography } from '../../../src/theme';
+import { Screen } from '../../../src/ui/Screen';
+import { AppHeader } from '../../../src/ui/AppHeader';
+import { SelectCard } from '../../../src/ui/SelectCard';
+import { Card } from '../../../src/ui/Card';
 import { Button } from '../../../src/ui/Button';
+import { Field } from '../../../src/ui/Field';
+import { Pill } from '../../../src/ui/Pill';
+import { Badge } from '../../../src/ui/Badge';
 
 export default function AuditFormScreen() {
   const { spaceId, mode, auditId } = useLocalSearchParams<{
@@ -23,12 +31,13 @@ export default function AuditFormScreen() {
     auditId?: string;
   }>();
   const isComplement = mode === 'complement' && !!auditId;
-  const { token, permissions } = useAuth();
+  const { token, permissions, signOut } = useAuth();
   const options = useMemo(
     () => (permissions ? resolveAuditOptions(permissions) : null),
     [permissions],
   );
-  const auditType = options?.defaultType ?? 'general';
+  const [auditType, setAuditType] = useState<AuditType>('general');
+  const [purpose, setPurpose] = useState<AuditPurpose>('audit_only');
 
   const { data: criteria, isLoading } = useQuery({
     queryKey: ['criteria', auditType],
@@ -52,6 +61,7 @@ export default function AuditFormScreen() {
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
   const [seeded, setSeeded] = useState(false);
+  const [typeSeeded, setTypeSeeded] = useState(false);
 
   // Criteria reported "bad" in the existing audit cannot be downgraded to "good".
   const lockedBad = useMemo(
@@ -61,6 +71,24 @@ export default function AuditFormScreen() {
       ),
     [existing],
   );
+
+  // Seed the audit type once. For new audits, seed from the resolved default.
+  // When complementing, the type is fixed by the existing audit; prefer its
+  // type when available, otherwise keep the default.
+  useEffect(() => {
+    if (typeSeeded) return;
+    if (isComplement) {
+      if (existing) {
+        setAuditType(existing.audit_type);
+        setTypeSeeded(true);
+      }
+      return;
+    }
+    if (options) {
+      setAuditType(options.defaultType);
+      setTypeSeeded(true);
+    }
+  }, [typeSeeded, isComplement, existing, options]);
 
   // Preload existing values/observation once, when complementing.
   useEffect(() => {
@@ -82,6 +110,15 @@ export default function AuditFormScreen() {
   };
   const setComment = (id: number, comment: string) =>
     setValues((p) => ({ ...p, [id]: { value: p[id]?.value ?? 'good', comment } }));
+
+  // Changing the audit type swaps the criteria set, so reset answers to avoid
+  // orphaned criterion ids from the previous type. Never invoked in complement
+  // mode (the selectors are hidden and the type is fixed).
+  const selectType = (next: AuditType) => {
+    if (next === auditType) return;
+    setAuditType(next);
+    setValues({});
+  };
 
   const takePhoto = async () => {
     const photo = await capturePhoto();
@@ -125,7 +162,7 @@ export default function AuditFormScreen() {
         {
           spaceId: Number(spaceId),
           auditType,
-          purpose: 'audit_only',
+          purpose,
           observation,
           values: fullValues,
           photos,
@@ -153,112 +190,333 @@ export default function AuditFormScreen() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
 
+  const uploading = busy && progress > 0 && progress < 1;
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{isComplement ? 'Complementar auditoría' : 'Auditoría'}</Text>
+    <Screen
+      header={
+        <AppHeader
+          title={isComplement ? 'Complementar auditoría' : 'Auditoría'}
+          onBack={() => router.back()}
+          onSignOut={signOut}
+        />
+      }
+    >
+      <View style={styles.body}>
+        {!isComplement && options?.canChooseType && (
+          <Card title="Tipo de Auditoría">
+            {options.types.includes('general') && (
+              <SelectCard
+                icon="clipboard-outline"
+                title="General"
+                subtitle="Auditoría estándar"
+                tone="primary"
+                selected={auditType === 'general'}
+                onPress={() => selectType('general')}
+              />
+            )}
+            {options.types.includes('structural') && (
+              <SelectCard
+                icon="business-outline"
+                title="Estructural"
+                subtitle="Inspección estructural"
+                tone="structural"
+                selected={auditType === 'structural'}
+                onPress={() => selectType('structural')}
+              />
+            )}
+          </Card>
+        )}
 
-      {(criteria ?? []).map((c) => (
-        <View key={c.id} style={styles.criterion}>
-          <Text style={styles.cName}>{c.name}</Text>
-          <View style={styles.row}>
-            <Pressable
-              onPress={() => setValue(c.id, 'good')}
-              disabled={lockedBad.has(c.id)}
-              style={[
-                styles.pill,
-                valueFor(c.id) === 'good' && styles.pillGood,
-                lockedBad.has(c.id) && styles.pillDisabled,
-              ]}
-            >
-              <Text>Bueno</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setValue(c.id, 'bad')}
-              style={[styles.pill, valueFor(c.id) === 'bad' && styles.pillBad]}
-            >
-              <Text>Malo</Text>
-            </Pressable>
-          </View>
-          {valueFor(c.id) === 'bad' && (
-            <Field
-              label="Comentario"
-              value={values[c.id]?.comment ?? ''}
-              onChangeText={(t) => setComment(c.id, t)}
+        {!isComplement && (options?.purposes.length ?? 0) > 1 && (
+          <Card title="Propósito de la Visita">
+            <SelectCard
+              icon="clipboard-outline"
+              title="Solo Auditoría"
+              subtitle="Inspección sin mantenimiento"
+              tone="primary"
+              selected={purpose === 'audit_only'}
+              onPress={() => setPurpose('audit_only')}
             />
-          )}
-        </View>
-      ))}
+            <SelectCard
+              icon="shield-checkmark-outline"
+              title="Mant. Preventivo"
+              subtitle="Cuenta para el timer preventivo"
+              tone="success"
+              selected={purpose === 'preventive_maintenance'}
+              onPress={() => setPurpose('preventive_maintenance')}
+            />
+          </Card>
+        )}
 
-      <Field label="Observación" value={observation} onChangeText={setObservation} multiline />
+        {(criteria ?? []).map((c) => {
+          const isBad = valueFor(c.id) === 'bad';
+          const locked = lockedBad.has(c.id);
+          return (
+            <Card key={c.id}>
+              <View style={styles.criterionHead}>
+                <Text style={styles.cName}>{c.name}</Text>
+                {locked && <Badge label="Bloqueado" tone="bad" icon="lock-closed-outline" />}
+              </View>
+              <View style={styles.row}>
+                <View style={styles.pillSlot}>
+                  <Pill
+                    label="Bueno"
+                    tone="good"
+                    selected={valueFor(c.id) === 'good'}
+                    disabled={locked}
+                    onPress={() => setValue(c.id, 'good')}
+                  />
+                </View>
+                <View style={styles.pillSlot}>
+                  <Pill
+                    label="Malo"
+                    tone="bad"
+                    selected={isBad}
+                    onPress={() => setValue(c.id, 'bad')}
+                  />
+                </View>
+              </View>
+              {isBad && (
+                <View style={styles.criterionField}>
+                  <Field
+                    label="Detalle de la irregularidad *"
+                    icon="warning-outline"
+                    tone="danger"
+                    value={values[c.id]?.comment ?? ''}
+                    onChangeText={(t) => setComment(c.id, t)}
+                  />
+                </View>
+              )}
+            </Card>
+          );
+        })}
 
-      <Button title="Tomar foto" onPress={takePhoto} />
-      <Text style={styles.photoCount}>{photos.length} foto(s) agregada(s)</Text>
+        <Card
+          title="Evidencias"
+          accent={photos.length > 0 ? 'success' : undefined}
+        >
+          <View style={styles.evidenceHead}>
+            <Badge label={`${photos.length} foto(s) agregada(s)`} tone="neutral" icon="image-outline" />
+          </View>
 
-      {photos.length > 0 && (
-        <View style={styles.thumbs}>
-          {photos.map((photo, i) => (
-            <View key={photo.uri} style={styles.thumbWrap}>
-              <Image source={{ uri: photo.uri }} style={styles.thumb} />
-              <Pressable
-                onPress={() => removePhoto(i)}
-                style={styles.thumbRemove}
-                hitSlop={8}
-                accessibilityLabel={`Quitar foto ${i + 1}`}
-              >
-                <Text style={styles.thumbRemoveText}>×</Text>
-              </Pressable>
+          <View style={styles.thumbs}>
+            <Pressable
+              onPress={takePhoto}
+              style={({ pressed }) => [styles.addTile, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Tomar foto"
+            >
+              <Ionicons name="camera-outline" size={26} color={colors.textSecondary} />
+              <Text style={styles.addLabel}>Tomar foto</Text>
+            </Pressable>
+
+            {photos.map((photo, i) => (
+              <View key={photo.uri} style={styles.thumbWrap}>
+                <Image source={{ uri: photo.uri }} style={styles.thumb} />
+                <Pressable
+                  onPress={() => removePhoto(i)}
+                  style={styles.thumbRemove}
+                  hitSlop={8}
+                  accessibilityLabel={`Quitar foto ${i + 1}`}
+                >
+                  <Ionicons name="close" size={14} color={colors.white} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+
+          {uploading && (
+            <View style={styles.uploadBlock}>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
+              </View>
+              <Text style={styles.uploadText}>Subiendo… {Math.round(progress * 100)}%</Text>
             </View>
-          ))}
+          )}
+        </Card>
+
+        <Card title="Observación General">
+          <Text style={styles.helper}>
+            Opcional. Los detalles por ítem ya se capturan arriba.
+          </Text>
+          <Field
+            label="Observación"
+            icon="create-outline"
+            value={observation}
+            onChangeText={setObservation}
+            multiline
+          />
+        </Card>
+
+        {errors.map((e) => (
+          <View key={e} style={styles.errorChip}>
+            <Ionicons name="alert-circle" size={16} color={colors.dangerText} style={styles.chipIcon} />
+            <Text style={styles.errorChipText}>{e}</Text>
+          </View>
+        ))}
+
+        {done && (
+          <View style={styles.okChip}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.successText} style={styles.chipIcon} />
+            <Text style={styles.okChipText}>Auditoría guardada.</Text>
+          </View>
+        )}
+
+        <View style={styles.submit}>
+          <Button
+            title="Guardar auditoría"
+            variant="success"
+            icon="checkmark-circle"
+            fullWidth
+            onPress={save}
+            loading={busy}
+          />
         </View>
-      )}
-
-      {errors.map((e) => (
-        <Text key={e} style={styles.error}>
-          {e}
-        </Text>
-      ))}
-      {done && <Text style={styles.ok}>Auditoría guardada.</Text>}
-      {busy && progress > 0 && progress < 1 && (
-        <Text style={styles.photoCount}>Subiendo… {Math.round(progress * 100)}%</Text>
-      )}
-
-      <Button title="Guardar auditoría" onPress={save} loading={busy} />
-    </ScrollView>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
-  criterion: { marginBottom: 16 },
-  cName: { fontWeight: '600', marginBottom: 6 },
-  row: { flexDirection: 'row', gap: 8 },
-  pill: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 16 },
-  pillGood: { backgroundColor: '#bbf7d0', borderColor: '#16a34a' },
-  pillDisabled: { opacity: 0.4 },
-  pillBad: { backgroundColor: '#fecaca', borderColor: '#dc2626' },
-  photoCount: { marginVertical: 8, color: '#475569' },
-  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
-  thumbWrap: { position: 'relative' },
-  thumb: { width: 84, height: 84, borderRadius: 8, backgroundColor: '#e2e8f0' },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.appBg,
+  },
+  body: {
+    marginTop: spacing.lg,
+  },
+  criterionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  cName: {
+    ...typography.body,
+    fontWeight: '500',
+    flexShrink: 1,
+    marginRight: spacing.sm,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  pillSlot: {
+    flex: 1,
+  },
+  criterionField: {
+    marginTop: spacing.lg,
+  },
+  evidenceHead: {
+    marginBottom: spacing.md,
+  },
+  thumbs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  addTile: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addLabel: {
+    ...typography.small,
+    fontSize: 12,
+    marginTop: spacing.xs,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  thumbWrap: {
+    position: 'relative',
+  },
+  thumb: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.md,
+    backgroundColor: colors.borderSubtle,
+  },
   thumbRemove: {
     position: 'absolute',
     top: -6,
     right: -6,
     width: 22,
     height: 22,
-    borderRadius: 11,
-    backgroundColor: '#dc2626',
+    borderRadius: radius.full,
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  thumbRemoveText: { color: '#fff', fontSize: 15, fontWeight: '700', lineHeight: 17 },
-  error: { color: '#dc2626', marginVertical: 4 },
-  ok: { color: '#16a34a', marginVertical: 8, fontWeight: '600' },
+  uploadBlock: {
+    marginTop: spacing.lg,
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.borderSubtle,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 6,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+  },
+  uploadText: {
+    ...typography.small,
+    marginTop: spacing.sm,
+  },
+  helper: {
+    ...typography.small,
+    marginBottom: spacing.md,
+  },
+  chipIcon: {
+    marginRight: spacing.sm,
+  },
+  errorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.dangerBg,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  errorChipText: {
+    ...typography.bodySecondary,
+    color: colors.dangerText,
+    flexShrink: 1,
+  },
+  okChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.successBg,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  okChipText: {
+    ...typography.bodySecondary,
+    color: colors.successText,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  submit: {
+    marginTop: spacing.sm,
+  },
 });

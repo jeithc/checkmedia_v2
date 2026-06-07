@@ -4,15 +4,19 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
   Image,
   Pressable,
   Modal,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../src/auth/AuthContext';
 import * as auditsApi from '../../../src/api/audits';
+import { colors, spacing, radius, typography } from '../../../src/theme';
+import { Screen } from '../../../src/ui/Screen';
+import { AppHeader } from '../../../src/ui/AppHeader';
+import { Card } from '../../../src/ui/Card';
+import { Badge } from '../../../src/ui/Badge';
 
 export default function AuditDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,37 +44,46 @@ export default function AuditDetailScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <Screen header={<AppHeader onBack={() => router.back()} title={`Auditoría #${id}`} />}>
       <Text style={styles.title}>Auditoría #{data.id}</Text>
       <Text style={styles.meta}>
         Semana {data.week}/{data.year} · {data.audit_type === 'structural' ? 'Estructural' : 'General'}
       </Text>
 
-      {data.values.map((v) => (
-        <View key={v.criterion_id} style={styles.row}>
-          <Text style={styles.cName}>{v.name ?? `Criterio ${v.criterion_id}`}</Text>
-          <Text style={[styles.badge, v.value === 'bad' ? styles.badgeBad : styles.badgeGood]}>
-            {v.value === 'bad' ? 'Malo' : 'Bueno'}
-          </Text>
-          {v.value === 'bad' && !!v.comment && <Text style={styles.comment}>{v.comment}</Text>}
-        </View>
-      ))}
+      <Card title="Cumplimiento">
+        {data.values.map((v, i) => (
+          <View
+            key={v.criterion_id}
+            style={[styles.row, i > 0 && styles.rowDivider]}
+          >
+            <View style={styles.rowHead}>
+              <Text style={styles.cName}>{v.name ?? `Criterio ${v.criterion_id}`}</Text>
+              <Badge
+                tone={v.value === 'bad' ? 'bad' : 'good'}
+                label={v.value === 'bad' ? 'Malo' : 'Bueno'}
+                icon={v.value === 'bad' ? 'close-circle' : 'checkmark-circle'}
+              />
+            </View>
+            {v.value === 'bad' && !!v.comment && <Text style={styles.comment}>{v.comment}</Text>}
+          </View>
+        ))}
+      </Card>
 
       {!!data.observation && (
-        <View style={styles.obsWrap}>
-          <Text style={styles.cName}>Observación</Text>
-          <Text>{data.observation}</Text>
-        </View>
+        <Card title="Observación">
+          <Text style={styles.obsText}>{data.observation}</Text>
+        </Card>
       )}
 
-      <Text style={styles.cName}>Fotos ({data.photos.length})</Text>
-      <View style={styles.thumbs}>
-        {data.photos.map((p) => (
-          <Pressable key={p.id} onPress={() => setZoomUri(p.url)} accessibilityLabel="Ampliar foto">
-            <Image source={{ uri: p.url }} style={styles.thumb} />
-          </Pressable>
-        ))}
-      </View>
+      <Card title={`Fotos (${data.photos.length})`}>
+        <View style={styles.thumbs}>
+          {data.photos.map((p) => (
+            <Pressable key={p.id} onPress={() => setZoomUri(p.url)} accessibilityLabel="Ampliar foto">
+              <Image source={{ uri: p.url }} style={styles.thumb} />
+            </Pressable>
+          ))}
+        </View>
+      </Card>
 
       <Modal visible={!!zoomUri} transparent animationType="fade" onRequestClose={() => setZoomUri(null)}>
         <Pressable style={styles.backdrop} onPress={() => setZoomUri(null)}>
@@ -80,26 +93,39 @@ export default function AuditDetailScreen() {
           <Text style={styles.closeHint}>Toca para cerrar</Text>
         </Pressable>
       </Modal>
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 24 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  error: { color: '#dc2626' },
-  title: { fontSize: 22, fontWeight: '700' },
-  meta: { color: '#475569', marginTop: 4, marginBottom: 16 },
-  row: { marginBottom: 12 },
-  cName: { fontWeight: '600', marginBottom: 4 },
-  badge: { alignSelf: 'flex-start', paddingVertical: 2, paddingHorizontal: 10, borderRadius: 999, overflow: 'hidden', fontSize: 13 },
-  badgeGood: { backgroundColor: '#bbf7d0', color: '#166534' },
-  badgeBad: { backgroundColor: '#fecaca', color: '#991b1b' },
-  comment: { color: '#475569', marginTop: 2 },
-  obsWrap: { marginVertical: 12 },
-  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-  thumb: { width: 100, height: 100, borderRadius: 8, backgroundColor: '#e2e8f0' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.appBg },
+  error: { ...typography.body, color: colors.danger },
+  title: { ...typography.title },
+  meta: { ...typography.overline, marginTop: spacing.xs, marginBottom: spacing.lg },
+  row: { paddingVertical: spacing.md },
+  rowDivider: { borderTopWidth: 1, borderTopColor: colors.borderSubtle },
+  rowHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  cName: { ...typography.body, fontWeight: '500', flexShrink: 1 },
+  comment: { ...typography.bodySecondary, marginTop: spacing.sm },
+  obsText: { ...typography.body },
+  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  thumb: {
+    width: 100,
+    height: 100,
+    borderRadius: radius.md,
+    backgroundColor: colors.borderSubtle,
+  },
+  backdrop: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
   full: { width: '100%', height: '85%' },
-  closeHint: { color: '#cbd5e1', position: 'absolute', bottom: 40, fontSize: 13 },
+  closeHint: {
+    ...typography.small,
+    color: colors.textMuted,
+    position: 'absolute',
+    bottom: spacing.xxl,
+  },
 });

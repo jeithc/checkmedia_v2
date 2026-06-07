@@ -23,3 +23,20 @@ jest.mock('expo-image-manipulator', () => ({
 jest.mock('expo-device', () => ({ deviceName: 'test-device' }));
 
 jest.mock('react-native-get-random-values', () => ({}));
+
+jest.mock('react-native-safe-area-context', () =>
+  require('react-native-safe-area-context/jest/mock').default,
+);
+
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const makeIcon = () => (props: any) => React.createElement(View, props);
+  return {
+    Ionicons: makeIcon(),
+    MaterialIcons: makeIcon(),
+    MaterialCommunityIcons: makeIcon(),
+    FontAwesome: makeIcon(),
+    Feather: makeIcon(),
+  };
+}, { virtual: true });
