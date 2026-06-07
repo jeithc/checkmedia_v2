@@ -13,12 +13,9 @@ export interface ApiOptions {
 
 function buildUrl(path: string, query?: ApiOptions['query']): string {
   const base = getApiBaseUrl();
-  const qs = query
-    ? '?' +
-      Object.entries(query)
-        .filter(([, v]) => v !== undefined)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-        .join('&')
+  const entries = query ? Object.entries(query).filter(([, v]) => v !== undefined) : [];
+  const qs = entries.length
+    ? '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`).join('&')
     : '';
   return `${base}/api${path}${qs}`;
 }
@@ -35,11 +32,18 @@ export async function apiFetch<T = unknown>(path: string, opts: ApiOptions): Pro
     body = JSON.stringify(opts.json);
   }
 
-  const res = await fetch(buildUrl(path, opts.query), {
-    method: opts.method ?? (body ? 'POST' : 'GET'),
-    headers,
-    body,
-  });
+  let res: Response;
+  try {
+    res = await fetch(buildUrl(path, opts.query), {
+      method: opts.method ?? (body ? 'POST' : 'GET'),
+      headers,
+      body,
+    });
+  } catch (e) {
+    // fetch() rejects on network failure (offline, DNS, timeout). Normalize to
+    // ApiError (status 0) so every caller can rely on `instanceof ApiError`.
+    throw new ApiError(0, 'No se pudo conectar con el servidor. Revisa tu conexión.', e);
+  }
 
   let parsed: unknown = null;
   try {

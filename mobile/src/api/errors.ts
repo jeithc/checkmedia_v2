@@ -17,4 +17,8 @@ export class ApiError extends Error {
   get isUnauthorized() {
     return this.status === 401;
   }
+  /** No HTTP response reached us (offline, DNS, timeout). */
+  get isNetwork() {
+    return this.status === 0;
+  }
 }

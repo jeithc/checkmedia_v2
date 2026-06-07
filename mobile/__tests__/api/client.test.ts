@@ -45,4 +45,12 @@ describe('apiFetch', () => {
     expect(String(url)).not.toContain('skip');
     expect(init?.method).toBe('GET');
   });
+
+  it('wraps a network failure (fetch rejection) as an ApiError with status 0', async () => {
+    jest.spyOn(global, 'fetch').mockRejectedValue(new TypeError('Network request failed'));
+    const err = (await apiFetch('/x', {}).catch((e) => e)) as ApiError;
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(0);
+    expect(err.isNetwork).toBe(true);
+  });
 });
