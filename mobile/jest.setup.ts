@@ -19,3 +19,5 @@ jest.mock('expo-image-manipulator', () => ({
   manipulateAsync: jest.fn(async (uri: string) => ({ uri: uri + '#resized', width: 2560, height: 1440 })),
   SaveFormat: { JPEG: 'jpeg' },
 }));
+
+jest.mock('expo-device', () => ({ deviceName: 'test-device' }));
