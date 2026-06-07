@@ -28,8 +28,12 @@ export function buildSubmission(input: BuildInput): AuditSubmission {
   };
 }
 
-export async function submitBuiltAudit(input: BuildInput, token: string) {
+export async function submitBuiltAudit(
+  input: BuildInput,
+  token: string,
+  onProgress?: (fraction: number) => void,
+) {
   const submission = buildSubmission(input);
   const form = buildAuditFormData(submission);
-  return auditsApi.submitAudit(form, token);
+  return auditsApi.submitAudit(form, token, onProgress);
 }

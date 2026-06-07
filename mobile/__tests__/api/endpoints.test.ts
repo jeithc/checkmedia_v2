@@ -1,4 +1,5 @@
 import * as client from '../../src/api/client';
+import * as upload from '../../src/api/upload';
 import { login, me, logout } from '../../src/api/auth';
 import { searchSpace } from '../../src/api/spaces';
 import { listCriteria } from '../../src/api/criteria';
@@ -29,12 +30,12 @@ describe('endpoint functions', () => {
     expect(res[0].key).toBe('k');
   });
 
-  it('submitAudit posts a FormData and unwraps the audit', async () => {
-    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue({ data: { id: 9 } } as never);
+  it('submitAudit uploads the FormData via XHR multipart and unwraps the audit', async () => {
+    const spy = jest.spyOn(upload, 'uploadMultipart').mockResolvedValue({ data: { id: 9 } } as never);
     const form = new FormData();
     const res = await submitAudit(form, 'tok');
     expect(res).toEqual({ id: 9 });
-    expect(spy).toHaveBeenCalledWith('/audits', { method: 'POST', form, token: 'tok' });
+    expect(spy).toHaveBeenCalledWith('/audits', form, { token: 'tok', onProgress: undefined });
   });
 
   it('me and logout call their paths', async () => {

@@ -34,6 +34,7 @@ export default function AuditFormScreen() {
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
 
   const valueFor = (id: number) => values[id]?.value ?? 'good';
@@ -73,6 +74,7 @@ export default function AuditFormScreen() {
     if (errs.length > 0) return;
 
     setBusy(true);
+    setProgress(0);
     try {
       await submitBuiltAudit(
         {
@@ -85,6 +87,7 @@ export default function AuditFormScreen() {
           capturedAt: capturedAt ?? new Date().toISOString(),
         },
         token ?? '',
+        (f) => setProgress(f),
       );
       setDone(true);
       setTimeout(() => router.push('/(app)/home'), 1200);
@@ -169,6 +172,9 @@ export default function AuditFormScreen() {
         </Text>
       ))}
       {done && <Text style={styles.ok}>Auditoría guardada.</Text>}
+      {busy && progress > 0 && progress < 1 && (
+        <Text style={styles.photoCount}>Subiendo… {Math.round(progress * 100)}%</Text>
+      )}
 
       <Button title="Guardar auditoría" onPress={save} loading={busy} />
     </ScrollView>

@@ -1,7 +1,11 @@
-import * as client from './client';
+import * as upload from './upload';
 import type { Audit } from './types';
 
-export async function submitAudit(form: FormData, token: string) {
-  const res = await client.apiFetch<{ data: Audit }>('/audits', { method: 'POST', form, token });
+export async function submitAudit(
+  form: FormData,
+  token: string,
+  onProgress?: (fraction: number) => void,
+) {
+  const res = await upload.uploadMultipart<{ data: Audit }>('/audits', form, { token, onProgress });
   return res.data;
 }
