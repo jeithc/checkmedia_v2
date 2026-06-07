@@ -20,6 +20,29 @@ it('finds an existing local space by code', function () {
         ->assertJsonStructure(['data' => ['id', 'external_code', 'duplicate']]);
 });
 
+it('returns location and provider fields matching the web audit form', function () {
+    AdvertisingSpace::create([
+        'external_code' => 'LOC123',
+        'type' => 'Billboard',
+        'city' => 'Bogotá',
+        'location_name' => 'Centro Comercial Andino',
+        'address' => 'Carrera 11 #82-71',
+        'zone' => 'Norte',
+        'provider' => 'Efectimedios',
+    ]);
+    $user = User::factory()->create();
+    $token = $user->createToken('t')->plainTextToken;
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/spaces/search?code=LOC123')
+        ->assertOk()
+        ->assertJsonPath('data.city', 'Bogotá')
+        ->assertJsonPath('data.location_name', 'Centro Comercial Andino')
+        ->assertJsonPath('data.address', 'Carrera 11 #82-71')
+        ->assertJsonPath('data.zone', 'Norte')
+        ->assertJsonPath('data.provider', 'Efectimedios');
+});
+
 it('flags duplicate and returns booking for the current week', function () {
     $space = AdvertisingSpace::create(['external_code' => 'DUP123', 'city' => 'Bogotá', 'type' => 'Billboard']);
     $user = User::factory()->create();
