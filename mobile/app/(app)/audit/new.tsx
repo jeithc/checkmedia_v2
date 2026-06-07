@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../src/auth/AuthContext';
@@ -34,6 +34,7 @@ export default function AuditFormScreen() {
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
 
   const valueFor = (id: number) => values[id]?.value ?? 'good';
@@ -54,6 +55,14 @@ export default function AuditFormScreen() {
     }
   };
 
+  const removePhoto = (index: number) => {
+    setPhotos((p) => {
+      const next = p.filter((_, i) => i !== index);
+      if (next.length === 0) setCapturedAt(null);
+      return next;
+    });
+  };
+
   const save = async () => {
     const fullValues: typeof values = {};
     (criteria ?? []).forEach((c) => {
@@ -65,6 +74,7 @@ export default function AuditFormScreen() {
     if (errs.length > 0) return;
 
     setBusy(true);
+    setProgress(0);
     try {
       await submitBuiltAudit(
         {
@@ -77,6 +87,7 @@ export default function AuditFormScreen() {
           capturedAt: capturedAt ?? new Date().toISOString(),
         },
         token ?? '',
+        (f) => setProgress(f),
       );
       setDone(true);
       setTimeout(() => router.push('/(app)/home'), 1200);
@@ -137,12 +148,33 @@ export default function AuditFormScreen() {
       <Button title="Tomar foto" onPress={takePhoto} />
       <Text style={styles.photoCount}>{photos.length} foto(s) agregada(s)</Text>
 
+      {photos.length > 0 && (
+        <View style={styles.thumbs}>
+          {photos.map((photo, i) => (
+            <View key={photo.uri} style={styles.thumbWrap}>
+              <Image source={{ uri: photo.uri }} style={styles.thumb} />
+              <Pressable
+                onPress={() => removePhoto(i)}
+                style={styles.thumbRemove}
+                hitSlop={8}
+                accessibilityLabel={`Quitar foto ${i + 1}`}
+              >
+                <Text style={styles.thumbRemoveText}>×</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+
       {errors.map((e) => (
         <Text key={e} style={styles.error}>
           {e}
         </Text>
       ))}
       {done && <Text style={styles.ok}>Auditoría guardada.</Text>}
+      {busy && progress > 0 && progress < 1 && (
+        <Text style={styles.photoCount}>Subiendo… {Math.round(progress * 100)}%</Text>
+      )}
 
       <Button title="Guardar auditoría" onPress={save} loading={busy} />
     </ScrollView>
@@ -160,6 +192,21 @@ const styles = StyleSheet.create({
   pillGood: { backgroundColor: '#bbf7d0', borderColor: '#16a34a' },
   pillBad: { backgroundColor: '#fecaca', borderColor: '#dc2626' },
   photoCount: { marginVertical: 8, color: '#475569' },
+  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  thumbWrap: { position: 'relative' },
+  thumb: { width: 84, height: 84, borderRadius: 8, backgroundColor: '#e2e8f0' },
+  thumbRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbRemoveText: { color: '#fff', fontSize: 15, fontWeight: '700', lineHeight: 17 },
   error: { color: '#dc2626', marginVertical: 4 },
   ok: { color: '#16a34a', marginVertical: 8, fontWeight: '600' },
 });
