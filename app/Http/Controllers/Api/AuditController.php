@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Exceptions\AuditConflictException;
 use App\Exceptions\AuditOpenMaintenanceException;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AuditDetailResource;
 use App\Http\Resources\AuditResource;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
@@ -103,5 +104,18 @@ class AuditController extends Controller
         $status = $audit->wasRecentlyCreated ? 201 : 200;
 
         return (new AuditResource($audit))->response()->setStatusCode($status);
+    }
+
+    public function show(Request $request, Audit $audit)
+    {
+        $user = $request->user();
+        $canAudit = $user->hasAccess('audit.can_audit')
+            || $user->hasAccess('audit.can_audit_structural')
+            || $user->hasAccess('platform.index');
+        abort_unless($canAudit, 403, 'No tiene permiso para ver auditorías.');
+
+        $audit->load(['values.criterion', 'photos']);
+
+        return new AuditDetailResource($audit);
     }
 }
