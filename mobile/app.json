@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "CheckMedia Auditor",
+    "slug": "checkmedia-auditor",
+    "scheme": "checkmedia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": ["expo-router"],
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "La app usa la cámara para registrar fotos de la auditoría.",
+        "NSFaceIDUsageDescription": "Usa Face ID para desbloquear la sesión."
+      }
+    },
+    "android": {
+      "package": "com.checkmedia.auditor",
+      "permissions": ["CAMERA"]
+    },
+    "extra": {
+      "apiUrl": "https://v2.pptefectimedios.com"
+    }
+  }
+}
