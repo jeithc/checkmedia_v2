@@ -43,13 +43,37 @@ export default function SpaceScreen() {
           <Text>Producto: {data.booking.product_name ?? '—'}</Text>
         </View>
       )}
-      {data.duplicate && (
-        <Text style={styles.warn}>Este espacio ya tiene una auditoría esta semana.</Text>
+      {data.duplicate ? (
+        <View>
+          <View style={styles.dupCard}>
+            <Text style={styles.dupTitle}>Ya se reportó el elemento esta semana.</Text>
+            <Text style={styles.dupText}>
+              Este espacio ya tiene una auditoría registrada para la semana actual.
+            </Text>
+          </View>
+          <Button
+            title="Ver auditoría"
+            variant="success"
+            onPress={() => router.push(`/(app)/audit/${data.existing_audit_id}`)}
+          />
+          <View style={styles.gap} />
+          <Button
+            title="Complementar"
+            onPress={() =>
+              router.push(
+                `/(app)/audit/new?spaceId=${data.id}&code=${encodeURIComponent(data.external_code)}&mode=complement&auditId=${data.existing_audit_id}`,
+              )
+            }
+          />
+          <View style={styles.gap} />
+          <Button title="Cancelar" variant="secondary" onPress={() => router.back()} />
+        </View>
+      ) : (
+        <Button
+          title="Auditar"
+          onPress={() => router.push(`/(app)/audit/new?spaceId=${data.id}&code=${encodeURIComponent(data.external_code)}`)}
+        />
       )}
-      <Button
-        title="Auditar"
-        onPress={() => router.push(`/(app)/audit/new?spaceId=${data.id}&code=${encodeURIComponent(data.external_code)}`)}
-      />
     </ScrollView>
   );
 }
@@ -63,4 +87,8 @@ const styles = StyleSheet.create({
   cardTitle: { fontWeight: '700', marginBottom: 8 },
   warn: { color: '#b45309', marginBottom: 16 },
   error: { color: '#dc2626' },
+  gap: { height: 10 },
+  dupCard: { backgroundColor: '#fef2f2', borderColor: '#fecaca', borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 16 },
+  dupTitle: { color: '#b91c1c', fontWeight: '700', fontSize: 16, marginBottom: 4 },
+  dupText: { color: '#dc2626' },
 });

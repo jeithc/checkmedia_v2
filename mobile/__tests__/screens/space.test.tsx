@@ -6,8 +6,9 @@ import * as spacesApi from '../../src/api/spaces';
 import * as AuthCtx from '../../src/auth/AuthContext';
 
 const mockPush = jest.fn();
+const mockBack = jest.fn();
 jest.mock('expo-router', () => ({
-  router: { push: (...a: unknown[]) => mockPush(...a) },
+  router: { push: (...a: unknown[]) => mockPush(...a), back: () => mockBack() },
   useLocalSearchParams: () => ({ code: 'ABC' }),
 }));
 
@@ -18,6 +19,7 @@ function wrap(ui: React.ReactElement) {
 
 beforeEach(() => {
   mockPush.mockClear();
+  mockBack.mockClear();
   jest.spyOn(AuthCtx, 'useAuth').mockReturnValue({
     status: 'authenticated', token: 'tok', user: { id: 1, name: 'A', username: 'a' },
     permissions: {
@@ -49,4 +51,23 @@ it('navigates to the audit form on Auditar', async () => {
   const { findByText } = await wrap(<SpaceScreen />);
   await fireEvent.press(await findByText('Auditar'));
   await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/(app)/audit/new?spaceId=3&code=ABC'));
+});
+
+it('offers Ver/Complementar/Cancelar when the space already has an audit', async () => {
+  jest.spyOn(spacesApi, 'searchSpace').mockResolvedValue({
+    id: 3, external_code: 'ABC', type: 'Billboard', duplicate: true, existing_audit_id: 99, booking: null,
+  });
+
+  const { findByText } = await wrap(<SpaceScreen />);
+
+  await fireEvent.press(await findByText('Ver auditoría'));
+  expect(mockPush).toHaveBeenCalledWith('/(app)/audit/99');
+
+  await fireEvent.press(await findByText('Complementar'));
+  expect(mockPush).toHaveBeenCalledWith(
+    '/(app)/audit/new?spaceId=3&code=ABC&mode=complement&auditId=99',
+  );
+
+  await fireEvent.press(await findByText('Cancelar'));
+  expect(mockBack).toHaveBeenCalled();
 });

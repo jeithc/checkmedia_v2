@@ -55,3 +55,31 @@ export interface Audit {
   general_status: string;
   audit_date: string | null;
 }
+
+export interface AuditValueDetail {
+  criterion_id: number;
+  name: string | null;
+  key: string | null;
+  value: CriterionValue;
+  comment: string | null;
+}
+
+export interface AuditPhotoDetail {
+  id: number;
+  url: string;
+}
+
+export interface AuditDetail {
+  id: number;
+  advertising_space_id: number;
+  year: number;
+  week: number;
+  audit_type: AuditType;
+  audit_purpose: string;
+  general_status: string;
+  observation: string | null;
+  audit_date: string | null;
+  has_open_maintenance: boolean;
+  values: AuditValueDetail[];
+  photos: AuditPhotoDetail[];
+}
