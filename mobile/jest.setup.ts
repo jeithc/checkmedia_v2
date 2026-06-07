@@ -21,3 +21,5 @@ jest.mock('expo-image-manipulator', () => ({
 }));
 
 jest.mock('expo-device', () => ({ deviceName: 'test-device' }));
+
+jest.mock('react-native-get-random-values', () => ({}));
