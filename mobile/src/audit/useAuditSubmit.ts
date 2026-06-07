@@ -12,6 +12,7 @@ export interface BuildInput {
   values: Record<number, { value: CriterionValue; comment: string }>;
   photos: { uri: string; name: string; type: string }[];
   capturedAt: string;
+  mode?: 'new' | 'complement';
 }
 
 export function buildSubmission(input: BuildInput): AuditSubmission {
@@ -22,7 +23,7 @@ export function buildSubmission(input: BuildInput): AuditSubmission {
     purpose: input.purpose,
     observation: input.observation,
     capturedAt: input.capturedAt,
-    mode: 'new',
+    mode: input.mode ?? 'new',
     values: input.values,
     photos: input.photos,
   };

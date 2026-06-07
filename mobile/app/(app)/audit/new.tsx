@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../src/auth/AuthContext';
 import * as criteriaApi from '../../../src/api/criteria';
+import * as auditsApi from '../../../src/api/audits';
 import { resolveAuditOptions } from '../../../src/audit/auditType';
 import { validateAudit } from '../../../src/audit/validation';
 import { submitBuiltAudit } from '../../../src/audit/useAuditSubmit';
@@ -15,7 +16,13 @@ import { Field } from '../../../src/ui/Field';
 import { Button } from '../../../src/ui/Button';
 
 export default function AuditFormScreen() {
-  const { spaceId } = useLocalSearchParams<{ spaceId: string; code: string }>();
+  const { spaceId, mode, auditId } = useLocalSearchParams<{
+    spaceId: string;
+    code: string;
+    mode?: string;
+    auditId?: string;
+  }>();
+  const isComplement = mode === 'complement' && !!auditId;
   const { token, permissions } = useAuth();
   const options = useMemo(
     () => (permissions ? resolveAuditOptions(permissions) : null),
@@ -28,6 +35,14 @@ export default function AuditFormScreen() {
     queryFn: () => criteriaApi.listCriteria(auditType, token ?? ''),
   });
 
+  // When complementing, load the existing audit to preload values/observation
+  // and lock criteria already reported as "bad" (cannot be downgraded to good).
+  const { data: existing } = useQuery({
+    queryKey: ['audit', auditId],
+    queryFn: () => auditsApi.getAudit(Number(auditId), token ?? ''),
+    enabled: isComplement,
+  });
+
   const [values, setValues] = useState<Record<number, { value: CriterionValue; comment: string }>>({});
   const [observation, setObservation] = useState('');
   const [photos, setPhotos] = useState<UploadPhoto[]>([]);
@@ -36,10 +51,35 @@ export default function AuditFormScreen() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
+  const [seeded, setSeeded] = useState(false);
+
+  // Criteria reported "bad" in the existing audit cannot be downgraded to "good".
+  const lockedBad = useMemo(
+    () =>
+      new Set(
+        (existing?.values ?? []).filter((v) => v.value === 'bad').map((v) => v.criterion_id),
+      ),
+    [existing],
+  );
+
+  // Preload existing values/observation once, when complementing.
+  useEffect(() => {
+    if (!isComplement || seeded || !existing) return;
+    const preset: Record<number, { value: CriterionValue; comment: string }> = {};
+    existing.values.forEach((v) => {
+      preset[v.criterion_id] = { value: v.value, comment: v.comment ?? '' };
+    });
+    setValues(preset);
+    setObservation(existing.observation ?? '');
+    setSeeded(true);
+  }, [isComplement, seeded, existing]);
 
   const valueFor = (id: number) => values[id]?.value ?? 'good';
-  const setValue = (id: number, value: CriterionValue) =>
+  const setValue = (id: number, value: CriterionValue) => {
+    // Block downgrading a locked "bad" criterion back to "good".
+    if (value === 'good' && lockedBad.has(id)) return;
     setValues((p) => ({ ...p, [id]: { value, comment: p[id]?.comment ?? '' } }));
+  };
   const setComment = (id: number, comment: string) =>
     setValues((p) => ({ ...p, [id]: { value: p[id]?.value ?? 'good', comment } }));
 
@@ -69,7 +109,12 @@ export default function AuditFormScreen() {
       fullValues[c.id] = values[c.id] ?? { value: 'good', comment: '' };
     });
 
-    const errs = validateAudit({ photos, values: fullValues });
+    let errs = validateAudit({ photos, values: fullValues });
+    // When complementing an audit that already has photos, a new photo is optional.
+    const hasExistingPhotos = isComplement && (existing?.photos.length ?? 0) > 0;
+    if (hasExistingPhotos) {
+      errs = errs.filter((e) => !e.toLowerCase().includes('foto'));
+    }
     setErrors(errs);
     if (errs.length > 0) return;
 
@@ -85,6 +130,7 @@ export default function AuditFormScreen() {
           values: fullValues,
           photos,
           capturedAt: capturedAt ?? new Date().toISOString(),
+          mode: isComplement ? 'complement' : 'new',
         },
         token ?? '',
         (f) => setProgress(f),
@@ -114,7 +160,7 @@ export default function AuditFormScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Auditoría</Text>
+      <Text style={styles.title}>{isComplement ? 'Complementar auditoría' : 'Auditoría'}</Text>
 
       {(criteria ?? []).map((c) => (
         <View key={c.id} style={styles.criterion}>
@@ -122,7 +168,12 @@ export default function AuditFormScreen() {
           <View style={styles.row}>
             <Pressable
               onPress={() => setValue(c.id, 'good')}
-              style={[styles.pill, valueFor(c.id) === 'good' && styles.pillGood]}
+              disabled={lockedBad.has(c.id)}
+              style={[
+                styles.pill,
+                valueFor(c.id) === 'good' && styles.pillGood,
+                lockedBad.has(c.id) && styles.pillDisabled,
+              ]}
             >
               <Text>Bueno</Text>
             </Pressable>
@@ -190,6 +241,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 8 },
   pill: { borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 16 },
   pillGood: { backgroundColor: '#bbf7d0', borderColor: '#16a34a' },
+  pillDisabled: { opacity: 0.4 },
   pillBad: { backgroundColor: '#fecaca', borderColor: '#dc2626' },
   photoCount: { marginVertical: 8, color: '#475569' },
   thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
