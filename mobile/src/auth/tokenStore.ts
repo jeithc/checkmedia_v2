@@ -1,11 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
-import type { ApiUser } from '../api/types';
+import type { ApiUser, PermissionFlags } from '../api/types';
 
 const KEY = 'checkmedia.session';
 
 export interface StoredSession {
   token: string;
   user: ApiUser;
+  permissions: PermissionFlags;
 }
 
 export async function saveSession(session: StoredSession): Promise<void> {
