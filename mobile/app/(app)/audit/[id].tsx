@@ -1,4 +1,14 @@
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Image } from 'react-native';
+import { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  Image,
+  Pressable,
+  Modal,
+} from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../src/auth/AuthContext';
@@ -7,6 +17,7 @@ import * as auditsApi from '../../../src/api/audits';
 export default function AuditDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
+  const [zoomUri, setZoomUri] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['audit', id],
@@ -55,9 +66,20 @@ export default function AuditDetailScreen() {
       <Text style={styles.cName}>Fotos ({data.photos.length})</Text>
       <View style={styles.thumbs}>
         {data.photos.map((p) => (
-          <Image key={p.id} source={{ uri: p.url }} style={styles.thumb} />
+          <Pressable key={p.id} onPress={() => setZoomUri(p.url)} accessibilityLabel="Ampliar foto">
+            <Image source={{ uri: p.url }} style={styles.thumb} />
+          </Pressable>
         ))}
       </View>
+
+      <Modal visible={!!zoomUri} transparent animationType="fade" onRequestClose={() => setZoomUri(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setZoomUri(null)}>
+          {!!zoomUri && (
+            <Image source={{ uri: zoomUri }} style={styles.full} resizeMode="contain" />
+          )}
+          <Text style={styles.closeHint}>Toca para cerrar</Text>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -77,4 +99,7 @@ const styles = StyleSheet.create({
   obsWrap: { marginVertical: 12 },
   thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
   thumb: { width: 100, height: 100, borderRadius: 8, backgroundColor: '#e2e8f0' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  full: { width: '100%', height: '85%' },
+  closeHint: { color: '#cbd5e1', position: 'absolute', bottom: 40, fontSize: 13 },
 });
