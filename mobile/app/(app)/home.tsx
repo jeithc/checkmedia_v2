@@ -96,7 +96,10 @@ export default function HomeScreen() {
           testID="code"
           value={code}
           onChangeText={setCode}
-          autoCapitalize="characters"
+          keyboardType="number-pad"
+          inputMode="numeric"
+          returnKeyType="search"
+          onSubmitEditing={search}
         />
         {error && <Text style={styles.error}>{error}</Text>}
         <Button
