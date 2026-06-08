@@ -969,7 +969,7 @@ export interface UploadPhoto {
 }
 
 const LONG_EDGE = 2560;
-const QUALITY = 0.85;
+const QUALITY = 1;
 
 /**
  * Resize a captured photo so its long edge is at most 2560px and re-encode as
