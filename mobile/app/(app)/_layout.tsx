@@ -1,13 +1,15 @@
 import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '../../src/auth/AuthContext';
+import { SyncProvider } from '../../src/offline/SyncProvider';
 import { colors, typography } from '../../src/theme';
 
 export default function AppLayout() {
-  const { status } = useAuth();
+  const { status, token } = useAuth();
   if (status !== 'authenticated') {
     return <Redirect href="/login" />;
   }
   return (
+    <SyncProvider token={token}>
     <Stack
       screenOptions={{
         headerShown: false,
@@ -22,5 +24,6 @@ export default function AppLayout() {
         contentStyle: { backgroundColor: colors.appBg },
       }}
     />
+    </SyncProvider>
   );
 }
