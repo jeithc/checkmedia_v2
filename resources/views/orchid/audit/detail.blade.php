@@ -220,7 +220,7 @@
                         @foreach($audit->photos as $key => $photo)
                             <div class="col-6 col-md-3 col-lg-2">
                                 <a href="#" data-bs-toggle="modal" data-bs-target="#galleryModal"
-                                   onclick="var myCarousel = document.getElementById('carouselGallery'); var carousel = bootstrap.Carousel.getOrCreateInstance(myCarousel); carousel.to({{ $key }}); return false;"
+                                   data-slide-to="{{ $key }}"
                                    class="d-block ratio ratio-4x3 border rounded overflow-hidden position-relative">
                                     <img src="{{ $photo->url }}" alt="Foto"
                                         class="w-100 h-100 object-fit-cover" style="object-fit: cover;">
@@ -1106,6 +1106,18 @@
             }
         }
     });
+
+    // Galería: abrir el carrusel en la foto que se hizo clic (no siempre la primera).
+    // Se fija el item activo directamente en el evento show (sin depender de la
+    // animación del carrusel, que falla mientras el modal está oculto).
+    const galleryModalEl = document.getElementById('galleryModal');
+    if (galleryModalEl) {
+        galleryModalEl.addEventListener('show.bs.modal', function (e) {
+            const idx = parseInt(e.relatedTarget?.getAttribute('data-slide-to') || '0', 10);
+            const items = galleryModalEl.querySelectorAll('#carouselGallery .carousel-item');
+            items.forEach((item, i) => item.classList.toggle('active', i === idx));
+        });
+    }
     
     // Limpiar inputs del modal para evitar advertencia de Chrome al recargar
     function clearModalInputs(modalId) {
@@ -1247,7 +1259,7 @@
 <!-- Modal para foto individual (de actividad) -->
 <div class="modal fade" id="singlePhotoModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-fullscreen-md-down modal-xl modal-dialog-centered">
-        <div class="modal-content bg-dark border-0">
+        <div class="modal-content bg-transparent border-0 shadow-none">
             <div class="modal-header border-0 pb-0">
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -1263,7 +1275,7 @@
 <!-- Modal Galería (Carousel Lightbox) -->
 <div class="modal fade" id="galleryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-fullscreen-md-down modal-xl modal-dialog-centered">
-        <div class="modal-content bg-dark border-0">
+        <div class="modal-content bg-transparent border-0 shadow-none">
             <div class="modal-header border-0 pb-0">
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
