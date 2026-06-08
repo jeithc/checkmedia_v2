@@ -43,6 +43,8 @@ export function SyncProvider({ token, children }: { token: string | null; childr
     setSyncing(true);
     try {
       const db = await getDb();
+      // Recover any submission stuck in 'uploading' from a crashed prior attempt.
+      await repo.resetStaleUploading(db);
       await runSync({
         now: () => Date.now(),
         listClaimable: () => repo.listClaimable(db),

@@ -21,6 +21,7 @@ describe('SyncProvider', () => {
   it('exposes pendingCount and triggers a sync on mount', async () => {
     jest.spyOn(repo, 'pendingCount').mockResolvedValue(3);
     jest.spyOn(repo, 'listAll').mockResolvedValue([]);
+    jest.spyOn(repo, 'resetStaleUploading').mockResolvedValue();
     const runSpy = jest.spyOn(engine, 'runSync').mockResolvedValue({ synced: 0, conflict: 0, permanent: 0, transient: 0, skipped: 0 });
 
     const { getByTestId } = await render(

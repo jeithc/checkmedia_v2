@@ -38,11 +38,12 @@ describe('offline queue end-to-end', () => {
     expect((await repo.listAll(db))[0].status).toBe('failed');
     expect(calls).toBe(1); // submit was not retried while not yet due
 
-    // Advance past the backoff: item is due, retried, server accepts -> synced, photos cleared.
+    // Advance past the backoff: item is due, retried, server accepts -> synced.
     await runSync(deps(item.nextAttemptAt + 1)); __resetSyncGuard();
     item = (await repo.listAll(db))[0];
     expect(item.status).toBe('synced');
     expect(item.serverAuditId).toBe(900);
-    expect(await repo.photosFor(db, id)).toHaveLength(0);
+    // Photo rows retained for history (on-disk files are deleted by SyncProvider).
+    expect(await repo.photosFor(db, id)).toHaveLength(1);
   });
 });

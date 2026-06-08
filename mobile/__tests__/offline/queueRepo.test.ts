@@ -15,14 +15,16 @@ describe('queueRepo', () => {
     expect(claimable[0].status).toBe('queued');
   });
 
-  it('marks synced and removes photos', async () => {
+  it('marks synced and retains photo rows for history', async () => {
     const db = fakeDb();
     const id = await repo.enqueue(db, sample, 1000);
     await repo.markSynced(db, id, 555);
     const all = await repo.listAll(db);
     expect(all[0].status).toBe('synced');
     expect(all[0].serverAuditId).toBe(555);
-    expect(await repo.photosFor(db, id)).toHaveLength(0);
+    // Photo ROWS are kept (count survives); only the on-disk files are removed
+    // by the caller. So the queue can still show "N fotos" after sync.
+    expect(await repo.photosFor(db, id)).toHaveLength(1);
   });
 
   it('marks transient failure (retryable) and permanent failure (not claimable)', async () => {

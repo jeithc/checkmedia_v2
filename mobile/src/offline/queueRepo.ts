@@ -96,8 +96,19 @@ export async function markUploading(db: Db, id: number, attempts: number) {
 }
 
 export async function markSynced(db: Db, id: number, serverAuditId: number) {
+  // Keep the photo ROWS for history (so the queue can still show "2 fotos"
+  // after sync); only the on-disk files are deleted by the caller.
   await update(db, id, 'synced', 0, 0, 0, null, serverAuditId);
-  await db.runAsync(`DELETE FROM photos WHERE submission_id = ?`, id);
+}
+
+/**
+ * Recover submissions orphaned in 'uploading' (a prior sync attempt crashed
+ * after marking uploading but before reaching a terminal state). They are not
+ * claimable while 'uploading', so reset them to 'queued'. Safe to call at the
+ * start of a sync run (the reentrancy guard ensures no real upload is in flight).
+ */
+export async function resetStaleUploading(db: Db): Promise<void> {
+  await db.runAsync(`UPDATE submissions SET status = 'queued' WHERE status = 'uploading'`);
 }
 
 export async function markConflict(db: Db, id: number, serverAuditId: number | null, message: string) {
