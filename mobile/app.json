@@ -6,7 +6,6 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -22,7 +21,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#c60813"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "ios": {
       "supportsTablet": false,
@@ -34,7 +34,7 @@
     "android": {
       "package": "com.checkmedia.auditor",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/adaptive-foreground.png",
         "backgroundColor": "#c60813"
       },
       "permissions": [
