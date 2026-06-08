@@ -10,7 +10,7 @@ const s: Submission = {
   purpose: 'audit_only', mode: 'new', observation: 'obs',
   values: { 5: { value: 'bad', comment: 'roto' } }, capturedAt: 'x',
   status: 'uploading', attempts: 0, permanent: false, nextAttemptAt: 0, lastError: null,
-  serverAuditId: null, createdAt: 0,
+  serverAuditId: null, createdAt: 0, syncedAt: null,
   photos: [{ id: 1, submissionId: 1, localUri: 'file:///doc/p.jpg', capturedAt: 'x' }],
 };
 

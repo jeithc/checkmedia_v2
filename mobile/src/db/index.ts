@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS submissions (
   next_attempt_at INTEGER NOT NULL DEFAULT 0,
   last_error TEXT,
   server_audit_id INTEGER,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  synced_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS photos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,6 +53,8 @@ export function getDb(): Promise<Db> {
       const db = await SQLite.openDatabaseAsync('checkmedia.db');
       await db.execAsync(SCHEMA);
       await db.execAsync('PRAGMA foreign_keys = ON;');
+      // Migration for DBs created before synced_at existed (ignore if present).
+      await db.execAsync('ALTER TABLE submissions ADD COLUMN synced_at INTEGER').catch(() => {});
       return db as unknown as Db;
     })().catch((e) => {
       // Allow a later retry if the very first open failed.

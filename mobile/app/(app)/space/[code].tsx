@@ -11,6 +11,7 @@ import { Card } from '../../../src/ui/Card';
 import { Button } from '../../../src/ui/Button';
 import { Badge } from '../../../src/ui/Badge';
 import { AppHeader } from '../../../src/ui/AppHeader';
+import { HeaderMenu } from '../../../src/ui/HeaderMenu';
 
 export default function SpaceScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
@@ -43,7 +44,7 @@ export default function SpaceScreen() {
   const hasProvider = Boolean(data.provider);
 
   return (
-    <Screen header={<AppHeader onBack={() => router.back()} title="Espacio" />}>
+    <Screen header={<AppHeader onBack={() => router.back()} title="Espacio" right={<HeaderMenu />} />}>
       <Card padded={false}>
         <View style={styles.spaceHeader}>
           <View style={styles.spaceHeaderText}>

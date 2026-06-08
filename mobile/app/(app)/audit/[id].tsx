@@ -15,6 +15,7 @@ import * as auditsApi from '../../../src/api/audits';
 import { colors, spacing, radius, typography } from '../../../src/theme';
 import { Screen } from '../../../src/ui/Screen';
 import { AppHeader } from '../../../src/ui/AppHeader';
+import { HeaderMenu } from '../../../src/ui/HeaderMenu';
 import { Card } from '../../../src/ui/Card';
 import { Badge } from '../../../src/ui/Badge';
 
@@ -44,7 +45,7 @@ export default function AuditDetailScreen() {
   }
 
   return (
-    <Screen header={<AppHeader onBack={() => router.back()} title={`Auditoría #${id}`} />}>
+    <Screen header={<AppHeader onBack={() => router.back()} title={`Auditoría #${id}`} right={<HeaderMenu />} />}>
       <Text style={styles.title}>Auditoría #{data.id}</Text>
       <Text style={styles.meta}>
         Semana {data.week}/{data.year} · {data.audit_type === 'structural' ? 'Estructural' : 'General'}

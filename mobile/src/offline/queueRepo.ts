@@ -20,6 +20,7 @@ function rowToSubmission(r: any, photos: PhotoRecord[]): Submission {
     lastError: r.last_error ?? null,
     serverAuditId: r.server_audit_id ?? null,
     createdAt: r.created_at,
+    syncedAt: r.synced_at ?? null,
     photos,
   };
 }
@@ -95,10 +96,11 @@ export async function markUploading(db: Db, id: number, attempts: number) {
   await update(db, id, 'uploading', attempts, 0, 0, null, null);
 }
 
-export async function markSynced(db: Db, id: number, serverAuditId: number) {
+export async function markSynced(db: Db, id: number, serverAuditId: number, now: number) {
   // Keep the photo ROWS for history (so the queue can still show "2 fotos"
   // after sync); only the on-disk files are deleted by the caller.
   await update(db, id, 'synced', 0, 0, 0, null, serverAuditId);
+  await db.runAsync(`UPDATE submissions SET synced_at = ? WHERE id = ?`, now, id);
 }
 
 /**

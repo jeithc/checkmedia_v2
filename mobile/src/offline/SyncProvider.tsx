@@ -51,7 +51,7 @@ export function SyncProvider({ token, children }: { token: string | null; childr
         markUploading: (id, attempts) => repo.markUploading(db, id, attempts),
         markSynced: async (id, sid) => {
           const photos = await repo.photosFor(db, id);
-          await repo.markSynced(db, id, sid);
+          await repo.markSynced(db, id, sid, Date.now());
           await deletePhotos(photos.map((p) => p.localUri));
         },
         markConflict: (id, sid, msg) => repo.markConflict(db, id, sid, msg),

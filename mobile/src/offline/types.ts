@@ -32,6 +32,7 @@ export interface Submission {
   lastError: string | null;
   serverAuditId: number | null;
   createdAt: number;
+  syncedAt: number | null;
   photos: PhotoRecord[];
 }
 

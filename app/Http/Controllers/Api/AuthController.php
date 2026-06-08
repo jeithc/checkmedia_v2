@@ -28,11 +28,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'username' => $user->username,
-            ],
+            'user' => $this->userPayload($user),
             'permissions' => $this->permissionFlags($user),
         ]);
     }
@@ -42,11 +38,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'username' => $user->username,
-            ],
+            'user' => $this->userPayload($user),
             'permissions' => $this->permissionFlags($user),
         ]);
     }
@@ -56,6 +48,38 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    private function userPayload($user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'avatar' => $this->avatarUrl($user),
+        ];
+    }
+
+    /** Avatar URL: uploaded avatar_path (served from storage) or a Gravatar identicon fallback. */
+    private function avatarUrl($user): string
+    {
+        $path = $user->avatar_path;
+
+        if ($path) {
+            if (filter_var($path, FILTER_VALIDATE_URL)) {
+                if (str_contains($path, '/storage/')) {
+                    return asset('storage/'.explode('/storage/', $path)[1]);
+                }
+
+                return $path;
+            }
+
+            return asset('storage/'.ltrim($path, '/'));
+        }
+
+        $hash = md5(strtolower(trim((string) $user->email)));
+
+        return "https://www.gravatar.com/avatar/{$hash}?d=identicon";
     }
 
     private function permissionFlags($user): array

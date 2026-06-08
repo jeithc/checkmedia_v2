@@ -18,7 +18,7 @@ describe('queueRepo', () => {
   it('marks synced and retains photo rows for history', async () => {
     const db = fakeDb();
     const id = await repo.enqueue(db, sample, 1000);
-    await repo.markSynced(db, id, 555);
+    await repo.markSynced(db, id, 555, 2000);
     const all = await repo.listAll(db);
     expect(all[0].status).toBe('synced');
     expect(all[0].serverAuditId).toBe(555);

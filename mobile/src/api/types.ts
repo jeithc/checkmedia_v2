@@ -11,6 +11,7 @@ export interface ApiUser {
   id: number;
   name: string;
   username: string;
+  avatar?: string | null;
 }
 
 export interface LoginResponse {

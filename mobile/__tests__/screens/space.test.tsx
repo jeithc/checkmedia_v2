@@ -11,6 +11,7 @@ jest.mock('expo-router', () => ({
   router: { push: (...a: unknown[]) => mockPush(...a), back: () => mockBack() },
   useLocalSearchParams: () => ({ code: 'ABC' }),
 }));
+jest.mock('../../src/ui/HeaderMenu', () => ({ HeaderMenu: () => null }));
 
 function wrap(ui: React.ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });

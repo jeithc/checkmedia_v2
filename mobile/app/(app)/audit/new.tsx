@@ -19,6 +19,7 @@ import { useSync } from '../../../src/offline/SyncProvider';
 import { colors, spacing, radius, typography } from '../../../src/theme';
 import { Screen } from '../../../src/ui/Screen';
 import { AppHeader } from '../../../src/ui/AppHeader';
+import { HeaderMenu } from '../../../src/ui/HeaderMenu';
 import { SelectCard } from '../../../src/ui/SelectCard';
 import { Card } from '../../../src/ui/Card';
 import { Button } from '../../../src/ui/Button';
@@ -34,7 +35,7 @@ export default function AuditFormScreen() {
     auditId?: string;
   }>();
   const isComplement = mode === 'complement' && !!auditId;
-  const { token, permissions, signOut } = useAuth();
+  const { token, permissions } = useAuth();
   const { sync } = useSync();
   const options = useMemo(
     () => (permissions ? resolveAuditOptions(permissions) : null),
@@ -213,7 +214,7 @@ export default function AuditFormScreen() {
         <AppHeader
           title={isComplement ? 'Complementar auditoría' : 'Auditoría'}
           onBack={() => router.back()}
-          onSignOut={signOut}
+          right={<HeaderMenu />}
         />
       }
     >

@@ -52,6 +52,17 @@ const mockExpoFileSystem = {
 jest.mock('expo-file-system', () => mockExpoFileSystem);
 jest.mock('expo-file-system/legacy', () => mockExpoFileSystem);
 
+// Avoid loading the real expo-sqlite (its build pulls expo-asset, unresolved in
+// jest). Tests exercise the queue via an in-memory fake Db, never the native one.
+jest.mock('expo-sqlite', () => ({
+  openDatabaseAsync: jest.fn(async () => ({
+    execAsync: jest.fn(async () => {}),
+    runAsync: jest.fn(async () => ({ lastInsertRowId: 0, changes: 0 })),
+    getAllAsync: jest.fn(async () => []),
+    getFirstAsync: jest.fn(async () => null),
+  })),
+}));
+
 // --- netinfo: default connected; tests can override addEventListener/fetch ---
 jest.mock('@react-native-community/netinfo', () => ({
   __esModule: true,

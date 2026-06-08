@@ -6,7 +6,7 @@ function sub(over: Partial<Submission> = {}): Submission {
     id: 1, clientUuid: 'u1', spaceId: 1, externalCode: '1', auditType: 'general',
     purpose: 'audit_only', mode: 'new', observation: '', values: {}, capturedAt: 'x',
     status: 'queued', attempts: 0, permanent: false, nextAttemptAt: 0, lastError: null,
-    serverAuditId: null, createdAt: 0, photos: [],
+    serverAuditId: null, createdAt: 0, syncedAt: null, photos: [],
     ...over,
   };
 }

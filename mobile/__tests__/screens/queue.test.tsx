@@ -6,6 +6,7 @@ import * as SyncCtx from '../../src/offline/SyncProvider';
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), back: jest.fn() },
 }));
+jest.mock('../../src/ui/HeaderMenu', () => ({ HeaderMenu: () => null }));
 
 jest.mock('../../src/db', () => ({ getDb: jest.fn(async () => ({})) }));
 jest.mock('../../src/offline/queueRepo', () => ({ requeue: jest.fn(async () => {}) }));

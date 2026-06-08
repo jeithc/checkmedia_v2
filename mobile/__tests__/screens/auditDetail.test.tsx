@@ -8,6 +8,7 @@ import * as AuthCtx from '../../src/auth/AuthContext';
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: '99' }),
 }));
+jest.mock('../../src/ui/HeaderMenu', () => ({ HeaderMenu: () => null }));
 
 function wrap(ui: React.ReactElement) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
