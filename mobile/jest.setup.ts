@@ -40,3 +40,21 @@ jest.mock('@expo/vector-icons', () => {
     Feather: makeIcon(),
   };
 }, { virtual: true });
+
+// --- expo-file-system: documentDirectory + copy/delete are no-ops returning paths ---
+jest.mock('expo-file-system', () => ({
+  documentDirectory: 'file:///doc/',
+  copyAsync: jest.fn(async () => {}),
+  deleteAsync: jest.fn(async () => {}),
+  makeDirectoryAsync: jest.fn(async () => {}),
+  getInfoAsync: jest.fn(async () => ({ exists: true })),
+}));
+
+// --- netinfo: default connected; tests can override addEventListener/fetch ---
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: {
+    addEventListener: jest.fn(() => () => {}),
+    fetch: jest.fn(async () => ({ isConnected: true, isInternetReachable: true })),
+  },
+}));
