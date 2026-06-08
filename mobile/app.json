@@ -33,7 +33,6 @@
     },
     "android": {
       "package": "com.checkmedia.auditor",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#c60813"
