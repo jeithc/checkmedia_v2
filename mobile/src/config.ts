@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 
-const DEFAULT_API_URL = 'https://v2.pptefectimedios.com';
+const DEFAULT_API_URL = 'https://v2.auditoriaefectimedios.com';
 
 export function getApiBaseUrl(): string {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL;
