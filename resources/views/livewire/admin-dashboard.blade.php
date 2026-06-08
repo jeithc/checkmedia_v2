@@ -1,4 +1,4 @@
-<div>
+<div wire:poll.30s>
     <!-- Filtros del Dashboard -->
     <div class="bg-white rounded shadow-sm p-4 mb-4">
         <div class="d-flex justify-content-between align-items-center mb-3">

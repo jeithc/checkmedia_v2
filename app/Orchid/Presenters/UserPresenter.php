@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Orchid\Presenters;
 
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Scout\Builder;
 use Orchid\Screen\Contracts\Personable;
@@ -71,12 +72,18 @@ class UserPresenter extends Presenter implements Personable, Searchable
                 // Re-pointing to asset('storage/...') is safer if we extract the path.
                 if (str_contains($path, '/storage/')) {
                     $path = explode('/storage/', $path)[1];
-                    return asset('storage/' . $path);
+
+                    return asset('storage/'.$path);
                 }
+
                 return $path;
             }
 
-            return asset('storage/' . ltrim($path, '/'));
+            // Relative attachment path — serve it from whatever disk Orchid
+            // attachments use ('public' locally, 's3' in prod). Storage::url()
+            // yields '/storage/...' for public and a full URL for S3, so the
+            // avatar resolves correctly in both without a local symlink.
+            return Storage::disk(config('platform.attachment.disk', 'public'))->url(ltrim($path, '/'));
         }
 
         $hash = md5(strtolower(trim($this->entity->email)));

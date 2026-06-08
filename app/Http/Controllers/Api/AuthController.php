@@ -74,7 +74,8 @@ class AuthController extends Controller
                 return $path;
             }
 
-            return asset('storage/'.ltrim($path, '/'));
+            return \Illuminate\Support\Facades\Storage::disk(config('platform.attachment.disk', 'public'))
+                ->url(ltrim($path, '/'));
         }
 
         $hash = md5(strtolower(trim((string) $user->email)));
