@@ -12,7 +12,7 @@ import { Card } from '../../src/ui/Card';
 import { Field } from '../../src/ui/Field';
 import { Button } from '../../src/ui/Button';
 import { Badge } from '../../src/ui/Badge';
-import { colors, spacing, typography } from '../../src/theme';
+import { colors, spacing, radius, shadow, typography } from '../../src/theme';
 
 export default function HomeScreen() {
   const { token, permissions, signOut } = useAuth();
@@ -38,16 +38,54 @@ export default function HomeScreen() {
   };
 
   return (
-    <Screen header={<AppHeader brand onSignOut={signOut} />}>
-      {pendingCount > 0 && (
-        <Pressable
-          onPress={() => router.push('/(app)/queue')}
-          style={styles.pendingBadge}
-          accessibilityRole="button"
-        >
-          <Badge label={`${pendingCount} pendientes`} tone="warning" icon="cloud-upload-outline" />
-        </Pressable>
-      )}
+    <Screen
+      header={
+        <AppHeader
+          brand
+          right={
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={() => router.push('/(app)/queue')}
+                hitSlop={8}
+                style={styles.headerBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Ver envíos"
+              >
+                <Ionicons name="cloud-upload-outline" size={24} color={colors.white} />
+                {pendingCount > 0 && (
+                  <View style={styles.countBubble}>
+                    <Text style={styles.countText}>{pendingCount}</Text>
+                  </View>
+                )}
+              </Pressable>
+              <Pressable
+                onPress={signOut}
+                hitSlop={8}
+                style={styles.headerBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar sesión"
+              >
+                <Ionicons name="log-out-outline" size={24} color={colors.white} />
+              </Pressable>
+            </View>
+          }
+        />
+      }
+    >
+      <Pressable
+        onPress={() => router.push('/(app)/queue')}
+        style={styles.enviosLink}
+        accessibilityRole="button"
+      >
+        <View style={styles.enviosLeft}>
+          <Ionicons name="cloud-upload-outline" size={20} color={colors.primary} />
+          <Text style={styles.enviosText}>Últimos envíos</Text>
+        </View>
+        <View style={styles.enviosRight}>
+          {pendingCount > 0 && <Badge label={`${pendingCount} pendientes`} tone="warning" />}
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </View>
+      </Pressable>
 
       <Text style={styles.title}>Buscar espacio</Text>
 
@@ -84,9 +122,60 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  pendingBadge: {
-    alignSelf: 'flex-start',
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  headerBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBubble: {
+    position: 'absolute',
+    top: 4,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countText: {
+    color: colors.brand,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  enviosLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     marginBottom: spacing.lg,
+    ...shadow.card,
+  },
+  enviosLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  enviosText: {
+    ...typography.body,
+    fontWeight: '600',
+  },
+  enviosRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   title: {
     ...typography.title,
