@@ -18,6 +18,9 @@ Route::get('/', function () {
     return redirect()->route('platform.login');
 });
 
+// Política de privacidad pública (requerida por Google Play).
+Route::view('/privacidad', 'legal.privacy')->name('legal.privacy');
+
 use App\Http\Controllers\Auth\LoginController;
 
 Route::group(['middleware' => 'web'], function () {
