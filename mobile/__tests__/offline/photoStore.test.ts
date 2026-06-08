@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { persistPhoto, deletePhotos } from '../../src/offline/photoStore';
 
 describe('photoStore', () => {
