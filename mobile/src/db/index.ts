@@ -38,12 +38,26 @@ CREATE TABLE IF NOT EXISTS photos (
 );
 `;
 
-let _db: Db | null = null;
+// Memoize the in-flight OPEN PROMISE, not just the resolved handle. Several
+// callers (SyncProvider's refresh + sync on mount, the audit form, the queue
+// screen) can call getDb() concurrently before the first open resolves; without
+// promise memoization each would call openDatabaseAsync('checkmedia.db') on the
+// same file, producing duplicate native connections — which on Android surfaces
+// as "NativeDatabase.prepareAsync has been rejected → NullPointerException".
+let _dbPromise: Promise<Db> | null = null;
 
-export async function getDb(): Promise<Db> {
-  if (_db) return _db;
-  const db = await SQLite.openDatabaseAsync('checkmedia.db');
-  await db.execAsync(SCHEMA);
-  _db = db as unknown as Db;
-  return _db;
+export function getDb(): Promise<Db> {
+  if (!_dbPromise) {
+    _dbPromise = (async () => {
+      const db = await SQLite.openDatabaseAsync('checkmedia.db');
+      await db.execAsync(SCHEMA);
+      await db.execAsync('PRAGMA foreign_keys = ON;');
+      return db as unknown as Db;
+    })().catch((e) => {
+      // Allow a later retry if the very first open failed.
+      _dbPromise = null;
+      throw e;
+    });
+  }
+  return _dbPromise;
 }
