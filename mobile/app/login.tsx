@@ -101,6 +101,9 @@ export default function LoginScreen() {
                   placeholderTextColor="rgba(17,24,39,0.4)"
                   value={password}
                   onChangeText={setPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="password"
                   secureTextEntry
                 />
               </View>
