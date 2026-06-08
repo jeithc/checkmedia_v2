@@ -45,7 +45,15 @@
       ]
     },
     "extra": {
-      "apiUrl": "https://v2.pptefectimedios.com"
+      "apiUrl": "https://v2.pptefectimedios.com",
+      "router": {},
+      "eas": {
+        "projectId": "9b56bef4-04d2-4760-a34a-bfb82d7aa1f6"
+      }
+    },
+    "owner": "jeithca",
+    "updates": {
+      "url": "https://u.expo.dev/9b56bef4-04d2-4760-a34a-bfb82d7aa1f6"
     }
   }
 }
