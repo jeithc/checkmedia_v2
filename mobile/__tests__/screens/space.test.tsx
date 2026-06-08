@@ -26,7 +26,7 @@ beforeEach(() => {
       can_audit: true, can_audit_structural: false, can_select_audit_type: false,
       can_select_purpose: false, can_do_preventive: false, is_admin: false,
     },
-    signIn: jest.fn(), signOut: jest.fn(),
+    signIn: jest.fn(), signOut: jest.fn(), unlock: jest.fn(),
   });
 });
 afterEach(() => jest.restoreAllMocks());

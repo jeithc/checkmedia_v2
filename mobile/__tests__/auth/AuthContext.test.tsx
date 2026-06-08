@@ -17,7 +17,7 @@ const perms = (over: Partial<PermissionFlags> = {}): PermissionFlags => ({
 });
 
 function Probe() {
-  const { status, user, permissions, signIn, signOut } = useAuth();
+  const { status, user, permissions, signIn, signOut, unlock } = useAuth();
   return (
     <>
       <Text testID="status">{status}</Text>
@@ -25,6 +25,7 @@ function Probe() {
       <Text testID="structural">{permissions ? String(permissions.can_audit_structural) : 'none'}</Text>
       <Text testID="trigger" onPress={() => signIn('u', 'p')}>go</Text>
       <Text testID="signout" onPress={() => signOut()}>out</Text>
+      <Text testID="unlock" onPress={() => unlock()}>unlock</Text>
     </>
   );
 }
@@ -56,7 +57,7 @@ describe('AuthContext', () => {
     await waitFor(() => expect(getByTestId('user').props.children).toBe('auditor'));
   });
 
-  it('restores a stored session and rehydrates permissions via me()', async () => {
+  it('locks a stored session and unlocks it via biometrics, rehydrating permissions', async () => {
     await saveSession({
       token: 'stored-tok',
       user: { id: 2, name: 'B', username: 'storeduser' },
@@ -69,7 +70,14 @@ describe('AuthContext', () => {
 
     const { getByTestId } = await render(<AuthProvider><Probe /></AuthProvider>);
 
-    // Restored immediately from storage with structural permission intact.
+    // Biometrics available (jest.setup mocks hasHardware/enrolled true) => locked,
+    // not yet exposing the session.
+    await waitFor(() => expect(getByTestId('status').props.children).toBe('locked'));
+    expect(getByTestId('user').props.children).toBe('none');
+
+    // Biometric unlock succeeds (authenticateAsync mocked to { success: true }).
+    await act(async () => { getByTestId('unlock').props.onPress(); });
+
     await waitFor(() => expect(getByTestId('status').props.children).toBe('authenticated'));
     expect(getByTestId('structural').props.children).toBe('true');
     await waitFor(() => expect(meSpy).toHaveBeenCalledWith('stored-tok'));

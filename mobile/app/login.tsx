@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,31 +14,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../src/auth/AuthContext';
-import { biometricsAvailable, unlockWithBiometrics } from '../src/auth/biometrics';
-import { loadSession } from '../src/auth/tokenStore';
 import { colors, spacing, radius, typography } from '../src/theme';
 
 export default function LoginScreen() {
-  const { signIn, status } = useAuth();
+  const { signIn, signOut, unlock, status } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const autoPrompted = useRef(false);
 
   useEffect(() => {
     if (status === 'authenticated') router.replace('/(app)/home');
   }, [status]);
 
-  // Offer biometric unlock if a session already exists on this device.
+  // When the session is locked, auto-prompt biometric unlock once on mount.
   useEffect(() => {
-    (async () => {
-      const stored = await loadSession();
-      if (stored && (await biometricsAvailable())) {
-        const ok = await unlockWithBiometrics();
-        if (ok) router.replace('/(app)/home');
-      }
-    })();
-  }, []);
+    if (status === 'locked' && !autoPrompted.current) {
+      autoPrompted.current = true;
+      unlock();
+    }
+  }, [status, unlock]);
 
   const submit = async () => {
     setError(null);
@@ -51,6 +47,8 @@ export default function LoginScreen() {
       setBusy(false);
     }
   };
+
+  const isLocked = status === 'locked';
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -65,49 +63,67 @@ export default function LoginScreen() {
             resizeMode="contain"
           />
 
-          <View style={styles.input}>
-            <Ionicons name="person-outline" size={20} color={colors.textMuted} />
-            <TextInput
-              testID="username"
-              style={styles.inputText}
-              placeholder="Ingrese su Usuario"
-              placeholderTextColor="rgba(17,24,39,0.4)"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-          <View style={styles.input}>
-            <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />
-            <TextInput
-              testID="password"
-              style={styles.inputText}
-              placeholder="Ingrese su Clave"
-              placeholderTextColor="rgba(17,24,39,0.4)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          </View>
-
-          {error && <Text style={styles.error}>{error}</Text>}
-
-          <Pressable
-            onPress={submit}
-            disabled={busy}
-            style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
-            accessibilityRole="button"
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <View style={styles.btnInner}>
-                <Ionicons name="log-in-outline" size={20} color={colors.white} />
-                <Text style={styles.btnText}>Ingresar</Text>
+          {isLocked ? (
+            <View style={styles.lockBox}>
+              <Pressable
+                onPress={unlock}
+                style={({ pressed }) => [styles.bioBtn, pressed && styles.btnPressed]}
+                accessibilityRole="button"
+              >
+                <Ionicons name="finger-print" size={28} color={colors.white} />
+                <Text style={styles.btnText}>Desbloquear</Text>
+              </Pressable>
+              <Pressable onPress={signOut} hitSlop={8} style={styles.linkBtn}>
+                <Text style={styles.link}>Usar otra cuenta</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <View style={styles.input}>
+                <Ionicons name="person-outline" size={20} color={colors.textMuted} />
+                <TextInput
+                  testID="username"
+                  style={styles.inputText}
+                  placeholder="Ingrese su Usuario"
+                  placeholderTextColor="rgba(17,24,39,0.4)"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
               </View>
-            )}
-          </Pressable>
+              <View style={styles.input}>
+                <Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} />
+                <TextInput
+                  testID="password"
+                  style={styles.inputText}
+                  placeholder="Ingrese su Clave"
+                  placeholderTextColor="rgba(17,24,39,0.4)"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+              </View>
+
+              {error && <Text style={styles.error}>{error}</Text>}
+
+              <Pressable
+                onPress={submit}
+                disabled={busy}
+                style={({ pressed }) => [styles.btn, pressed && styles.btnPressed]}
+                accessibilityRole="button"
+              >
+                {busy ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <View style={styles.btnInner}>
+                    <Ionicons name="log-in-outline" size={20} color={colors.white} />
+                    <Text style={styles.btnText}>Ingresar</Text>
+                  </View>
+                )}
+              </Pressable>
+            </>
+          )}
         </View>
 
         <Text style={styles.footer}>
@@ -180,6 +196,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 0.5,
+  },
+  lockBox: {
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  bioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    height: 54,
+    paddingHorizontal: spacing.xxl,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  linkBtn: {
+    paddingVertical: spacing.sm,
+  },
+  link: {
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '600',
   },
   footer: {
     ...typography.small,

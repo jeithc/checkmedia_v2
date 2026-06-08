@@ -21,7 +21,9 @@
     "android": {
       "package": "com.checkmedia.auditor",
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ]
     },
     "extra": {

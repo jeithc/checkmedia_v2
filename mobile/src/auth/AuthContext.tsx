@@ -3,9 +3,12 @@ import * as Device from 'expo-device';
 import * as authApi from '../api/auth';
 import { ApiError } from '../api/errors';
 import type { ApiUser, PermissionFlags } from '../api/types';
-import { saveSession, loadSession, clearSession } from './tokenStore';
+import { saveSession, loadSession, clearSession, type StoredSession } from './tokenStore';
+import { biometricsAvailable, unlockWithBiometrics } from './biometrics';
 
-type Status = 'loading' | 'unauthenticated' | 'authenticated';
+// 'locked' = a stored session exists but the device requires a biometric
+// unlock before exposing it (session reopen). 'unauthenticated' = no session.
+type Status = 'loading' | 'locked' | 'unauthenticated' | 'authenticated';
 
 interface AuthState {
   status: Status;
@@ -14,6 +17,8 @@ interface AuthState {
   permissions: PermissionFlags | null;
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Prompt biometric unlock for the stored session. Returns true on success. */
+  unlock: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -23,6 +28,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<ApiUser | null>(null);
   const [permissions, setPermissions] = useState<PermissionFlags | null>(null);
+  // Held in memory while status === 'locked'; not exposed until unlocked.
+  const [lockedSession, setLockedSession] = useState<StoredSession | null>(null);
+
+  const applyAuthenticated = useCallback((s: StoredSession) => {
+    setToken(s.token);
+    setUser(s.user);
+    setPermissions(s.permissions);
+    setStatus('authenticated');
+  }, []);
+
+  // Best-effort server refresh of permissions. A 401 means the token is dead
+  // -> sign out. Network errors are ignored (keep working offline).
+  const refreshMe = useCallback(async (tok: string) => {
+    try {
+      const fresh = await authApi.me(tok);
+      setUser(fresh.user);
+      setPermissions(fresh.permissions);
+      await saveSession({ token: tok, user: fresh.user, permissions: fresh.permissions });
+    } catch (e) {
+      if (e instanceof ApiError && e.isUnauthorized) {
+        await clearSession();
+        setToken(null);
+        setUser(null);
+        setPermissions(null);
+        setLockedSession(null);
+        setStatus('unauthenticated');
+      }
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -32,47 +66,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) setStatus('unauthenticated');
         return;
       }
-      // Restore immediately from the stored session so the app is usable
-      // offline and audit_type resolves correctly for non-general auditors.
-      if (mounted) {
-        setToken(stored.token);
-        setUser(stored.user);
-        setPermissions(stored.permissions);
-        setStatus('authenticated');
-      }
-      // Then refresh from the server in case permissions changed. A 401 means
-      // the token is no longer valid -> sign out. Network errors are ignored
-      // (we keep the restored session so the auditor can keep working).
-      try {
-        const fresh = await authApi.me(stored.token);
-        if (!mounted) return;
-        setUser(fresh.user);
-        setPermissions(fresh.permissions);
-        await saveSession({ token: stored.token, user: fresh.user, permissions: fresh.permissions });
-      } catch (e) {
-        if (mounted && e instanceof ApiError && e.isUnauthorized) {
-          await clearSession();
-          setToken(null);
-          setUser(null);
-          setPermissions(null);
-          setStatus('unauthenticated');
-        }
+      const bio = await biometricsAvailable();
+      if (!mounted) return;
+      if (bio) {
+        // Require biometric unlock before exposing the session.
+        setLockedSession(stored);
+        setStatus('locked');
+      } else {
+        // No biometric hardware/enrollment (e.g. simulator): can't gate, so
+        // restore directly and rehydrate permissions.
+        applyAuthenticated(stored);
+        refreshMe(stored.token);
       }
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [applyAuthenticated, refreshMe]);
 
-  const signIn = useCallback(async (username: string, password: string) => {
-    const deviceName = (Device.deviceName ?? 'mobile').slice(0, 60);
-    const res = await authApi.login({ username, password, deviceName });
-    await saveSession({ token: res.token, user: res.user, permissions: res.permissions });
-    setToken(res.token);
-    setUser(res.user);
-    setPermissions(res.permissions);
-    setStatus('authenticated');
-  }, []);
+  const unlock = useCallback(async (): Promise<boolean> => {
+    const stored = lockedSession ?? (await loadSession());
+    if (!stored) {
+      setStatus('unauthenticated');
+      return false;
+    }
+    const ok = await unlockWithBiometrics();
+    if (!ok) return false;
+    applyAuthenticated(stored);
+    setLockedSession(null);
+    refreshMe(stored.token);
+    return true;
+  }, [lockedSession, applyAuthenticated, refreshMe]);
+
+  const signIn = useCallback(
+    async (username: string, password: string) => {
+      const deviceName = (Device.deviceName ?? 'mobile').slice(0, 60);
+      const res = await authApi.login({ username, password, deviceName });
+      await saveSession({ token: res.token, user: res.user, permissions: res.permissions });
+      setLockedSession(null);
+      applyAuthenticated({ token: res.token, user: res.user, permissions: res.permissions });
+    },
+    [applyAuthenticated],
+  );
 
   const signOut = useCallback(async () => {
     if (token) {
@@ -86,11 +121,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setPermissions(null);
+    setLockedSession(null);
     setStatus('unauthenticated');
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ status, token, user, permissions, signIn, signOut }}>
+    <AuthContext.Provider value={{ status, token, user, permissions, signIn, signOut, unlock }}>
       {children}
     </AuthContext.Provider>
   );
