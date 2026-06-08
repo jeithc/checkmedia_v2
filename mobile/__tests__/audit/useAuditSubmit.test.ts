@@ -4,6 +4,7 @@ describe('buildSubmission', () => {
   it('assembles a submission with a generated uuid and capture time', () => {
     const s = buildSubmission({
       spaceId: 5,
+      externalCode: '770',
       auditType: 'general',
       purpose: 'audit_only',
       observation: 'obs',

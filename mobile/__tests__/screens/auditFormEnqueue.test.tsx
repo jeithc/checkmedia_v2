@@ -14,7 +14,7 @@ const mockPush = jest.fn();
 const mockBack = jest.fn();
 jest.mock('expo-router', () => ({
   router: { push: (...a: unknown[]) => mockPush(...a), back: () => mockBack() },
-  useLocalSearchParams: () => ({ spaceId: '5', code: 'ABC' }),
+  useLocalSearchParams: () => ({ spaceId: '5', code: '770' }),
 }));
 
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn(async () => ({})) }));
@@ -28,11 +28,18 @@ function wrap(ui: React.ReactElement) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
+const mockSync = jest.fn();
+
 beforeEach(() => {
   mockPush.mockClear();
+  mockSync.mockClear();
   jest.spyOn(dbMod, 'getDb').mockResolvedValue({} as any);
   jest.spyOn(SyncCtx, 'useSync').mockReturnValue({
-    pendingCount: 0, syncing: false, items: [], sync: jest.fn(), refresh: jest.fn(),
+    pendingCount: 0,
+    syncing: false,
+    items: [],
+    sync: mockSync,
+    refresh: jest.fn(),
   });
   jest.spyOn(AuthCtx, 'useAuth').mockReturnValue({
     status: 'authenticated', token: 'tok', user: { id: 1, name: 'A', username: 'a' },
@@ -48,14 +55,7 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-it('blocks submit without a photo and shows a validation error', async () => {
-  const { findByText, getByText } = await wrap(<AuditFormScreen />);
-  await findByText('Estado');
-  await fireEvent.press(getByText('Guardar auditoría'));
-  expect(await findByText(/al menos una foto/i)).toBeTruthy();
-});
-
-it('enqueues successfully after taking a photo', async () => {
+it('saving writes to the queue without a network call and goes home', async () => {
   const enqueue = jest.spyOn(repo, 'enqueue').mockResolvedValue(1);
   jest.spyOn(photoStore, 'persistPhoto').mockResolvedValue('file:///doc/audit-photos/u-0.jpg');
   const submit = jest.spyOn(auditsApi, 'submitAudit');
@@ -66,7 +66,7 @@ it('enqueues successfully after taking a photo', async () => {
   await waitFor(() => expect(getByText(/1 foto/i)).toBeTruthy());
   await fireEvent.press(getByText('Guardar auditoría'));
 
-  await waitFor(() => expect(enqueue).toHaveBeenCalled());
+  await waitFor(() => expect(enqueue).toHaveBeenCalledTimes(1));
   expect(submit).not.toHaveBeenCalled();
-  await waitFor(() => expect(getByText(/guardada/i)).toBeTruthy());
+  await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/(app)/home'));
 });

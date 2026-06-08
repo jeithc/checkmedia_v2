@@ -3,9 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import * as auditsApi from '../api/audits';
 import { buildAuditFormData, type AuditSubmission } from './payload';
 import type { AuditType, AuditPurpose, CriterionValue } from '../api/types';
+import type { NewSubmission } from '../offline/types';
 
 export interface BuildInput {
   spaceId: number;
+  externalCode: string;
   auditType: AuditType;
   purpose: AuditPurpose;
   observation: string;
@@ -26,6 +28,22 @@ export function buildSubmission(input: BuildInput): AuditSubmission {
     mode: input.mode ?? 'new',
     values: input.values,
     photos: input.photos,
+  };
+}
+
+export function buildNewSubmission(input: BuildInput, persistedPhotoUris: string[]): NewSubmission {
+  const base = buildSubmission(input); // gives clientUuid, mode, values, etc.
+  return {
+    clientUuid: base.clientUuid,
+    spaceId: base.spaceId,
+    externalCode: input.externalCode,
+    auditType: base.auditType,
+    purpose: base.purpose,
+    mode: base.mode,
+    observation: base.observation,
+    values: base.values,
+    capturedAt: base.capturedAt,
+    photos: persistedPhotoUris.map((uri) => ({ localUri: uri, capturedAt: base.capturedAt })),
   };
 }
 

@@ -8,11 +8,14 @@ import * as criteriaApi from '../../../src/api/criteria';
 import * as auditsApi from '../../../src/api/audits';
 import { resolveAuditOptions } from '../../../src/audit/auditType';
 import { validateAudit } from '../../../src/audit/validation';
-import { submitBuiltAudit } from '../../../src/audit/useAuditSubmit';
+import { buildNewSubmission } from '../../../src/audit/useAuditSubmit';
 import { capturePhoto } from '../../../src/photos/capture';
 import type { UploadPhoto } from '../../../src/photos/resize';
 import type { CriterionValue, AuditType, AuditPurpose } from '../../../src/api/types';
-import { ApiError } from '../../../src/api/errors';
+import { getDb } from '../../../src/db';
+import * as repo from '../../../src/offline/queueRepo';
+import { persistPhoto } from '../../../src/offline/photoStore';
+import { useSync } from '../../../src/offline/SyncProvider';
 import { colors, spacing, radius, typography } from '../../../src/theme';
 import { Screen } from '../../../src/ui/Screen';
 import { AppHeader } from '../../../src/ui/AppHeader';
@@ -24,7 +27,7 @@ import { Pill } from '../../../src/ui/Pill';
 import { Badge } from '../../../src/ui/Badge';
 
 export default function AuditFormScreen() {
-  const { spaceId, mode, auditId } = useLocalSearchParams<{
+  const { spaceId, code, mode, auditId } = useLocalSearchParams<{
     spaceId: string;
     code: string;
     mode?: string;
@@ -32,6 +35,7 @@ export default function AuditFormScreen() {
   }>();
   const isComplement = mode === 'complement' && !!auditId;
   const { token, permissions, signOut } = useAuth();
+  const { sync } = useSync();
   const options = useMemo(
     () => (permissions ? resolveAuditOptions(permissions) : null),
     [permissions],
@@ -58,7 +62,6 @@ export default function AuditFormScreen() {
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
   const [seeded, setSeeded] = useState(false);
   const [typeSeeded, setTypeSeeded] = useState(false);
@@ -156,11 +159,14 @@ export default function AuditFormScreen() {
     if (errs.length > 0) return;
 
     setBusy(true);
-    setProgress(0);
     try {
-      await submitBuiltAudit(
+      const db = await getDb();
+      // 1. Build the submission first so it owns the clientUuid; use the same
+      //    uuid for the persisted photo filenames and the enqueued record.
+      const submission = buildNewSubmission(
         {
           spaceId: Number(spaceId),
+          externalCode: String(code),
           auditType,
           purpose,
           observation,
@@ -169,19 +175,25 @@ export default function AuditFormScreen() {
           capturedAt: capturedAt ?? new Date().toISOString(),
           mode: isComplement ? 'complement' : 'new',
         },
-        token ?? '',
-        (f) => setProgress(f),
+        [],
       );
-      setDone(true);
-      setTimeout(() => router.push('/(app)/home'), 1200);
-    } catch (e) {
-      if (e instanceof ApiError && e.isConflict) {
-        setErrors(['Ya existe una auditoría para este espacio esta semana.']);
-      } else if (e instanceof ApiError && e.isValidation) {
-        setErrors([e.message]);
-      } else {
-        setErrors([e instanceof Error ? e.message : 'No se pudo guardar.']);
+      // 2. Persist photos to durable storage keyed by the submission uuid.
+      const persisted: string[] = [];
+      for (let i = 0; i < photos.length; i++) {
+        persisted.push(await persistPhoto(photos[i].uri, submission.clientUuid, i));
       }
+      submission.photos = persisted.map((uri) => ({
+        localUri: uri,
+        capturedAt: submission.capturedAt,
+      }));
+      // 3. Enqueue and return to home immediately; uploading happens in the queue.
+      await repo.enqueue(db, submission, Date.now());
+      setDone(true);
+      // 4. Fire-and-forget sync; do not block UX.
+      sync();
+      setTimeout(() => router.push('/(app)/home'), 600);
+    } catch (e) {
+      setErrors([e instanceof Error ? e.message : 'No se pudo guardar.']);
     } finally {
       setBusy(false);
     }
@@ -194,8 +206,6 @@ export default function AuditFormScreen() {
       </View>
     );
   }
-
-  const uploading = busy && progress > 0 && progress < 1;
 
   return (
     <Screen
@@ -330,15 +340,6 @@ export default function AuditFormScreen() {
               </View>
             ))}
           </View>
-
-          {uploading && (
-            <View style={styles.uploadBlock}>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-              </View>
-              <Text style={styles.uploadText}>Subiendo… {Math.round(progress * 100)}%</Text>
-            </View>
-          )}
         </Card>
 
         <Card title="Observación General">
@@ -461,24 +462,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  uploadBlock: {
-    marginTop: spacing.lg,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.borderSubtle,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: 6,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-  },
-  uploadText: {
-    ...typography.small,
-    marginTop: spacing.sm,
   },
   helper: {
     ...typography.small,
