@@ -16,7 +16,10 @@ interface AuthState {
   user: ApiUser | null;
   permissions: PermissionFlags | null;
   signIn: (username: string, password: string) => Promise<void>;
+  /** Full sign-out: revokes the token server-side and forgets the session. */
   signOut: () => Promise<void>;
+  /** Lock the app: keep the stored session but require biometric/password to re-enter. */
+  lock: () => Promise<void>;
   /** Prompt biometric unlock for the stored session. Returns true on success. */
   unlock: () => Promise<boolean>;
 }
@@ -98,6 +101,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [lockedSession, applyAuthenticated, refreshMe]);
 
+  const lock = useCallback(async () => {
+    // Keep the token in storage; just hide it behind the lock screen. The
+    // login screen will offer biometric unlock (or password) to re-enter.
+    const stored = await loadSession();
+    if (!stored) {
+      setStatus('unauthenticated');
+      return;
+    }
+    setLockedSession(stored);
+    setToken(null);
+    setUser(null);
+    setPermissions(null);
+    setStatus('locked');
+  }, []);
+
   const signIn = useCallback(
     async (username: string, password: string) => {
       const deviceName = (Device.deviceName ?? 'mobile').slice(0, 60);
@@ -126,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   return (
-    <AuthContext.Provider value={{ status, token, user, permissions, signIn, signOut, unlock }}>
+    <AuthContext.Provider value={{ status, token, user, permissions, signIn, signOut, lock, unlock }}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,7 +12,7 @@ describe('LoginScreen', () => {
     const signIn = jest.fn().mockResolvedValue(undefined);
     jest.spyOn(AuthCtx, 'useAuth').mockReturnValue({
       status: 'unauthenticated', token: null, user: null, permissions: null,
-      signIn, signOut: jest.fn(), unlock: jest.fn(),
+      signIn, signOut: jest.fn(), lock: jest.fn(), unlock: jest.fn(),
     });
 
     const { getByTestId, getByText } = await render(<LoginScreen />);
@@ -27,7 +27,7 @@ describe('LoginScreen', () => {
     const signIn = jest.fn().mockRejectedValue(new Error('Credenciales inválidas'));
     jest.spyOn(AuthCtx, 'useAuth').mockReturnValue({
       status: 'unauthenticated', token: null, user: null, permissions: null,
-      signIn, signOut: jest.fn(), unlock: jest.fn(),
+      signIn, signOut: jest.fn(), lock: jest.fn(), unlock: jest.fn(),
     });
 
     const { getByTestId, getByText, findByText } = await render(<LoginScreen />);

@@ -22,6 +22,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [passwordMode, setPasswordMode] = useState(false);
   const autoPrompted = useRef(false);
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function LoginScreen() {
             resizeMode="contain"
           />
 
-          {isLocked ? (
+          {isLocked && !passwordMode ? (
             <View style={styles.lockBox}>
               <Pressable
                 onPress={unlock}
@@ -71,10 +72,20 @@ export default function LoginScreen() {
                 accessibilityRole="button"
               >
                 <Ionicons name="finger-print" size={28} color={colors.white} />
-                <Text style={styles.btnText}>Desbloquear</Text>
+                <Text style={styles.btnText}>Entrar con huella / rostro</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setError(null);
+                  setPasswordMode(true);
+                }}
+                hitSlop={8}
+                style={styles.linkBtn}
+              >
+                <Text style={styles.link}>Ingresar con contraseña</Text>
               </Pressable>
               <Pressable onPress={signOut} hitSlop={8} style={styles.linkBtn}>
-                <Text style={styles.link}>Usar otra cuenta</Text>
+                <Text style={styles.linkMuted}>Usar otra cuenta</Text>
               </Pressable>
             </View>
           ) : (
@@ -125,6 +136,24 @@ export default function LoginScreen() {
                   </View>
                 )}
               </Pressable>
+
+              {isLocked && (
+                <View style={styles.lockedLinks}>
+                  <Pressable
+                    onPress={() => {
+                      setError(null);
+                      setPasswordMode(false);
+                    }}
+                    hitSlop={8}
+                    style={styles.linkBtn}
+                  >
+                    <Text style={styles.link}>Volver a huella / rostro</Text>
+                  </Pressable>
+                  <Pressable onPress={signOut} hitSlop={8} style={styles.linkBtn}>
+                    <Text style={styles.linkMuted}>Usar otra cuenta</Text>
+                  </Pressable>
+                </View>
+              )}
             </>
           )}
         </View>
@@ -221,6 +250,15 @@ const styles = StyleSheet.create({
   link: {
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '600',
+  },
+  linkMuted: {
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '600',
+  },
+  lockedLinks: {
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.lg,
   },
   footer: {
     ...typography.small,

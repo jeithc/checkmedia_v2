@@ -15,7 +15,7 @@ import { Badge } from '../../src/ui/Badge';
 import { colors, spacing, radius, shadow, typography } from '../../src/theme';
 
 export default function HomeScreen() {
-  const { token, permissions, signOut } = useAuth();
+  const { token, permissions, lock } = useAuth();
   const { pendingCount } = useSync();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -59,13 +59,13 @@ export default function HomeScreen() {
                 )}
               </Pressable>
               <Pressable
-                onPress={signOut}
+                onPress={lock}
                 hitSlop={8}
                 style={styles.headerBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Cerrar sesión"
+                accessibilityLabel="Bloquear"
               >
-                <Ionicons name="log-out-outline" size={24} color={colors.white} />
+                <Ionicons name="lock-closed-outline" size={24} color={colors.white} />
               </Pressable>
             </View>
           }
