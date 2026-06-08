@@ -1,19 +1,22 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../src/auth/AuthContext';
 import * as spacesApi from '../../src/api/spaces';
 import { resolveAuditOptions } from '../../src/audit/auditType';
+import { useSync } from '../../src/offline/SyncProvider';
 import { Screen } from '../../src/ui/Screen';
 import { AppHeader } from '../../src/ui/AppHeader';
 import { Card } from '../../src/ui/Card';
 import { Field } from '../../src/ui/Field';
 import { Button } from '../../src/ui/Button';
+import { Badge } from '../../src/ui/Badge';
 import { colors, spacing, typography } from '../../src/theme';
 
 export default function HomeScreen() {
   const { token, permissions, signOut } = useAuth();
+  const { pendingCount } = useSync();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,6 +39,16 @@ export default function HomeScreen() {
 
   return (
     <Screen header={<AppHeader brand onSignOut={signOut} />}>
+      {pendingCount > 0 && (
+        <Pressable
+          onPress={() => router.push('/(app)/queue')}
+          style={styles.pendingBadge}
+          accessibilityRole="button"
+        >
+          <Badge label={`${pendingCount} pendientes`} tone="warning" icon="cloud-upload-outline" />
+        </Pressable>
+      )}
+
       <Text style={styles.title}>Buscar espacio</Text>
 
       <Card title="Buscar espacio">
@@ -71,6 +84,10 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  pendingBadge: {
+    alignSelf: 'flex-start',
+    marginBottom: spacing.lg,
+  },
   title: {
     ...typography.title,
     marginBottom: spacing.lg,

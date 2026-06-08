@@ -3,10 +3,12 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import HomeScreen from '../../app/(app)/home';
 import * as spacesApi from '../../src/api/spaces';
 import * as AuthCtx from '../../src/auth/AuthContext';
+import * as SyncCtx from '../../src/offline/SyncProvider';
 import { ApiError } from '../../src/api/errors';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (...a: unknown[]) => mockPush(...a) } }));
+jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn(async () => ({})) }));
 
 function mockAuth() {
   jest.spyOn(AuthCtx, 'useAuth').mockReturnValue({
@@ -19,8 +21,14 @@ function mockAuth() {
   });
 }
 
+function mockSync() {
+  jest.spyOn(SyncCtx, 'useSync').mockReturnValue({
+    pendingCount: 0, syncing: false, items: [], sync: jest.fn(), refresh: jest.fn(),
+  });
+}
+
 describe('HomeScreen', () => {
-  beforeEach(() => { mockPush.mockClear(); mockAuth(); });
+  beforeEach(() => { mockPush.mockClear(); mockAuth(); mockSync(); });
   afterEach(() => jest.restoreAllMocks());
 
   it('navigates to the space route on a successful search', async () => {
