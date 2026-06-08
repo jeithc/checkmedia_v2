@@ -6,12 +6,12 @@ export interface UploadPhoto {
   type: string;
 }
 
-const LONG_EDGE = 3840;
-const QUALITY = 0.92;
+const LONG_EDGE = 2560;
+const QUALITY = 0.85;
 
 /**
- * Resize a captured photo so its long edge is at most 3840px and re-encode as
- * JPEG q0.92. expo-image-manipulator's `resize` keeps the aspect ratio when
+ * Resize a captured photo so its long edge is at most 2560px and re-encode as
+ * JPEG q0.85. expo-image-manipulator's `resize` keeps the aspect ratio when
  * only one dimension is given, so passing `width` scales proportionally.
  */
 export async function resizeForUpload(uri: string): Promise<UploadPhoto> {
