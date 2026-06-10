@@ -32,7 +32,7 @@
       }
     },
     "android": {
-      "package": "checkmedia.app",
+      "package": "com.checkmedia.auditor",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-foreground.png",
         "backgroundColor": "#c60813"
