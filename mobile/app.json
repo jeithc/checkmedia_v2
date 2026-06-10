@@ -25,10 +25,12 @@
       "expo-font"
     ],
     "ios": {
+      "bundleIdentifier": "com.checkmedia.auditor",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "La app usa la cámara para registrar fotos de la auditoría.",
-        "NSFaceIDUsageDescription": "Usa Face ID para desbloquear la sesión."
+        "NSFaceIDUsageDescription": "Usa Face ID para desbloquear la sesión.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
