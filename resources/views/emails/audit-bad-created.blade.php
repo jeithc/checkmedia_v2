@@ -36,5 +36,9 @@
         </tr>
     </table>
 
+    <p style="margin: 24px 0;">
+        <a href="{{ route('platform.audit.detail', $audit) }}" style="display: inline-block; background: #c60813; color: #fff; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: bold;">Ver auditoría</a>
+    </p>
+
     <p style="color: #666; font-size: 13px;">Este es un mensaje automático del sistema Check Media.</p>
 @endsection
