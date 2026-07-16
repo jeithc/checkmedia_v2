@@ -134,18 +134,13 @@ class UserEditScreen extends Screen
                             ]),
                             'filter_key' => Select::make()->options([
                                 'all' => 'Todas',
+                                'business_unit' => 'Unidad de Negocio',
                                 'category' => 'Categoría',
                                 'element_type' => 'Tipo Elemento',
                             ]),
                             'filter_value' => Input::make()
                                 ->type('text')
-                                ->datalist([
-                                    'ESTRUCTURAL',
-                                    'DIGITAL',
-                                    'AU',
-                                    'ST',
-                                    'PREVENTIVO',
-                                ])
+                                ->datalist(\App\Models\AdvertisingSpace::BUSINESS_UNITS)
                                 ->placeholder('Selecciona o Escribe...'),
                             'channel' => Select::make()->options([
                                 'email' => 'Email',

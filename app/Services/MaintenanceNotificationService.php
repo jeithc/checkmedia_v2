@@ -61,6 +61,7 @@ class MaintenanceNotificationService
 
         return match ($sub->filter_key) {
             'all' => true,
+            'business_unit' => $space->business_unit === $sub->filter_value,
             'category' => stripos($space->category ?? '', $sub->filter_value) !== false,
             'element_type' => stripos($space->type ?? '', $sub->filter_value) !== false,
             default => true,

@@ -12,6 +12,19 @@ class AdvertisingSpace extends Model
 {
     use AsSource, Filterable, HasFactory;
 
+    public const BUSINESS_UNITS = [
+        'AEROPUERTOS ESTATICOS',
+        'AEROPUERTOS DIGITAL',
+        'RETAIL',
+        'MASIVO - ST',
+        'MASIVO - AU',
+        'MASIVO - VALLAS ESTATICAS',
+        'MASIVO - VALLAS DIGITAL',
+    ];
+
+    // Tipos de elemento considerados digitales (para el split estático/digital)
+    public const DIGITAL_TYPE_REGEX = '/\b(DIGITAL|LED|PANTALLA|MONITOR|VERTICAL DISPLAY)\b/u';
+
     protected $allowedFilters = [
         'external_code' => Like::class,
         'city' => Like::class,
@@ -42,6 +55,39 @@ class AdvertisingSpace extends Model
         'zone',
         'location',
     ];
+
+    public function getBusinessUnitAttribute(): ?string
+    {
+        $category = mb_strtoupper(trim($this->category ?? ''));
+
+        if ($category === '') {
+            return null;
+        }
+
+        $digital = (bool) preg_match(self::DIGITAL_TYPE_REGEX, mb_strtoupper($this->type ?? ''));
+
+        if ($category === 'AEROPUERTOS') {
+            return $digital ? 'AEROPUERTOS DIGITAL' : 'AEROPUERTOS ESTATICOS';
+        }
+
+        if (str_starts_with($category, 'RETAIL')) {
+            return 'RETAIL';
+        }
+
+        if ($category === 'SISTEMAS DE TRANSPORTE') {
+            return 'MASIVO - ST';
+        }
+
+        if (str_starts_with($category, 'AMOBLAMIENTO URBANO')) {
+            return 'MASIVO - AU';
+        }
+
+        if ($category === 'VALLAS') {
+            return $digital ? 'MASIVO - VALLAS DIGITAL' : 'MASIVO - VALLAS ESTATICAS';
+        }
+
+        return null;
+    }
 
     public function audits()
     {
