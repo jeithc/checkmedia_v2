@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use Laravel\Sanctum\HasApiTokens;
 use Orchid\Filters\Types\Like;
 use Orchid\Filters\Types\Where;
 use Orchid\Filters\Types\WhereDateStartEnd;
-use Laravel\Sanctum\HasApiTokens;
 use Orchid\Platform\Models\User as Authenticatable;
 
 class User extends Authenticatable
@@ -20,6 +20,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'username', // Added
+        'advisual_usuario_guid', // Advisual solicitante (UsuarioGUID)
         'email',
         'password',
         'permissions', // Added for mass assignment
@@ -53,14 +54,6 @@ class User extends Authenticatable
         'is_superuser' => 'boolean',
     ];
 
-
-
-    /**
-     * @param string $permit
-     * @param bool   $cache
-     *
-     * @return bool
-     */
     public function hasAccess(string $permit, bool $cache = true): bool
     {
         if ($this->is_superuser) {
@@ -71,10 +64,7 @@ class User extends Authenticatable
     }
 
     /**
-     * @param mixed $permissions
-     * @param bool  $cache
-     *
-     * @return bool
+     * @param  mixed  $permissions
      */
     public function hasAnyAccess($permissions, bool $cache = true): bool
     {
@@ -129,6 +119,7 @@ class User extends Authenticatable
     {
         return $this->hasMany(SavedReport::class);
     }
+
     /**
      * Send the password reset notification.
      *

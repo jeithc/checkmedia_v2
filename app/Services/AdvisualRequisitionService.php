@@ -15,7 +15,75 @@ class AdvisualRequisitionService
 
     public function __construct(?AdvisualConnector $connector = null)
     {
-        $this->connector = $connector ?? new AdvisualConnector();
+        $this->connector = $connector ?? new AdvisualConnector;
+    }
+
+    /**
+     * @var array<int, object>|null Memoised Advisual Usuarios rows.
+     */
+    private ?array $cachedUsuarios = null;
+
+    /**
+     * Fetch Advisual Usuarios rows (memoised per instance). Returns [] on error.
+     *
+     * @return array<int, object>
+     */
+    private function fetchUsuarios(): array
+    {
+        if ($this->cachedUsuarios !== null) {
+            return $this->cachedUsuarios;
+        }
+
+        try {
+            return $this->cachedUsuarios = $this->connector->select(
+                'SELECT UsuarioGUID, UsuarioNombreCompleto, UsuarioLogin, UsuarioEmail
+                 FROM Usuarios
+                 ORDER BY UsuarioNombreCompleto'
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Advisual listUsuarios failed', ['error' => $e->getMessage()]);
+
+            return $this->cachedUsuarios = [];
+        }
+    }
+
+    /**
+     * List Advisual users for the solicitante dropdown.
+     *
+     * @return array<string, string> [UsuarioGUID => "NombreCompleto (login)"]
+     */
+    public function listUsuarios(): array
+    {
+        $options = [];
+        foreach ($this->fetchUsuarios() as $row) {
+            if (empty($row->UsuarioGUID)) {
+                continue;
+            }
+            $name = trim($row->UsuarioNombreCompleto ?? '') ?: ($row->UsuarioEmail ?? $row->UsuarioLogin ?? $row->UsuarioGUID);
+            $login = trim($row->UsuarioLogin ?? '');
+            $options[$row->UsuarioGUID] = $login ? "{$name} ({$login})" : $name;
+        }
+
+        return $options;
+    }
+
+    /**
+     * Suggest an Advisual UsuarioGUID by matching email (case-insensitive).
+     */
+    public function suggestGuidForEmail(?string $email): ?string
+    {
+        $email = trim(strtolower($email ?? ''));
+        if ($email === '') {
+            return null;
+        }
+
+        foreach ($this->fetchUsuarios() as $row) {
+            if (! empty($row->UsuarioGUID) && trim(strtolower($row->UsuarioEmail ?? '')) === $email) {
+                return $row->UsuarioGUID;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -24,18 +92,19 @@ class AdvisualRequisitionService
     public function createRequisition(Maintenance $maintenance): bool
     {
         try {
-            // TODO: cambiar por el del user login ($maintenance->requestedBy->uuid)
-            $solicitanteUuid = config('services.advisual.solicitante_uuid');
+            $solicitanteUuid = $maintenance->requestedBy?->advisual_usuario_guid;
 
-            if (!$solicitanteUuid) {
-                $this->markError($maintenance, 'ADVISUAL_SOLICITANTE_UUID no está configurado en .env');
+            if (! $solicitanteUuid) {
+                $this->markError($maintenance, 'El usuario solicitante no tiene un usuario de Advisual asignado.');
+
                 return false;
             }
 
             $space = $maintenance->advertisingSpace;
 
-            if (!$space) {
+            if (! $space) {
                 $this->markError($maintenance, 'No se encontró el espacio publicitario asociado.');
+
                 return false;
             }
 
@@ -64,9 +133,9 @@ class AdvisualRequisitionService
 
             $categoryLabel = implode(', ', $criterionLabels);
 
-            $observacion = $space->external_code . ' - ' . $categoryLabel . ' - ' . ($maintenance->description ?: 'Sin observaciones');
+            $observacion = $space->external_code.' - '.$categoryLabel.' - '.($maintenance->description ?: 'Sin observaciones');
 
-            $sqlQuery = "
+            $sqlQuery = '
                 SET NOCOUNT ON;
                 INSERT INTO Requisicion (
                     RequisicionFecha,
@@ -83,7 +152,7 @@ class AdvisualRequisitionService
                     RequisicionFechaSugerida
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 SELECT SCOPE_IDENTITY() AS id;
-            ";
+            ';
 
             $nowStr = $now->format('Y-m-d H:i:s');
 
@@ -116,7 +185,7 @@ class AdvisualRequisitionService
                 $pdo = new \PDO($dsn, $username, $password);
                 $stmt = $pdo->prepare($sqlQuery);
                 $stmt->execute($bindings);
-                
+
                 do {
                     $row = $stmt->fetch(\PDO::FETCH_OBJ);
                     if ($row && isset($row->id)) {
@@ -126,8 +195,8 @@ class AdvisualRequisitionService
                 } while ($stmt->nextRowset());
 
                 // Fallback preventivo si fetch directo falló pero insertó (FreeTDS quirk)
-                if (!$requisitionId) {
-                    $stmt = $pdo->query("SELECT @@IDENTITY AS id");
+                if (! $requisitionId) {
+                    $stmt = $pdo->query('SELECT @@IDENTITY AS id');
                     $requisitionId = $stmt->fetch(\PDO::FETCH_OBJ);
                 }
             } catch (\Exception $eOdbc) {
@@ -135,12 +204,13 @@ class AdvisualRequisitionService
                 try {
                     $requisitionId = DB::connection('advisual')->selectOne($sqlQuery, $bindings);
                 } catch (\Exception $eNative) {
-                    throw new \Exception("ODBC Error: " . $eOdbc->getMessage() . " | Native Error: " . $eNative->getMessage());
+                    throw new \Exception('ODBC Error: '.$eOdbc->getMessage().' | Native Error: '.$eNative->getMessage());
                 }
             }
 
-            if (!$requisitionId || !$requisitionId->id) {
+            if (! $requisitionId || ! $requisitionId->id) {
                 $this->markError($maintenance, 'No se obtuvo el ID de la requisición insertada en Advisual.');
+
                 return false;
             }
 
@@ -157,7 +227,8 @@ class AdvisualRequisitionService
                         'error' => $eDel->getMessage(),
                     ]);
                 }
-                $this->markError($maintenance, 'Falló inserción de RequisicionProductiva: ' . $eDetail->getMessage());
+                $this->markError($maintenance, 'Falló inserción de RequisicionProductiva: '.$eDetail->getMessage());
+
                 return false;
             }
 
@@ -168,7 +239,7 @@ class AdvisualRequisitionService
                 'status' => Maintenance::STATUS_IN_PROGRESS,
             ]);
 
-            Log::info("Advisual requisition created", [
+            Log::info('Advisual requisition created', [
                 'maintenance_id' => $maintenance->id,
                 'requisition_id' => $requisitionId->id,
                 'space_code' => $space->external_code,
@@ -177,6 +248,7 @@ class AdvisualRequisitionService
             return true;
         } catch (\Exception $e) {
             $this->markError($maintenance, $e->getMessage());
+
             return false;
         }
     }
@@ -189,7 +261,7 @@ class AdvisualRequisitionService
         $space = $maintenance->advertisingSpace;
         $externalCode = $space?->external_code;
 
-        if (!$externalCode) {
+        if (! $externalCode) {
             throw new \RuntimeException('AdvertisingSpace external_code is missing.');
         }
 
@@ -201,7 +273,7 @@ class AdvisualRequisitionService
             [$externalCode]
         );
 
-        if (!$row) {
+        if (! $row) {
             throw new \RuntimeException("No se encontró Espacio {$externalCode} en Advisual.");
         }
 
@@ -232,8 +304,8 @@ class AdvisualRequisitionService
         $codigo = 1;
         foreach ($labels as $label) {
             $description = $label;
-            if (!empty($maintenance->description)) {
-                $description .= ' - ' . $maintenance->description;
+            if (! empty($maintenance->description)) {
+                $description .= ' - '.$maintenance->description;
             }
             $description = mb_substr($description, 0, 8000);
 
@@ -320,7 +392,7 @@ class AdvisualRequisitionService
             'status' => Maintenance::STATUS_PENDING_ADVISUAL,
         ]);
 
-        Log::error("Advisual requisition failed", [
+        Log::error('Advisual requisition failed', [
             'maintenance_id' => $maintenance->id,
             'error' => $error,
         ]);

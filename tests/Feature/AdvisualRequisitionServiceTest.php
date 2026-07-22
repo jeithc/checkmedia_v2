@@ -23,6 +23,7 @@ beforeEach(function () {
         'email' => 'tester@example.com',
         'password' => bcrypt('x'),
         'permissions' => [],
+        'advisual_usuario_guid' => 'user-guid-123',
     ]);
 
     $this->space = AdvertisingSpace::create([
@@ -106,11 +107,12 @@ test('it inserts both Requisicion and RequisicionProductiva on happy path', func
         ->withArgs(function ($sql, $bindings) use (&$detailCaptured, &$detailBindingsCaptured) {
             $detailCaptured = $sql;
             $detailBindingsCaptured = $bindings;
+
             return str_contains($sql, 'INSERT INTO RequisicionProductiva');
         })
         ->andReturn(true);
 
-    $service = new AdvisualRequisitionService();
+    $service = new AdvisualRequisitionService;
     $result = $service->createRequisition($maintenance);
 
     expect($result)->toBeTrue();
@@ -131,6 +133,87 @@ test('it inserts both Requisicion and RequisicionProductiva on happy path', func
     expect($maintenance->advisual_requisition_id)->toBe(99001)
         ->and($maintenance->status)->toBe(Maintenance::STATUS_IN_PROGRESS)
         ->and($maintenance->advisual_sync_error)->toBeNull();
+});
+
+test('suggestGuidForEmail matches Advisual usuario by email case-insensitively', function () {
+    $conn = Mockery::mock(\App\Services\Advisual\AdvisualConnector::class);
+    $conn->shouldReceive('select')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Usuarios'))
+        ->andReturn([
+            (object) ['UsuarioGUID' => 'guid-1', 'UsuarioNombreCompleto' => 'Ana', 'UsuarioLogin' => 'ana', 'UsuarioEmail' => 'ANA@example.com'],
+            (object) ['UsuarioGUID' => 'guid-2', 'UsuarioNombreCompleto' => 'Beto', 'UsuarioLogin' => 'beto', 'UsuarioEmail' => 'beto@example.com'],
+        ]);
+
+    $service = new AdvisualRequisitionService($conn);
+
+    expect($service->suggestGuidForEmail('ana@example.com'))->toBe('guid-1')
+        ->and($service->suggestGuidForEmail('nope@example.com'))->toBeNull()
+        ->and($service->suggestGuidForEmail(null))->toBeNull();
+});
+
+test('it binds the requesting user advisual_usuario_guid as RequisicionSolicitanteCodigo', function () {
+    $this->user->update(['advisual_usuario_guid' => 'guid-abc-999']);
+
+    $maintenance = makeMaintenance($this->space, $this->audit, $this->user);
+    $maintenance->auditValues()->attach($this->auditValue->id);
+
+    $parentBindings = null;
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(function ($sql, $bindings) use (&$parentBindings) {
+            if (str_contains($sql, 'INSERT INTO Requisicion')) {
+                $parentBindings = $bindings;
+
+                return true;
+            }
+
+            return false;
+        })
+        ->andReturn((object) ['id' => 99100]);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Espacio'))
+        ->andReturn((object) ['EspacioLocacionCodigo' => 1465, 'ProductoCodigo' => 2]);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))
+        ->andReturn((object) ['UnidadCodigo' => 13]);
+
+    $conn->shouldReceive('statement')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO RequisicionProductiva'))
+        ->andReturn(true);
+
+    $service = new AdvisualRequisitionService;
+    $result = $service->createRequisition($maintenance);
+
+    expect($result)->toBeTrue();
+    // Binding position 1 = RequisicionSolicitanteCodigo
+    expect($parentBindings[1])->toBe('guid-abc-999');
+});
+
+test('it fails when the requesting user has no advisual_usuario_guid', function () {
+    $this->user->update(['advisual_usuario_guid' => null]);
+
+    $maintenance = makeMaintenance($this->space, $this->audit, $this->user);
+    $maintenance->auditValues()->attach($this->auditValue->id);
+
+    // No connection expectations: guard must return before any DB access.
+    $service = new AdvisualRequisitionService;
+    $result = $service->createRequisition($maintenance);
+
+    expect($result)->toBeFalse();
+
+    $maintenance->refresh();
+    expect($maintenance->status)->toBe(Maintenance::STATUS_PENDING_ADVISUAL)
+        ->and($maintenance->advisual_sync_error)->toContain('Advisual');
 });
 
 test('it rolls back parent Requisicion when Espacio lookup returns nothing', function () {
@@ -156,11 +239,12 @@ test('it rolls back parent Requisicion when Espacio lookup returns nothing', fun
         ->once()
         ->withArgs(function ($sql, $bindings) use (&$deleteCalled) {
             $deleteCalled = str_contains($sql, 'DELETE FROM Requisicion') && $bindings === [99002];
+
             return str_contains($sql, 'DELETE FROM Requisicion');
         })
         ->andReturn(true);
 
-    $service = new AdvisualRequisitionService();
+    $service = new AdvisualRequisitionService;
     $result = $service->createRequisition($maintenance);
 
     expect($result)->toBeFalse()
@@ -205,11 +289,12 @@ test('it rolls back parent Requisicion when detail INSERT fails', function () {
         ->once()
         ->withArgs(function ($sql, $bindings) use (&$deleteCalled) {
             $deleteCalled = str_contains($sql, 'DELETE FROM Requisicion') && $bindings === [99003];
+
             return str_contains($sql, 'DELETE FROM Requisicion');
         })
         ->andReturn(true);
 
-    $service = new AdvisualRequisitionService();
+    $service = new AdvisualRequisitionService;
     $result = $service->createRequisition($maintenance);
 
     expect($result)->toBeFalse()
@@ -240,7 +325,7 @@ test('it fails when AdvertisingSpace external_code is missing', function () {
         ->withArgs(fn ($sql, $bindings) => str_contains($sql, 'DELETE FROM Requisicion') && $bindings === [99004])
         ->andReturn(true);
 
-    $service = new AdvisualRequisitionService();
+    $service = new AdvisualRequisitionService;
     $result = $service->createRequisition($maintenance);
 
     expect($result)->toBeFalse();
@@ -291,13 +376,15 @@ test('it inserts one RequisicionProductiva detail per linked criterion', functio
         ->withArgs(function ($sql, $bindings) use (&$detailCalls) {
             if (str_contains($sql, 'INSERT INTO RequisicionProductiva')) {
                 $detailCalls[] = $bindings;
+
                 return true;
             }
+
             return false;
         })
         ->andReturn(true);
 
-    $service = new AdvisualRequisitionService();
+    $service = new AdvisualRequisitionService;
     $result = $service->createRequisition($maintenance);
 
     expect($result)->toBeTrue()
@@ -311,7 +398,7 @@ test('it inserts one RequisicionProductiva detail per linked criterion', functio
         ->and($cod1)->toBe(1)
         ->and($cod2)->toBe(2);
 
-    $descriptions = strtolower($desc1 . '|' . $desc2);
+    $descriptions = strtolower($desc1.'|'.$desc2);
     expect($descriptions)->toContain('iluminación')
         ->and($descriptions)->toContain('estructura');
 });
