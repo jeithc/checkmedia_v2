@@ -98,7 +98,10 @@ class AdvisualPurchaseOrderSyncService
                 return $this->result('missing');
             }
 
-            $purchaseOrders = $this->fetchPurchaseOrders($maintenance->advisual_requisition_id);
+            $purchaseOrders = $this->fetchPurchaseOrders(
+                $maintenance->advisual_requisition_id,
+                $maintenance->advisual_requisition_line
+            );
 
             if (empty($purchaseOrders)) {
                 $maintenance->update([
@@ -162,9 +165,19 @@ class AdvisualPurchaseOrderSyncService
     /**
      * The reliable link is OrdenCompraReqCodigo = Requisicion.id.
      * OrdenCodigo is the order header id and OrdenCompraCodigo is the order line id.
+     *
+     * When $lineCode is provided (batch maintenances), results are narrowed to the
+     * requisition line that belongs to this maintenance so shared requisitions do
+     * not report the whole batch cost on every space. A single line may still have
+     * several purchase orders, so every matching row is returned and summed.
      */
-    protected function fetchPurchaseOrders(int $requisitionId): array
+    protected function fetchPurchaseOrders(int $requisitionId, ?int $lineCode = null): array
     {
+        $lineFilter = $lineCode === null ? '' : '
+                  AND oc.OrdenCompraReqDetCodigo = ?';
+
+        $bindings = $lineCode === null ? [$requisitionId] : [$requisitionId, $lineCode];
+
         return $this->connector
             ->select(
                 'SELECT
@@ -186,7 +199,7 @@ class AdvisualPurchaseOrderSyncService
                 INNER JOIN Orden o ON o.OrdenCodigo = oc.OrdenCodigo
                 WHERE oc.OrdenCompraReqCodigo = ?
                   AND ISNULL(oc.OrdenCompraItemDel, 0) = 0
-                  AND ISNULL(o.OrdenEstado, 1) <> 2
+                  AND ISNULL(o.OrdenEstado, 1) <> 2'.$lineFilter.'
                 ORDER BY
                     CASE
                         WHEN ISNULL(oc.OrdenCompraValorCertificado, 0) > 0 OR ISNULL(oc.OrdenCompraValorUnitario, 0) > 0 THEN 0
@@ -195,7 +208,7 @@ class AdvisualPurchaseOrderSyncService
                     oc.OrdenCompraCreaFecha DESC,
                     oc.OrdenCodigo DESC,
                     oc.OrdenCompraCodigo DESC',
-                [$requisitionId]
+                $bindings
             );
     }
 

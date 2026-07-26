@@ -5,6 +5,7 @@ use App\Models\Audit;
 use App\Models\AuditCriterion;
 use App\Models\AuditValue;
 use App\Models\Maintenance;
+use App\Models\RequisitionBatch;
 use App\Models\User;
 use App\Services\AdvisualRequisitionService;
 use Illuminate\Support\Facades\DB;
@@ -71,6 +72,49 @@ function makeMaintenance($space, $audit, $user, ?string $description = 'Cambiar 
         'description' => $description,
         'requested_at' => now(),
     ]);
+}
+
+/**
+ * Build a RequisitionBatch with one preventive Maintenance per external_code.
+ *
+ * @param  array<string, int>  $codesToLines  external_code => advisual_requisition_line
+ * @return array{0: RequisitionBatch, 1: array<string, Maintenance>}
+ */
+function makeRequisitionBatch(User $user, array $codesToLines): array
+{
+    $batch = RequisitionBatch::create([
+        'name' => 'Preventivas Barranquilla Jul-2026',
+        'city' => 'Barranquilla',
+        'created_by' => $user->id,
+    ]);
+
+    $maintenances = [];
+
+    foreach ($codesToLines as $code => $line) {
+        $space = AdvertisingSpace::create([
+            'external_code' => (string) $code,
+            'provider' => 'Provider',
+            'type' => 'Billboard',
+            'city' => 'BARRANQUILLA',
+            'category' => 'Premium',
+        ]);
+
+        $maintenances[(string) $code] = Maintenance::create([
+            'advertising_space_id' => $space->id,
+            'audit_id' => null,
+            'requested_by' => $user->id,
+            'type' => Maintenance::TYPE_PREVENTIVE,
+            'status' => Maintenance::STATUS_REPORTED,
+            'priority' => 'medium',
+            'category' => 'preventivo',
+            'description' => 'Lavado valla '.$code,
+            'requested_at' => now(),
+            'requisition_batch_id' => $batch->id,
+            'advisual_requisition_line' => $line,
+        ]);
+    }
+
+    return [$batch->fresh(), $maintenances];
 }
 
 test('it inserts both Requisicion and RequisicionProductiva on happy path', function () {
@@ -401,4 +445,262 @@ test('it inserts one RequisicionProductiva detail per linked criterion', functio
     $descriptions = strtolower($desc1.'|'.$desc2);
     expect($descriptions)->toContain('iluminación')
         ->and($descriptions)->toContain('estructura');
+});
+
+test('createBatchRequisition inserts one Requisicion header and N RequisicionProductiva rows', function () {
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1, '703' => 2, '11220' => 3]);
+
+    $headerCalls = 0;
+    $detailCalls = [];
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(function ($sql) use (&$headerCalls) {
+            if (str_contains($sql, 'INSERT INTO Requisicion')) {
+                $headerCalls++;
+
+                return true;
+            }
+
+            return false;
+        })
+        ->andReturn((object) ['id' => 88001]);
+
+    $conn->shouldReceive('selectOne')
+        ->times(3)
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Espacio'))
+        ->andReturn((object) ['EspacioLocacionCodigo' => 1465, 'ProductoCodigo' => 2]);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))
+        ->andReturn((object) ['UnidadCodigo' => 13]);
+
+    $conn->shouldReceive('statement')
+        ->times(3)
+        ->withArgs(function ($sql, $bindings) use (&$detailCalls) {
+            if (str_contains($sql, 'INSERT INTO RequisicionProductiva')) {
+                $detailCalls[] = $bindings;
+
+                return true;
+            }
+
+            return false;
+        })
+        ->andReturn(true);
+
+    $service = new AdvisualRequisitionService;
+    $result = $service->createBatchRequisition($batch);
+
+    expect($result)->toBeTrue()
+        ->and($headerCalls)->toBe(1)
+        ->and($detailCalls)->toHaveCount(3);
+
+    // Every detail line hangs off the single header id.
+    foreach ($detailCalls as $bindings) {
+        expect($bindings[0])->toBe(88001);
+    }
+});
+
+test('createBatchRequisition sends each line with its own RequiProdEspacioCodigo', function () {
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1, '703' => 2, '11220' => 3]);
+
+    // Distinct Locacion/Producto per space so we can prove each line resolves its own row.
+    $espacios = [
+        '43' => ['EspacioLocacionCodigo' => 1001, 'ProductoCodigo' => 11],
+        '703' => ['EspacioLocacionCodigo' => 1002, 'ProductoCodigo' => 12],
+        '11220' => ['EspacioLocacionCodigo' => 1003, 'ProductoCodigo' => 13],
+    ];
+
+    $lookupBindings = [];
+    $detailCalls = [];
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO Requisicion'))
+        ->andReturn((object) ['id' => 88002]);
+
+    $conn->shouldReceive('selectOne')
+        ->times(3)
+        ->withArgs(function ($sql, $bindings) use (&$lookupBindings) {
+            if (str_contains($sql, 'FROM Espacio')) {
+                $lookupBindings[] = $bindings;
+
+                return true;
+            }
+
+            return false;
+        })
+        ->andReturnUsing(fn ($sql, $bindings) => (object) $espacios[$bindings[0]]);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))
+        ->andReturn((object) ['UnidadCodigo' => 13]);
+
+    $conn->shouldReceive('statement')
+        ->times(3)
+        ->withArgs(function ($sql, $bindings) use (&$detailCalls) {
+            if (str_contains($sql, 'INSERT INTO RequisicionProductiva')) {
+                $detailCalls[] = $bindings;
+
+                return true;
+            }
+
+            return false;
+        })
+        ->andReturn(true);
+
+    $service = new AdvisualRequisitionService;
+    $result = $service->createBatchRequisition($batch);
+
+    expect($result)->toBeTrue()
+        ->and($detailCalls)->toHaveCount(3);
+
+    // external_code is a string in Advisual: no int casting anywhere in the chain.
+    expect($lookupBindings)->toBe([['43'], ['703'], ['11220']]);
+
+    [, , $espacio1, $producto1, $locacion1, $desc1] = $detailCalls[0];
+    [, , $espacio2, $producto2, $locacion2] = $detailCalls[1];
+    [, , $espacio3, $producto3, $locacion3] = $detailCalls[2];
+
+    expect($espacio1)->toBe('43')
+        ->and($espacio2)->toBe('703')
+        ->and($espacio3)->toBe('11220')
+        ->and($producto1)->toBe(11)
+        ->and($producto2)->toBe(12)
+        ->and($producto3)->toBe(13)
+        ->and($locacion1)->toBe(1001)
+        ->and($locacion2)->toBe(1002)
+        ->and($locacion3)->toBe(1003)
+        ->and($desc1)->toContain('Lavado valla 43');
+});
+
+test('createBatchRequisition uses advisual_requisition_line as RequiProdCodigo, not a local counter', function () {
+    // Deliberate gaps: a local 1..N counter would emit 1,2,3 instead of 1,3,7.
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1, '703' => 3, '11220' => 7]);
+
+    $detailCalls = [];
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO Requisicion'))
+        ->andReturn((object) ['id' => 88003]);
+
+    $conn->shouldReceive('selectOne')
+        ->times(3)
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Espacio'))
+        ->andReturn((object) ['EspacioLocacionCodigo' => 1465, 'ProductoCodigo' => 2]);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))
+        ->andReturn((object) ['UnidadCodigo' => 13]);
+
+    $conn->shouldReceive('statement')
+        ->times(3)
+        ->withArgs(function ($sql, $bindings) use (&$detailCalls) {
+            if (str_contains($sql, 'INSERT INTO RequisicionProductiva')) {
+                $detailCalls[] = $bindings;
+
+                return true;
+            }
+
+            return false;
+        })
+        ->andReturn(true);
+
+    $service = new AdvisualRequisitionService;
+    $result = $service->createBatchRequisition($batch);
+
+    expect($result)->toBeTrue();
+
+    $codigos = array_map(fn ($bindings) => $bindings[1], $detailCalls);
+    $espacios = array_map(fn ($bindings) => $bindings[2], $detailCalls);
+
+    expect($codigos)->toBe([1, 3, 7])
+        ->and($espacios)->toBe(['43', '703', '11220']);
+});
+
+test('createBatchRequisition stores advisual_requisition_id on the batch and on every maintenance', function () {
+    [$batch, $maintenances] = makeRequisitionBatch($this->user, ['43' => 1, '703' => 2, '11220' => 3]);
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO Requisicion'))
+        ->andReturn((object) ['id' => 88004]);
+
+    $conn->shouldReceive('selectOne')
+        ->times(3)
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Espacio'))
+        ->andReturn((object) ['EspacioLocacionCodigo' => 1465, 'ProductoCodigo' => 2]);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))
+        ->andReturn((object) ['UnidadCodigo' => 13]);
+
+    $conn->shouldReceive('statement')
+        ->times(3)
+        ->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO RequisicionProductiva'))
+        ->andReturn(true);
+
+    $service = new AdvisualRequisitionService;
+
+    expect($service->createBatchRequisition($batch))->toBeTrue();
+
+    $batch->refresh();
+    expect($batch->advisual_requisition_id)->toBe(88004)
+        ->and($batch->advisual_synced_at)->not->toBeNull()
+        ->and($batch->advisual_sync_error)->toBeNull();
+
+    foreach ($maintenances as $code => $maintenance) {
+        $maintenance->refresh();
+        expect($maintenance->advisual_requisition_id)->toBe(88004)
+            ->and($maintenance->status)->toBe(Maintenance::STATUS_IN_PROGRESS)
+            ->and($maintenance->advisual_synced_at)->not->toBeNull()
+            ->and($maintenance->advisual_sync_error)->toBeNull()
+            ->and($maintenance->requisition_batch_id)->toBe($batch->id);
+    }
+});
+
+test('createBatchRequisition fails without touching Advisual when the creator has no advisual_usuario_guid', function () {
+    $this->user->update(['advisual_usuario_guid' => null]);
+
+    [$batch, $maintenances] = makeRequisitionBatch($this->user, ['43' => 1, '703' => 2]);
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    // Guard must return before any Advisual read or write.
+    $conn->shouldNotReceive('selectOne');
+    $conn->shouldNotReceive('statement');
+
+    $service = new AdvisualRequisitionService;
+
+    expect($service->createBatchRequisition($batch))->toBeFalse();
+
+    $batch->refresh();
+    expect($batch->advisual_requisition_id)->toBeNull()
+        ->and($batch->advisual_synced_at)->toBeNull()
+        ->and($batch->advisual_sync_error)->toContain('Advisual');
+
+    foreach ($maintenances as $maintenance) {
+        $maintenance->refresh();
+        expect($maintenance->advisual_requisition_id)->toBeNull()
+            ->and($maintenance->status)->toBe(Maintenance::STATUS_PENDING_ADVISUAL)
+            ->and($maintenance->advisual_sync_error)->toContain('Advisual');
+    }
 });

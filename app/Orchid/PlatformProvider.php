@@ -49,6 +49,11 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('maintenance.view')
                 ->divider(),
 
+            Menu::make('Lotes Preventivos')
+                ->icon('bs.list-ul')
+                ->route('platform.requisition-batches')
+                ->permission('platform.requisition-batches'),
+
             Menu::make('Listado Preventivos')
                 ->icon('bs.calendar-check')
                 ->route('platform.preventive.matrix')
@@ -109,7 +114,8 @@ class PlatformProvider extends OrchidServiceProvider
 
             ItemPermission::group('Mantenimientos')
                 ->addPermission('maintenance.view', 'Ver Mantenimientos')
-                ->addPermission('maintenance.close', 'Cerrar Mantenimientos'),
+                ->addPermission('maintenance.close', 'Cerrar Mantenimientos')
+                ->addPermission('platform.requisition-batches', 'Lotes de Requisiciones Preventivas'),
 
             ItemPermission::group('Reportes')
                 ->addPermission('reports.create_shared', 'Crear Reportes'),

@@ -68,7 +68,7 @@ use App\Models\Audit;
 Route::screen('audit/{audit}', AuditDetailScreen::class)
     ->name('platform.audit.detail')
     ->breadcrumbs(function (Trail $trail, $audit) {
-        // Ensure $audit is loaded as a model  
+        // Ensure $audit is loaded as a model
         if (!$audit instanceof Audit) {
             $audit = Audit::with('space')->find($audit);
         }
@@ -202,6 +202,29 @@ Route::screen('maintenances/{maintenance}', MaintenanceDetailScreen::class)
 
 Route::post('maintenances/{maintenance}/close', [MaintenanceDetailScreen::class, 'close'])
     ->name('platform.maintenances.close');
+
+// Requisition Batches (lotes de mantenimientos preventivos)
+use App\Orchid\Screens\RequisitionBatch\RequisitionBatchListScreen;
+use App\Orchid\Screens\RequisitionBatch\RequisitionBatchCreateScreen;
+use App\Orchid\Screens\RequisitionBatch\RequisitionBatchDetailScreen;
+
+Route::screen('requisition-batches', RequisitionBatchListScreen::class)
+    ->name('platform.requisition-batches')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.index')
+        ->push('Lotes Preventivos', route('platform.requisition-batches')));
+
+Route::screen('requisition-batches/create', RequisitionBatchCreateScreen::class)
+    ->name('platform.requisition-batches.create')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.requisition-batches')
+        ->push('Crear Lote', route('platform.requisition-batches.create')));
+
+Route::screen('requisition-batches/{batch}', RequisitionBatchDetailScreen::class)
+    ->name('platform.requisition-batches.detail')
+    ->breadcrumbs(fn(Trail $trail, $batch) => $trail
+        ->parent('platform.requisition-batches')
+        ->push("Lote #{$batch->id}", route('platform.requisition-batches.detail', $batch)));
 
 // Preventive Schedules
 use App\Orchid\Screens\Preventive\PreventiveScheduleListScreen;
