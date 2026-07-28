@@ -89,6 +89,42 @@ class AdvertisingSpace extends Model
         return null;
     }
 
+    /**
+     * Filtra espacios por unidad de negocio (producto) replicando getBusinessUnitAttribute en SQL.
+     * ponytail: aproxima DIGITAL_TYPE_REGEX con LIKEs para ser portable MySQL/SQLite;
+     * si un tipo real produce falso positivo, persistir business_unit como columna.
+     */
+    public function scopeOfBusinessUnit($query, string $unit)
+    {
+        $digitalLikes = ['%DIGITAL%', '%LED%', '%PANTALLA%', '%MONITOR%', '%VERTICAL DISPLAY%'];
+
+        $isDigital = function ($q) use ($digitalLikes) {
+            foreach ($digitalLikes as $like) {
+                $q->orWhere('type', 'LIKE', $like);
+            }
+        };
+
+        $notDigital = function ($q) use ($digitalLikes) {
+            $q->whereNull('type')
+                ->orWhere(function ($q) use ($digitalLikes) {
+                    foreach ($digitalLikes as $like) {
+                        $q->where('type', 'NOT LIKE', $like);
+                    }
+                });
+        };
+
+        return match ($unit) {
+            'AEROPUERTOS ESTATICOS' => $query->where('category', 'AEROPUERTOS')->where($notDigital),
+            'AEROPUERTOS DIGITAL' => $query->where('category', 'AEROPUERTOS')->where($isDigital),
+            'RETAIL' => $query->where('category', 'LIKE', 'RETAIL%'),
+            'MASIVO - ST' => $query->where('category', 'SISTEMAS DE TRANSPORTE'),
+            'MASIVO - AU' => $query->where('category', 'LIKE', 'AMOBLAMIENTO URBANO%'),
+            'MASIVO - VALLAS ESTATICAS' => $query->where('category', 'VALLAS')->where($notDigital),
+            'MASIVO - VALLAS DIGITAL' => $query->where('category', 'VALLAS')->where($isDigital),
+            default => $query->whereRaw('1 = 0'),
+        };
+    }
+
     public function audits()
     {
         return $this->hasMany(Audit::class);
