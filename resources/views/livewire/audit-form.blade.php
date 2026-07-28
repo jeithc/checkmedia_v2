@@ -423,7 +423,7 @@
                 <span class="text-xs text-gray-500">{{ count($photos) }} fotos seleccionadas</span>
             </div>
 
-            <div class="p-6" x-data="{ isUploading: false, progress: 0 }"
+            <div class="p-6" x-data="{ isUploading: false, progress: 0, previews: {} }"
                 x-on:livewire-upload-start="isUploading = true" x-on:livewire-upload-finish="isUploading = false"
                 x-on:livewire-upload-error="isUploading = false"
                 x-on:livewire-upload-progress="progress = $event.detail.progress">
@@ -446,16 +446,27 @@
                                             convertSize: 500000,       // Convertir a JPEG si > 500KB
                                             success(result) {
                                                 let file = new File([result], result.name, { type: result.type });
+                                                // Preview local (blob): no depende del storage del servidor
+                                                let blobUrl = URL.createObjectURL(result);
                                                 // Upload directly to Livewire
-                                                @this.upload('photos', file, 
-                                                    (uploadedFilename) => { completed++; }, 
-                                                    () => { console.error('Upload failed'); completed++; }, 
+                                                @this.upload('photos', file,
+                                                    (uploadedFilename) => {
+                                                        previews[uploadedFilename] = blobUrl;
+                                                        completed++;
+                                                        if (completed === total) { isUploading = false; progress = 100; }
+                                                    },
+                                                    () => {
+                                                        console.error('Upload failed');
+                                                        completed++;
+                                                        if (completed === total) { isUploading = false; }
+                                                    },
                                                     (event) => { progress = event.detail.progress }
                                                 );
                                             },
                                             error(err) {
                                                 console.log(err.message);
                                                 completed++;
+                                                if (completed === total) { isUploading = false; }
                                             },
                                         });
                                     }
@@ -477,7 +488,9 @@
                     @foreach ($photos as $index => $photo)
                     <div
                         class="relative group aspect-square rounded-lg overflow-hidden bg-gray-100 shadow-sm border border-gray-200">
-                        <img src="{{ asset('storage/livewire-tmp/' . $photo->getFilename()) }}" class="w-full h-full object-cover">
+                        {{-- Preview: blob local primero (siempre disponible); fallback a URL del disco temporal (post-refresh) --}}
+                        <img x-bind:src="previews[@js($photo->getFilename())] ?? @js(Storage::disk(config('livewire.temporary_file_upload.disk') ?: 'public')->url('livewire-tmp/' . $photo->getFilename()))"
+                            class="w-full h-full object-cover">
 
                         <!-- Cancel/Remove Overlay -->
                         <button type="button" wire:click="removePhoto({{ $index }})"
@@ -532,6 +545,19 @@
             </p>
             @enderror
         </div>
+
+        {{-- ponytail: resumen de TODOS los errores; sin esto los addError() con llaves no
+             renderizadas (values, spaceId, photos.0) hacen que Guardar parezca no hacer nada --}}
+        @if($errors->any())
+        <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p class="text-sm font-semibold text-red-800 mb-1">No se pudo guardar la auditoría:</p>
+            <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                @foreach($errors->unique() as $error)
+                <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
 
         <!-- Submit -->
         <div class="flex justify-end pt-4 pb-12">
