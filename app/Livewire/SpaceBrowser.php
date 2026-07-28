@@ -2,25 +2,30 @@
 
 namespace App\Livewire;
 
+use App\Models\AdvertisingSpace;
 use Livewire\Component;
 use Livewire\WithPagination;
-use App\Models\AdvertisingSpace;
-use Illuminate\Database\Eloquent\Builder;
 
 class SpaceBrowser extends Component
 {
     // Filters
-    public $filterCategory = '';
+    public $filterProduct = '';
+
     public $filterCity = '';
+
     public $filterLocation = '';
+
     public $filterStatus = '';
+
     public $search = '';
 
     use WithPagination;
+
     protected $paginationTheme = 'bootstrap';
 
-    public function updatedFilterCategory()
+    public function setProduct($unit = '')
     {
+        $this->filterProduct = $unit;
         $this->filterCity = '';
         $this->filterLocation = '';
         $this->resetPage();
@@ -40,73 +45,65 @@ class SpaceBrowser extends Component
     public function render()
     {
         $applyOrthogonal = function ($q) {
-            if (!empty($this->filterStatus)) {
+            if (! empty($this->filterStatus)) {
                 $q->whereHas('latestAudit', function ($subQ) {
                     $subQ->where('general_status', $this->filterStatus);
                 });
             }
         };
 
-        // 1. Load Categories (Filtered by Status)
-        $categoriesQuery = AdvertisingSpace::select('category')
-            ->distinct()
-            ->whereNotNull('category');
-        $applyOrthogonal($categoriesQuery);
-        $categories = $categoriesQuery->orderBy('category')->pluck('category');
+        $applyProduct = function ($q) {
+            if (! empty($this->filterProduct)) {
+                $q->ofBusinessUnit($this->filterProduct);
+            }
+        };
 
-        // 2. Load Cities (Dependent on Category + Orthogonal)
+        // 1. Load Cities (Dependent on Product + Orthogonal)
         $citiesQuery = AdvertisingSpace::select('city')
             ->distinct()
             ->whereNotNull('city');
-            
-        if (!empty($this->filterCategory)) {
-            $citiesQuery->where('category', $this->filterCategory);
-        }
+
+        $applyProduct($citiesQuery);
         $applyOrthogonal($citiesQuery);
-        
+
         $cities = $citiesQuery->orderBy('city')->pluck('city');
 
-        // 3. Load Locations (Dependent on Category & City + Orthogonal)
+        // 2. Load Locations (Dependent on Product & City + Orthogonal)
         $locationsQuery = AdvertisingSpace::select('location_name')
             ->distinct()
             ->whereNotNull('location_name');
 
-        if (!empty($this->filterCategory)) {
-            $locationsQuery->where('category', $this->filterCategory);
-        }
-        if (!empty($this->filterCity)) {
+        $applyProduct($locationsQuery);
+        if (! empty($this->filterCity)) {
             $locationsQuery->where('city', $this->filterCity);
         }
         $applyOrthogonal($locationsQuery);
 
         $locations = $locationsQuery->orderBy('location_name')->pluck('location_name');
 
-
-        // 4. Main Query for Table
+        // 3. Main Query for Table
         $query = AdvertisingSpace::query()
             ->with('latestAudit');
 
-        if (!empty($this->filterCategory)) {
-            $query->where('category', $this->filterCategory);
-        }
+        $applyProduct($query);
 
-        if (!empty($this->filterCity)) {
+        if (! empty($this->filterCity)) {
             $query->where('city', $this->filterCity);
         }
 
-        if (!empty($this->filterLocation)) {
+        if (! empty($this->filterLocation)) {
             $query->where('location_name', $this->filterLocation);
         }
 
         // Apply shared orthogonal logic
         $applyOrthogonal($query);
 
-        if (!empty($this->search)) {
+        if (! empty($this->search)) {
             $query->where(function ($q) {
-                $q->where('external_code', 'like', '%' . $this->search . '%')
-                  ->orWhere('city', 'like', '%' . $this->search . '%')
-                  ->orWhere('location', 'like', '%' . $this->search . '%')
-                  ->orWhere('location_name', 'like', '%' . $this->search . '%');
+                $q->where('external_code', 'like', '%'.$this->search.'%')
+                    ->orWhere('city', 'like', '%'.$this->search.'%')
+                    ->orWhere('location', 'like', '%'.$this->search.'%')
+                    ->orWhere('location_name', 'like', '%'.$this->search.'%');
             });
         }
 
@@ -115,9 +112,8 @@ class SpaceBrowser extends Component
 
         return view('livewire.space-browser', [
             'spaces' => $spaces,
-            'categories' => $categories,
             'cities' => $cities,
-            'locations' => $locations
+            'locations' => $locations,
         ]);
     }
 }

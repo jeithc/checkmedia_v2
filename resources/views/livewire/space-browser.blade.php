@@ -1,10 +1,11 @@
+@include('orchid.partials.product-ui-styles')
+
 @push('head')
     <style>
         .input-group-sm .input-group-text, .input-group-sm .form-control {
             min-height: 31px; /* Force consistent height for sm inputs */
         }
-        
-        /* Space Browser Redesign Styles from space-browser.css */
+
         .filter-group {
             min-width: 150px;
         }
@@ -14,24 +15,6 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
             font-weight: 600;
-        }
-        .table thead th {
-            font-weight: 600;
-            color: #6b7280;
-            border-bottom-width: 1px;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
-        .table tbody td {
-            vertical-align: middle;
-            font-size: 0.9em;
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-        }
-        .badge {
-            font-weight: 500;
-            letter-spacing: 0.025em;
         }
 
         /* Pagination active state */
@@ -49,23 +32,34 @@
     </style>
 @endpush
 
+@php
+    $productUnits = collect(\App\Models\AdvertisingSpace::BUSINESS_UNITS)
+        ->mapWithKeys(fn ($value) => [$value => \App\Models\AdvertisingSpace::businessUnitMeta($value)]);
+@endphp
+
 <div class="space-browser-container p-4 bg-white rounded shadow-sm">
+    <!-- Product Chips -->
+    <div class="product-filter-bar mb-4">
+        <span class="pf-label">Producto</span>
+
+        <button type="button" wire:click="setProduct()"
+            class="pf-chip {{ $filterProduct ? '' : 'active' }}">
+            Todos
+        </button>
+
+        @foreach($productUnits as $value => $unit)
+            <button type="button" wire:click="setProduct('{{ $value }}')"
+                class="pf-chip {{ $filterProduct === $value ? 'active' : '' }}"
+                title="{{ $value }}">
+                <span class="pf-dot {{ $unit['hollow'] ? 'hollow' : '' }}" style="--pf-dot-color: {{ $unit['color'] }}"></span>
+                {{ $unit['label'] }}
+            </button>
+        @endforeach
+    </div>
+
     <!-- Filters Toolbar -->
     <div class="filter-toolbar mb-4">
         <div class="row g-3">
-            <!-- Category Filter -->
-            <div class="col-12 col-sm-6 col-lg-2">
-                <div class="filter-group">
-                    <label class="small text-muted fw-bold mb-1 d-block">Categoría</label>
-                    <select class="form-select form-select-sm" wire:model.live="filterCategory">
-                        <option value="">(Todos)</option>
-                        @foreach($categories as $cat)
-                            <option value="{{ $cat }}">{{ $cat }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-
             <!-- City Filter -->
             <div class="col-12 col-sm-6 col-lg-2">
                 <div class="filter-group">
@@ -106,12 +100,12 @@
             </div>
 
             <!-- Search -->
-            <div class="col-12 col-sm-6 col-lg-2">
+            <div class="col-12 col-sm-6 col-lg-3">
                 <div class="filter-group">
                     <label class="small text-muted fw-bold mb-1 d-block">&nbsp;</label>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-white border-end-0 text-muted ps-2 pe-2"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control form-control-sm border-start-0 ps-0" placeholder="Buscar..." wire:model.live.debounce.300ms="search" style="font-size: 0.875rem;">
+                        <input type="text" class="form-control form-control-sm border-start-0 ps-0" placeholder="Buscar código, ciudad o ubicación..." wire:model.live.debounce.300ms="search" style="font-size: 0.875rem;">
                     </div>
                 </div>
             </div>
@@ -122,8 +116,9 @@
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-light">
-                <tr class="text-uppercase small text-muted">
+                <tr>
                     <th>Código</th>
+                    <th>Producto</th>
                     <th>Ciudad</th>
                     <th>Ubicación</th>
                     <th>Estado</th>
@@ -133,23 +128,28 @@
             </thead>
             <tbody>
                 @forelse($spaces as $space)
+                    @php $unitMeta = $space->business_unit ? \App\Models\AdvertisingSpace::businessUnitMeta($space->business_unit) : null; @endphp
                     <tr>
-                        <td class="fw-bold text-dark">{{ $space->external_code }}</td>
-                        <td>{{ $space->city }}</td>
+                        <td><span class="mnt-code">{{ $space->external_code }}</span></td>
                         <td>
-                            <div class="text-dark fw-bold">{{ $space->location_name }}</div>
-                            <small class="text-muted">{{ $space->location }}</small>
+                            @if($unitMeta)
+                                <span class="mnt-product" title="{{ $space->business_unit }}">
+                                    <span class="mnt-dot {{ $unitMeta['hollow'] ? 'hollow' : '' }}" style="--mnt-dot-color: {{ $unitMeta['color'] }}"></span>
+                                    {{ $unitMeta['label'] }}
+                                </span>
+                            @else
+                                <span class="mnt-product mnt-muted">—</span>
+                            @endif
+                        </td>
+                        <td>{{ $space->city }}</td>
+                        <td style="white-space: normal;">
+                            <div class="text-dark fw-semibold">{{ $space->location_name }}</div>
+                            <small class="mnt-muted">{{ $space->location }}</small>
                         </td>
                         <td>
                             @if($space->latestAudit)
                                 @php
                                     $status = $space->latestAudit->general_status;
-                                    $badgeClass = match($status) {
-                                        'good' => 'bg-success bg-opacity-10 text-success',
-                                        'bad' => 'bg-danger bg-opacity-10 text-danger',
-                                        'warning' => 'bg-warning bg-opacity-10 text-warning',
-                                        default => 'bg-secondary bg-opacity-10 text-secondary'
-                                    };
                                     $statusText = match($status) {
                                         'good' => 'Bueno',
                                         'bad' => 'Malo',
@@ -157,18 +157,16 @@
                                         default => 'Sin Datos'
                                     };
                                 @endphp
-                                <span class="badge rounded-pill {{ $badgeClass }} px-3 py-2 fw-normal">
-                                    {{ $statusText }}
-                                </span>
+                                <span class="mnt-badge mnt-badge--{{ $status }}">{{ $statusText }}</span>
                             @else
-                                <span class="badge bg-light text-muted border rounded-pill px-3 py-2 fw-normal">N/A</span>
+                                <span class="mnt-badge mnt-badge--none">Sin auditar</span>
                             @endif
                         </td>
                         <td>
                             @if($space->latestAudit)
-                                <span class="d-block text-dark">{{ $space->latestAudit->audit_date->format('d M, Y') }}</span>
+                                <span class="mnt-num">{{ $space->latestAudit->audit_date->format('d/m/Y') }}</span>
                             @else
-                                <span class="text-muted">-</span>
+                                <span class="mnt-muted">—</span>
                             @endif
                         </td>
                         <td class="text-end">
@@ -184,7 +182,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">
+                        <td colspan="7" class="text-center py-5 text-muted">
                             <i class="bi bi-inbox fs-1 d-block opacity-25 mb-2"></i>
                             No se encontraron espacios con los filtros actuales.
                         </td>
@@ -199,17 +197,3 @@
         {{ $spaces->links() }}
     </div>
 </div>
-
-@push('scripts')
-    <script>
-        document.addEventListener('livewire:initialized', () => {
-            // Restore scroll position after Livewire updates
-            Livewire.hook('morph.updated', ({ el, component }) => {
-                const container = document.querySelector('.space-browser-container');
-                if (container) {
-                     // logic to maintain scroll if needed, but often automatic
-                }
-            });
-        });
-    </script>
-@endpush
