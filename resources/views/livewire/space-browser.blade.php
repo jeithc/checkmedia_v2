@@ -2,21 +2,6 @@
 
 @push('head')
     <style>
-        .input-group-sm .input-group-text, .input-group-sm .form-control {
-            min-height: 31px; /* Force consistent height for sm inputs */
-        }
-
-        .filter-group {
-            min-width: 150px;
-        }
-        .filter-group label {
-            font-size: 0.75rem;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
-        }
-
         /* Pagination active state */
         .page-item.active .page-link {
             background-color: #0d6efd;
@@ -58,58 +43,44 @@
     </div>
 
     <!-- Filters Toolbar -->
-    <div class="filter-toolbar mb-4">
-        <div class="row g-3">
-            <!-- City Filter -->
-            <div class="col-12 col-sm-6 col-lg-2">
-                <div class="filter-group">
-                    <label class="small text-muted fw-bold mb-1 d-block">Ciudad</label>
-                    <select class="form-select form-select-sm" wire:model.live="filterCity">
-                        <option value="">(Todas)</option>
-                        @foreach($cities as $c)
-                            <option value="{{ $c }}">{{ $c }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
+    <div class="d-flex flex-wrap flex-xl-nowrap align-items-center gap-2 mb-4">
+        <label class="pf-select">
+            <span>Ciudad</span>
+            <select wire:model.live="filterCity">
+                <option value="">Todas</option>
+                @foreach($cities as $c)
+                    <option value="{{ $c }}">{{ $c }}</option>
+                @endforeach
+            </select>
+        </label>
 
-            <!-- Location Filter -->
-            <div class="col-12 col-sm-6 col-lg-2">
-                <div class="filter-group">
-                    <label class="small text-muted fw-bold mb-1 d-block">Ubicación</label>
-                    <select class="form-select form-select-sm" wire:model.live="filterLocation">
-                        <option value="">(Todas)</option>
-                        @foreach($locations as $loc)
-                            <option value="{{ $loc }}">{{ $loc }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
+        <label class="pf-select">
+            <span>Ubicación</span>
+            <select wire:model.live="filterLocation">
+                <option value="">Todas</option>
+                @foreach($locations as $loc)
+                    <option value="{{ $loc }}">{{ $loc }}</option>
+                @endforeach
+            </select>
+        </label>
 
-            <!-- Status Filter -->
-            <div class="col-12 col-sm-6 col-lg-2">
-                <div class="filter-group">
-                    <label class="small text-muted fw-bold mb-1 d-block">Estado</label>
-                    <select class="form-select form-select-sm" wire:model.live="filterStatus">
-                        <option value="">(Todos)</option>
-                        <option value="good">Bueno</option>
-                        <option value="bad">Malo</option>
-                        <option value="warning">Regular</option>
-                    </select>
-                </div>
-            </div>
+        <span class="pf-label ms-2">Estado</span>
+        <button type="button" wire:click="$set('filterStatus', '')"
+            class="pf-chip {{ $filterStatus ? '' : 'active' }}">Todos</button>
+        <button type="button" wire:click="$set('filterStatus', 'good')"
+            class="pf-chip {{ $filterStatus === 'good' ? 'active' : '' }}">
+            <span class="pf-dot pf-dot--good"></span>Bueno
+        </button>
+        <button type="button" wire:click="$set('filterStatus', 'bad')"
+            class="pf-chip {{ $filterStatus === 'bad' ? 'active' : '' }}">
+            <span class="pf-dot pf-dot--bad"></span>Malo
+        </button>
 
-            <!-- Search -->
-            <div class="col-12 col-sm-6 col-lg-3">
-                <div class="filter-group">
-                    <label class="small text-muted fw-bold mb-1 d-block">&nbsp;</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-white border-end-0 text-muted ps-2 pe-2"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control form-control-sm border-start-0 ps-0" placeholder="Buscar código, ciudad o ubicación..." wire:model.live.debounce.300ms="search" style="font-size: 0.875rem;">
-                    </div>
-                </div>
-            </div>
-        </div>
+        <label class="pf-search ms-auto">
+            <i class="bi bi-search"></i>
+            <input type="text" placeholder="Buscar código, ciudad o ubicación..."
+                wire:model.live.debounce.300ms="search">
+        </label>
     </div>
 
     <!-- Data Table -->
@@ -153,7 +124,6 @@
                                     $statusText = match($status) {
                                         'good' => 'Bueno',
                                         'bad' => 'Malo',
-                                        'warning' => 'Regular',
                                         default => 'Sin Datos'
                                     };
                                 @endphp
