@@ -74,6 +74,18 @@ test('product filter narrows the maintenance list', function () {
         ->not->toContain('RT-001');
 });
 
+test('product filter renders as chip bar with active state', function () {
+    makeSpaceWithMaintenance('VD-003', 'VALLAS', 'VALLA DIGITAL');
+
+    $response = $this->actingAs($this->admin)
+        ->get('/admin/maintenances?product='.urlencode('MASIVO - VALLAS DIGITAL'));
+
+    $response->assertStatus(200);
+    expect($response->content())->toContain('pf-chip')
+        ->toContain('Vallas Digital')
+        ->toContain('pf-chip active');
+});
+
 test('product column renders the business unit', function () {
     makeSpaceWithMaintenance('VD-002', 'VALLAS', 'VALLA DIGITAL');
 

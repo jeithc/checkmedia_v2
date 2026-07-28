@@ -6,6 +6,7 @@ use App\Models\Maintenance;
 use App\Orchid\Layouts\Maintenance\MaintenanceFiltersLayout;
 use App\Orchid\Layouts\Maintenance\MaintenanceListLayout;
 use Orchid\Screen\Screen;
+use Orchid\Support\Facades\Layout;
 
 class MaintenanceListScreen extends Screen
 {
@@ -44,7 +45,7 @@ class MaintenanceListScreen extends Screen
     public function layout(): iterable
     {
         return [
-            MaintenanceFiltersLayout::class,
+            Layout::view('orchid.maintenance.product-filter'),
             MaintenanceListLayout::class,
         ];
     }
