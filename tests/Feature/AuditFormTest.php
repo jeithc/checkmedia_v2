@@ -1,16 +1,16 @@
 <?php
 
-use App\Models\User;
+use App\Livewire\AuditForm;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\AuditCriterion;
 use App\Models\AuditValue;
 use App\Models\CommercialBooking;
+use App\Models\User;
+use App\Services\AdvisualSyncService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
-use App\Livewire\AuditForm;
-use App\Services\AdvisualSyncService;
 
 uses(Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -323,4 +323,121 @@ test('it sets general status to bad when any criterion is bad', function () {
         'advertising_space_id' => $this->space->id,
         'general_status' => 'bad',
     ]);
+});
+
+test('it allows reporting a new bad criterion while another has an open maintenance', function () {
+    Storage::fake('s3');
+
+    $weekData = Audit::getCalendarYearAndWeek(now());
+    $existingAudit = Audit::create([
+        'advertising_space_id' => $this->space->id,
+        'user_id' => $this->user->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+        'audit_date' => now(),
+        'general_status' => 'bad',
+    ]);
+
+    $coveredValue = AuditValue::create([
+        'audit_id' => $existingAudit->id,
+        'audit_criterion_id' => $this->criteria[0]->id,
+        'value' => 'bad',
+        'comment' => 'Daño previo',
+    ]);
+
+    $maintenance = \App\Models\Maintenance::create([
+        'advertising_space_id' => $this->space->id,
+        'audit_id' => $existingAudit->id,
+        'requested_by' => $this->user->id,
+        'requested_at' => now(),
+        'status' => \App\Models\Maintenance::STATUS_REPORTED,
+        'type' => \App\Models\Maintenance::TYPE_CORRECTIVE,
+    ]);
+    $maintenance->auditValues()->attach($coveredValue->id);
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->call('complementAudit')
+        ->set('photos', [UploadedFile::fake()->image('new.jpg')])
+        ->set('values', [
+            $this->criteria[0]->id => ['value' => 'bad', 'comment' => 'Daño previo'],
+            $this->criteria[1]->id => ['value' => 'bad', 'comment' => 'Falla eléctrica'],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    // Valor cubierto por mantenimiento abierto queda intacto (mismo id, mismo pivot)
+    expect(AuditValue::find($coveredValue->id))->not->toBeNull()
+        ->and(AuditValue::find($coveredValue->id)->comment)->toBe('Daño previo')
+        ->and($maintenance->auditValues()->count())->toBe(1);
+
+    // Nuevo criterio malo persiste como no cubierto → disponible para otra requisición
+    $this->assertDatabaseHas('audit_values', [
+        'audit_id' => $existingAudit->id,
+        'audit_criterion_id' => $this->criteria[1]->id,
+        'value' => 'bad',
+        'comment' => 'Falla eléctrica',
+    ]);
+
+    expect($existingAudit->fresh()->general_status)->toBe('bad')
+        ->and($existingAudit->uncoveredBadValues()->pluck('audit_criterion_id')->all())
+        ->toBe([$this->criteria[1]->id]);
+});
+
+test('it keeps a covered bad value frozen even if the submission tries to mark it good', function () {
+    Storage::fake('s3');
+
+    $weekData = Audit::getCalendarYearAndWeek(now());
+    $existingAudit = Audit::create([
+        'advertising_space_id' => $this->space->id,
+        'user_id' => $this->user->id,
+        'year' => $weekData['year'],
+        'week' => $weekData['week'],
+        'audit_date' => now(),
+        'general_status' => 'bad',
+    ]);
+
+    $coveredValue = AuditValue::create([
+        'audit_id' => $existingAudit->id,
+        'audit_criterion_id' => $this->criteria[0]->id,
+        'value' => 'bad',
+        'comment' => 'Daño previo',
+    ]);
+
+    $maintenance = \App\Models\Maintenance::create([
+        'advertising_space_id' => $this->space->id,
+        'audit_id' => $existingAudit->id,
+        'requested_by' => $this->user->id,
+        'requested_at' => now(),
+        'status' => \App\Models\Maintenance::STATUS_REPORTED,
+        'type' => \App\Models\Maintenance::TYPE_CORRECTIVE,
+    ]);
+    $maintenance->auditValues()->attach($coveredValue->id);
+
+    // Directo al service (sin candado de UI): intenta voltear el criterio cubierto a good
+    $data = new \App\Services\AuditSubmissionData(
+        user: $this->user,
+        space: $this->space,
+        auditType: 'general',
+        purpose: Audit::PURPOSE_AUDIT_ONLY,
+        values: [
+            $this->criteria[0]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[1]->id => ['value' => 'good', 'comment' => ''],
+            $this->criteria[2]->id => ['value' => 'good', 'comment' => ''],
+        ],
+        observation: null,
+        capturedAt: now(),
+        photos: [UploadedFile::fake()->image('new.jpg')],
+        clientUuid: null,
+        allowOverwriteExisting: true,
+    );
+
+    app(\App\Services\AuditSubmissionService::class)->submit($data);
+
+    $frozen = AuditValue::find($coveredValue->id);
+    expect($frozen->value)->toBe('bad')
+        ->and($frozen->comment)->toBe('Daño previo')
+        ->and($existingAudit->fresh()->general_status)->toBe('bad');
 });
