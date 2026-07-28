@@ -70,23 +70,8 @@
 @php
     $currentProduct = request('product');
 
-    // Familia → color; hueco = digital. Unidades sin metadata caen a chip gris sólido.
-    $meta = [
-        'AEROPUERTOS ESTATICOS'    => ['label' => 'Aeropuertos Estáticos', 'color' => '#0284c7', 'hollow' => false],
-        'AEROPUERTOS DIGITAL'      => ['label' => 'Aeropuertos Digital',   'color' => '#0284c7', 'hollow' => true],
-        'RETAIL'                   => ['label' => 'Retail',                'color' => '#d97706', 'hollow' => false],
-        'MASIVO - ST'              => ['label' => 'Masivo · ST',           'color' => '#4f46e5', 'hollow' => false],
-        'MASIVO - AU'              => ['label' => 'Masivo · AU',           'color' => '#4f46e5', 'hollow' => false],
-        'MASIVO - VALLAS ESTATICAS' => ['label' => 'Vallas Estáticas',     'color' => '#4f46e5', 'hollow' => false],
-        'MASIVO - VALLAS DIGITAL'  => ['label' => 'Vallas Digital',        'color' => '#4f46e5', 'hollow' => true],
-    ];
-
     $units = collect(\App\Models\AdvertisingSpace::BUSINESS_UNITS)
-        ->mapWithKeys(fn ($value) => [$value => $meta[$value] ?? [
-            'label' => mb_convert_case(mb_strtolower($value), MB_CASE_TITLE),
-            'color' => '#6c757d',
-            'hollow' => false,
-        ]]);
+        ->mapWithKeys(fn ($value) => [$value => \App\Models\AdvertisingSpace::businessUnitMeta($value)]);
 @endphp
 
 <div class="bg-white rounded shadow-sm p-3 mb-3">

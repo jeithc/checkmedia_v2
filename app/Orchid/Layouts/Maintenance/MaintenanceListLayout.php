@@ -2,6 +2,7 @@
 
 namespace App\Orchid\Layouts\Maintenance;
 
+use App\Models\AdvertisingSpace;
 use App\Models\Maintenance;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Layouts\Table;
@@ -17,51 +18,70 @@ class MaintenanceListLayout extends Table
             TD::make('id', 'ID')
                 ->sort()
                 ->render(fn (Maintenance $m) => Link::make("#{$m->id}")
+                    ->class('mnt-num mnt-muted')
                     ->route('platform.maintenances.detail', $m->id)),
 
             TD::make('space', 'Espacio')
-                ->render(fn (Maintenance $m) => $m->advertisingSpace?->external_code ?? 'N/A'),
+                ->render(fn (Maintenance $m) => $m->advertisingSpace
+                    ? "<span class='mnt-code'>{$m->advertisingSpace->external_code}</span>"
+                    : "<span class='mnt-muted'>—</span>"),
 
             TD::make('product', 'Producto')
-                ->render(fn (Maintenance $m) => $m->advertisingSpace?->business_unit ?? 'N/A'),
+                ->render(function (Maintenance $m) {
+                    $unit = $m->advertisingSpace?->business_unit;
+                    if (! $unit) {
+                        return "<span class='mnt-muted'>—</span>";
+                    }
+
+                    $meta = AdvertisingSpace::businessUnitMeta($unit);
+                    $hollow = $meta['hollow'] ? 'hollow' : '';
+                    $label = e($meta['label']);
+
+                    return "<span class='mnt-product' title='".e($unit)."'>"
+                        ."<span class='mnt-dot {$hollow}' style='--mnt-dot-color: {$meta['color']}'></span>"
+                        ."{$label}</span>";
+                }),
 
             TD::make('audit_id', 'Auditoría')
                 ->render(function (Maintenance $m) {
                     if (! $m->audit_id) {
-                        return 'N/A';
+                        return "<span class='mnt-muted'>—</span>";
                     }
 
                     return Link::make("Aud. #{$m->audit_id}")
+                        ->class('mnt-num')
                         ->route('platform.audit.detail', $m->audit_id);
                 }),
 
             TD::make('category', 'Categoría')
                 ->sort()
-                ->render(fn (Maintenance $m) => $m->category_label),
+                ->render(fn (Maintenance $m) => e($m->category_label)),
 
             TD::make('priority', 'Prioridad')
                 ->sort()
                 ->render(function (Maintenance $m) {
-                    $color = match ($m->priority) {
-                        'alta' => 'danger',
-                        'media' => 'warning',
-                        'baja' => 'info',
-                        default => 'secondary',
-                    };
+                    $priority = $m->priority ?: 'none';
+                    $label = $m->priority ? ucfirst($m->priority) : '—';
 
-                    return "<span class='badge bg-{$color}'>".ucfirst($m->priority ?? 'N/A').'</span>';
+                    return "<span class='mnt-badge mnt-badge--{$priority}'>{$label}</span>";
                 }),
 
             TD::make('status', 'Estado')
                 ->sort()
-                ->render(fn (Maintenance $m) => "<span class='badge bg-{$m->status_color}'>{$m->status_label}</span>"),
+                ->render(fn (Maintenance $m) => "<span class='mnt-badge mnt-badge--{$m->status}'>{$m->status_label}</span>"),
 
             TD::make('requested_at', 'Fecha Solicitud')
                 ->sort()
-                ->render(fn (Maintenance $m) => $m->requested_at?->format('d/m/Y H:i') ?? $m->created_at->format('d/m/Y H:i')),
+                ->render(function (Maintenance $m) {
+                    $date = $m->requested_at ?? $m->created_at;
+
+                    return "<span class='mnt-num'>{$date->format('d/m/Y')} <span class='mnt-muted'>{$date->format('H:i')}</span></span>";
+                }),
 
             TD::make('advisual_requisition_id', 'Advisual ID')
-                ->render(fn (Maintenance $m) => $m->advisual_requisition_id ?? '-'),
+                ->render(fn (Maintenance $m) => $m->advisual_requisition_id
+                    ? "<span class='mnt-num'>{$m->advisual_requisition_id}</span>"
+                    : "<span class='mnt-muted'>—</span>"),
 
             TD::make('actions', 'Acciones')
                 ->align(TD::ALIGN_CENTER)

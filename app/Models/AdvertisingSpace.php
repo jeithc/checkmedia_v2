@@ -22,6 +22,26 @@ class AdvertisingSpace extends Model
         'MASIVO - VALLAS DIGITAL',
     ];
 
+    // Presentación por unidad: etiqueta corta, color de familia, hueco = digital
+    public const BUSINESS_UNIT_META = [
+        'AEROPUERTOS ESTATICOS' => ['label' => 'Aeropuertos Estáticos', 'color' => '#0284c7', 'hollow' => false],
+        'AEROPUERTOS DIGITAL' => ['label' => 'Aeropuertos Digital', 'color' => '#0284c7', 'hollow' => true],
+        'RETAIL' => ['label' => 'Retail', 'color' => '#d97706', 'hollow' => false],
+        'MASIVO - ST' => ['label' => 'Masivo · ST', 'color' => '#4f46e5', 'hollow' => false],
+        'MASIVO - AU' => ['label' => 'Masivo · AU', 'color' => '#4f46e5', 'hollow' => false],
+        'MASIVO - VALLAS ESTATICAS' => ['label' => 'Vallas Estáticas', 'color' => '#4f46e5', 'hollow' => false],
+        'MASIVO - VALLAS DIGITAL' => ['label' => 'Vallas Digital', 'color' => '#4f46e5', 'hollow' => true],
+    ];
+
+    public static function businessUnitMeta(?string $unit): array
+    {
+        return self::BUSINESS_UNIT_META[$unit] ?? [
+            'label' => $unit ? mb_convert_case(mb_strtolower($unit), MB_CASE_TITLE) : null,
+            'color' => '#6c757d',
+            'hollow' => false,
+        ];
+    }
+
     // Tipos de elemento considerados digitales (para el split estático/digital)
     public const DIGITAL_TYPE_REGEX = '/\b(DIGITAL|LED|PANTALLA|MONITOR|VERTICAL DISPLAY)\b/u';
 

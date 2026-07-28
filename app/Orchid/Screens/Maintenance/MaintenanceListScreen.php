@@ -46,6 +46,7 @@ class MaintenanceListScreen extends Screen
     {
         return [
             Layout::view('orchid.maintenance.product-filter'),
+            Layout::view('orchid.maintenance.list-styles'),
             MaintenanceListLayout::class,
         ];
     }
