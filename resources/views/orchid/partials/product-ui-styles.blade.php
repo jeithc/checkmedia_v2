@@ -157,6 +157,16 @@
         .pf-dot--good { --pf-dot-color: #059669; }
         .pf-dot--bad { --pf-dot-color: #dc2626; }
 
+        /* Cards de KPI clicables */
+        a.dash-card {
+            transition: box-shadow .15s ease, transform .15s ease;
+        }
+
+        a.dash-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .1) !important;
+            transform: translateY(-1px);
+        }
+
         /* ===== Tabla compacta (acotada a tablas con .mnt-product) ===== */
         .table:has(.mnt-product) td {
             padding-top: .6rem;
