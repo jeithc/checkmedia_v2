@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
+use App\Models\User;
 use App\Orchid\Layouts\User\ProfilePasswordLayout;
 use App\Orchid\Layouts\User\UserEditLayout;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Orchid\Access\Impersonation;
-use App\Models\User;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Screen;
@@ -100,17 +101,35 @@ class UserProfileScreen extends Screen
 
     public function save(Request $request): void
     {
-        $request->validate([
-            'user.name'  => 'required|string',
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'user.name' => 'required|string|max:255',
+            'user.username' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique(User::class, 'username')->ignore($user),
+            ],
             'user.email' => [
                 'required',
-                Rule::unique(User::class, 'email')->ignore($request->user()),
+                Rule::unique(User::class, 'email')->ignore($user),
             ],
+            'user.avatar_path' => 'nullable|string',
         ]);
 
-        $request->user()
-            ->fill($request->get('user'))
-            ->save();
+        // Assign only the fields this screen legitimately exposes. Never fill()
+        // the raw `user` input: UserEditLayout hides is_active,
+        // must_change_password and is_superuser on the profile route with
+        // canSee(), which is a client-side concern only — a crafted POST could
+        // otherwise set user[is_superuser]=1 and grant itself full access,
+        // since hasAccess() short-circuits to true for superusers.
+        $user->fill(Arr::only($validated['user'], [
+            'name',
+            'username',
+            'email',
+            'avatar_path',
+        ]))->save();
 
         Toast::info(__('Profile updated.'));
     }
@@ -120,7 +139,7 @@ class UserProfileScreen extends Screen
         $guard = config('platform.guard', 'web');
         $request->validate([
             'old_password' => 'required|current_password:'.$guard,
-            'password'     => 'required|confirmed|different:old_password',
+            'password' => 'required|confirmed|different:old_password',
         ]);
 
         tap($request->user(), function ($user) use ($request) {
