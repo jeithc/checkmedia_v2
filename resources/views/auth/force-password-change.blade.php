@@ -15,19 +15,29 @@
             <img src="{{ asset('logo.png') }}" alt="Efectimedios" style="max-width: 220px;">
         </div>
 
-        <div class="alert-notice">
-            Por seguridad debes definir una clave nueva antes de continuar.
-        </div>
+        @if ($forced)
+            <div class="alert-notice">
+                Por seguridad debes definir una clave nueva antes de continuar.
+            </div>
+        @endif
 
         <form action="{{ route('password.forced.update') }}" method="POST">
             @csrf
 
+            @error('current_password')
+                <div class="alert-error">{{ $message }}</div>
+            @enderror
             @error('password')
                 <div class="alert-error">{{ $message }}</div>
             @enderror
 
             <div class="inputwrapper">
-                <input type="password" name="password" placeholder="Nueva Clave" required autofocus
+                <input type="password" name="current_password" placeholder="Clave Actual" required autofocus
+                    autocomplete="current-password">
+            </div>
+
+            <div class="inputwrapper">
+                <input type="password" name="password" placeholder="Nueva Clave" required
                     autocomplete="new-password">
             </div>
 

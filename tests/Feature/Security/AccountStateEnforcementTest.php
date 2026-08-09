@@ -106,6 +106,7 @@ test('changing the password clears the flag and releases the user', function () 
     $user = accountUser(['must_change_password' => true]);
 
     $this->actingAs($user)->post(route('password.forced.update'), [
+        'current_password' => '12345678',
         'password' => 'una-clave-larga-nueva',
         'password_confirmation' => 'una-clave-larga-nueva',
     ])->assertRedirect('/');
@@ -122,6 +123,7 @@ test('reusing the current password is rejected', function () {
     $user = accountUser(['must_change_password' => true]);
 
     $this->actingAs($user)->post(route('password.forced.update'), [
+        'current_password' => '12345678',
         'password' => '12345678',
         'password_confirmation' => '12345678',
     ])->assertSessionHasErrors('password');
@@ -139,4 +141,50 @@ test('the api is not blocked but reports the flag so the app can prompt', functi
     ])
         ->assertOk()
         ->assertJsonPath('user.must_change_password', true);
+});
+
+/**
+ * The screen is reachable by any authenticated session, not just during a
+ * forced rotation, so it must prove knowledge of the current password.
+ */
+test('the password change requires the current password', function () {
+    $user = accountUser();
+
+    $this->actingAs($user)->post(route('password.forced.update'), [
+        'current_password' => 'no-es-la-actual',
+        'password' => 'una-clave-larga-nueva',
+        'password_confirmation' => 'una-clave-larga-nueva',
+    ])->assertSessionHasErrors('current_password');
+
+    expect(Hash::check('12345678', $user->fresh()->password))->toBeTrue();
+});
+
+test('a field auditor can change their password without panel access', function () {
+    $user = accountUser();
+
+    expect($user->hasAccess('platform.index'))->toBeFalse();
+
+    $this->actingAs($user)->get(route('password.forced'))->assertOk();
+
+    $this->actingAs($user)->post(route('password.forced.update'), [
+        'current_password' => '12345678',
+        'password' => 'clave-de-auditor-nueva',
+        'password_confirmation' => 'clave-de-auditor-nueva',
+    ])->assertRedirect('/');
+
+    expect(Hash::check('clave-de-auditor-nueva', $user->fresh()->password))->toBeTrue();
+});
+
+test('resetting by email clears a pending forced rotation', function () {
+    $user = accountUser(['must_change_password' => true]);
+    $token = app('auth.password.broker')->createToken($user);
+
+    $this->post(route('password.update'), [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'clave-desde-el-correo',
+        'password_confirmation' => 'clave-desde-el-correo',
+    ])->assertRedirect(route('platform.login'));
+
+    expect((bool) $user->fresh()->must_change_password)->toBeFalse();
 });

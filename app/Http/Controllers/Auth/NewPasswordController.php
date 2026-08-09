@@ -14,7 +14,6 @@ class NewPasswordController extends Controller
     /**
      * Display the password reset view.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\View\View
      */
     public function create(Request $request)
@@ -25,7 +24,6 @@ class NewPasswordController extends Controller
     /**
      * Handle an incoming new password request.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      *
      * @throws \Illuminate\Validation\ValidationException
@@ -47,6 +45,10 @@ class NewPasswordController extends Controller
                 $user->forceFill([
                     'password' => Hash::make($password),
                     'remember_token' => Str::random(60),
+                    // Resetting by email is a valid way to satisfy a pending
+                    // rotation; without this a migrated user would reset here
+                    // and still be sent to the forced-change screen on login.
+                    'must_change_password' => false,
                 ])->save();
             }
         );
