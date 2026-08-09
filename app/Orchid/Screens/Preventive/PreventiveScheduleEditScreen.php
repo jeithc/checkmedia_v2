@@ -24,14 +24,24 @@ class PreventiveScheduleEditScreen extends Screen
     public function query(PreventiveSchedule $schedule): iterable
     {
         return [
-            'schedule' => $schedule
+            'schedule' => $schedule,
+        ];
+    }
+
+    /**
+     * Without this, the screen (and its state-mutating save/remove methods) is
+     * reachable by URL for anyone who can open the admin panel — the menu's
+     * ->permission() only hides the link.
+     */
+    public function permission(): ?iterable
+    {
+        return [
+            'system.edit_users',
         ];
     }
 
     /**
      * The name of the screen displayed in the header.
-     *
-     * @return string|null
      */
     public function name(): ?string
     {
@@ -91,13 +101,13 @@ class PreventiveScheduleEditScreen extends Screen
                     ->options($units)
                     ->empty('Todas las unidades')
                     ->help('Déjalo en "Todas las unidades" o selecciona un tipo (Vallas, Aeropuertos) específico.'),
-                
+
                 Select::make('schedule.city')
                     ->title('Ciudad')
                     ->options($cities)
                     ->empty('Todas las ciudades')
                     ->help('Déjalo en "Todas las ciudades" o selecciona una ciudad específica para esta regla.'),
-                
+
                 Input::make('schedule.frequency_days')
                     ->title('Frecuencia en Días')
                     ->type('number')
@@ -116,8 +126,6 @@ class PreventiveScheduleEditScreen extends Screen
     /**
      * Save action.
      *
-     * @param PreventiveSchedule $schedule
-     * @param Request            $request
      *
      * @return \Illuminate\Http\RedirectResponse
      */
@@ -130,12 +138,12 @@ class PreventiveScheduleEditScreen extends Screen
         ]);
 
         $data = $request->get('schedule');
-        
+
         // Manejar strings vacíos como nulos
         if (isset($data['unit']) && trim($data['unit']) === '') {
             $data['unit'] = null;
         }
-        
+
         // Manejar el string vacío en city como null
         if (isset($data['city']) && trim($data['city']) === '') {
             $data['city'] = null;
@@ -144,15 +152,16 @@ class PreventiveScheduleEditScreen extends Screen
         $schedule->fill($data)->save();
 
         Toast::info('Regla Preventiva guardada exitosamente.');
+
         return redirect()->route('platform.preventive.schedule.list');
     }
 
     /**
      * Update/Delete action.
      *
-     * @param PreventiveSchedule $schedule
      *
      * @return \Illuminate\Http\RedirectResponse
+     *
      * @throws \Exception
      */
     public function remove(PreventiveSchedule $schedule)
@@ -160,6 +169,7 @@ class PreventiveScheduleEditScreen extends Screen
         $schedule->delete();
 
         Toast::info('Regla eliminada.');
+
         return redirect()->route('platform.preventive.schedule.list');
     }
 }

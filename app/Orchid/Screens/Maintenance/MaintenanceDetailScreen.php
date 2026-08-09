@@ -34,7 +34,7 @@ class MaintenanceDetailScreen extends Screen
 
     public function name(): ?string
     {
-        return 'Detalle de Mantenimiento #' . $this->maintenance->id;
+        return 'Detalle de Mantenimiento #'.$this->maintenance->id;
     }
 
     public function description(): ?string
@@ -73,8 +73,14 @@ class MaintenanceDetailScreen extends Screen
      */
     public function close(Request $request, Maintenance $maintenance)
     {
-        if (!$maintenance->canBeClosed()) {
+        // The screen only requires maintenance.view, and Orchid authorises
+        // action methods with the screen's permission() — so closing has to be
+        // checked here, as AuditActionController::closeMaintenanceFromAudit does.
+        abort_unless(auth()->user()->hasAccess('maintenance.close'), 403);
+
+        if (! $maintenance->canBeClosed()) {
             Toast::error('Este mantenimiento no puede ser cerrado.');
+
             return;
         }
 

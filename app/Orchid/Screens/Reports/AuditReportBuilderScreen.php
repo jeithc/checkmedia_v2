@@ -2,20 +2,24 @@
 
 namespace App\Orchid\Screens\Reports;
 
+use App\Exports\AuditsExport;
 use App\Models\Audit;
 use App\Models\AuditCriterion;
-use App\Exports\AuditsExport;
+use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
-use Illuminate\Http\Request;
 
 class AuditReportBuilderScreen extends Screen
 {
     public $selectedColumns = [];
+
     public $availableStaticColumns = [];
+
     public $availableCriteria = [];
+
     public $previewData = null;
+
     public $showPreview = false;
 
     /**
@@ -59,7 +63,7 @@ class AuditReportBuilderScreen extends Screen
                 ->orderBy('audit_date', 'desc')
                 ->limit(10)
                 ->get();
-            
+
             // Clear the session flag
             session()->forget('show_preview');
         }
@@ -78,6 +82,21 @@ class AuditReportBuilderScreen extends Screen
      *
      * @return string|null
      */
+    /**
+     * Without this, downloadExcel() — which exports every audit in the system —
+     * is reachable by URL for anyone who can open the admin panel, since the
+     * menu's ->permission('audit.can_audit') only hides the link.
+     *
+     * Orchid authorises with hasAnyAccess(), so this grants either permission.
+     */
+    public function permission(): ?iterable
+    {
+        return [
+            'audit.can_audit',
+            'reports.create_shared',
+        ];
+    }
+
     public function name(): ?string
     {
         return 'Constructor de Reportes de Auditoría';
@@ -114,13 +133,26 @@ class AuditReportBuilderScreen extends Screen
     }
 
     /**
+     * These three actions are wired up in routes/platform.php as plain
+     * Route::post entries pointing straight at the methods, so they never pass
+     * through Screen::handle() and therefore never hit permission(). The check
+     * has to live in the methods themselves.
+     */
+    private function authorizeReportAccess(): void
+    {
+        abort_unless(auth()->user()->hasAnyAccess($this->permission()), 403);
+    }
+
+    /**
      * Update selected columns
      */
     public function updateColumns(Request $request)
     {
+        $this->authorizeReportAccess();
+
         $selectedColumns = $request->input('selectedColumns', []);
         session(['report_selected_columns' => $selectedColumns]);
-        
+
         return redirect()->route('platform.reports.audit-builder');
     }
 
@@ -129,8 +161,10 @@ class AuditReportBuilderScreen extends Screen
      */
     public function generatePreview(Request $request)
     {
+        $this->authorizeReportAccess();
+
         $selectedColumns = $request->input('selectedColumns', []);
-        
+
         if (empty($selectedColumns)) {
             return redirect()->route('platform.reports.audit-builder')
                 ->with('error', 'Debe seleccionar al menos una columna.');
@@ -138,7 +172,7 @@ class AuditReportBuilderScreen extends Screen
 
         session(['report_selected_columns' => $selectedColumns]);
         session(['show_preview' => true]);
-        
+
         return redirect()->route('platform.reports.audit-builder');
     }
 
@@ -150,10 +184,12 @@ class AuditReportBuilderScreen extends Screen
      */
     public function downloadExcel(Request $request)
     {
+        $this->authorizeReportAccess();
+
         \Illuminate\Support\Facades\Log::info('Inicio descarga Excel');
-        
+
         $selectedColumns = $request->input('selectedColumns', []);
-        
+
         if (empty($selectedColumns)) {
             return redirect()->route('platform.reports.audit-builder')
                 ->with('error', 'Debe seleccionar al menos una columna para descargar.');
@@ -162,14 +198,14 @@ class AuditReportBuilderScreen extends Screen
         session(['report_selected_columns' => $selectedColumns]);
 
         $criteria = AuditCriterion::where('is_active', true)->orderBy('order_index')->get();
-        $fileName = 'reporte_auditorias_' . now()->format('Y-m-d_His') . '.xlsx';
+        $fileName = 'reporte_auditorias_'.now()->format('Y-m-d_His').'.xlsx';
 
         // Clear output buffer to prevent corrupted files or hangs
         if (ob_get_length()) {
             ob_end_clean();
         }
 
-        \Illuminate\Support\Facades\Log::info('Generando Excel: ' . $fileName);
+        \Illuminate\Support\Facades\Log::info('Generando Excel: '.$fileName);
 
         return Excel::download(
             new AuditsExport($selectedColumns, $criteria),
