@@ -11,6 +11,17 @@ use Orchid\Support\Facades\Layout;
 class PreventiveScheduleListScreen extends Screen
 {
     /**
+     * Matches the permission the menu entry already uses; without it the screen
+     * is reachable by URL for anyone who can open the admin panel.
+     */
+    public function permission(): ?iterable
+    {
+        return [
+            'system.edit_users',
+        ];
+    }
+
+    /**
      * Fetch data to be displayed on the screen.
      *
      * @return array
@@ -24,8 +35,6 @@ class PreventiveScheduleListScreen extends Screen
 
     /**
      * The name of the screen displayed in the header.
-     *
-     * @return string|null
      */
     public function name(): ?string
     {
@@ -68,12 +77,12 @@ class PreventiveScheduleListScreen extends Screen
                     ->filter(TD::FILTER_TEXT)
                     ->render(fn (PreventiveSchedule $schedule) => Link::make($schedule->element_type)
                         ->route('platform.preventive.schedule.edit', $schedule->id)),
-                
+
                 TD::make('unit', 'Unidad')
                     ->sort()
                     ->filter(TD::FILTER_TEXT)
                     ->render(fn (PreventiveSchedule $schedule) => $schedule->unit ?? 'Todas las unidades'),
-                
+
                 TD::make('city', 'Ciudad')
                     ->sort()
                     ->filter(TD::FILTER_TEXT)
@@ -85,8 +94,8 @@ class PreventiveScheduleListScreen extends Screen
 
                 TD::make('is_active', 'Estado')
                     ->sort()
-                    ->render(fn (PreventiveSchedule $schedule) => $schedule->is_active 
-                        ? '<span class="badge bg-success text-white">Activo</span>' 
+                    ->render(fn (PreventiveSchedule $schedule) => $schedule->is_active
+                        ? '<span class="badge bg-success text-white">Activo</span>'
                         : '<span class="badge bg-danger text-white">Inactivo</span>'),
             ]),
         ];

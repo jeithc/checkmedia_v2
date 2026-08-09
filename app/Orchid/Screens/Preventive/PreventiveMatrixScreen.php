@@ -10,6 +10,17 @@ use Orchid\Support\Facades\Layout;
 class PreventiveMatrixScreen extends Screen
 {
     /**
+     * Matches the permission the menu entry already uses; without it the screen
+     * is reachable by URL for anyone who can open the admin panel.
+     */
+    public function permission(): ?iterable
+    {
+        return [
+            'system.edit_users',
+        ];
+    }
+
+    /**
      * Fetch data to be displayed on the screen.
      *
      * @return array

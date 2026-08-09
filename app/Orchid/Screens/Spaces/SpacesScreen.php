@@ -8,6 +8,17 @@ use Orchid\Support\Facades\Layout;
 class SpacesScreen extends Screen
 {
     /**
+     * Matches the permission the menu entry already uses; without it the screen
+     * is reachable by URL for anyone who can open the admin panel.
+     */
+    public function permission(): ?iterable
+    {
+        return [
+            'audit.can_audit',
+        ];
+    }
+
+    /**
      * Fetch data to be displayed on the screen.
      *
      * @return array
@@ -19,8 +30,6 @@ class SpacesScreen extends Screen
 
     /**
      * The name of the screen displayed in the header.
-     *
-     * @return string|null
      */
     public function name(): ?string
     {

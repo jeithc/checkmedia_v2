@@ -39,6 +39,14 @@ Route::group(['middleware' => 'web'], function () {
         return redirect()->route('platform.login');
     })->name('platform.logout');
 
+    Route::get('/cambiar-clave', [\App\Http\Controllers\Auth\ForcePasswordChangeController::class, 'create'])
+        ->middleware('auth')
+        ->name('password.forced');
+
+    Route::post('/cambiar-clave', [\App\Http\Controllers\Auth\ForcePasswordChangeController::class, 'store'])
+        ->middleware(['auth', 'throttle:10,1'])
+        ->name('password.forced.update');
+
     Route::get('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetLinkController::class, 'create'])
         ->middleware('guest')
         ->name('password.request');

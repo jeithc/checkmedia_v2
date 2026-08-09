@@ -4,13 +4,23 @@ namespace App\Orchid\Screens\Spaces;
 
 use App\Models\AdvertisingSpace;
 use App\Models\SpaceActivityLog;
-use App\Models\Maintenance;
+use Illuminate\Http\Request;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
-use Illuminate\Http\Request;
 
 class SpaceViewScreen extends Screen
 {
+    /**
+     * Matches the permission the menu entry already uses; without it the screen
+     * is reachable by URL for anyone who can open the admin panel.
+     */
+    public function permission(): ?iterable
+    {
+        return [
+            'audit.can_audit',
+        ];
+    }
+
     /**
      * @var AdvertisingSpace
      */
@@ -19,7 +29,6 @@ class SpaceViewScreen extends Screen
     /**
      * Fetch data to be displayed on the screen.
      *
-     * @param AdvertisingSpace $space
      *
      * @return array
      */
@@ -62,12 +71,10 @@ class SpaceViewScreen extends Screen
 
     /**
      * The name of the screen displayed in the header.
-     *
-     * @return string|null
      */
     public function name(): ?string
     {
-        return $this->space->external_code . ' - ' . $this->space->location_name;
+        return $this->space->external_code.' - '.$this->space->location_name;
     }
 
     /**
@@ -75,7 +82,7 @@ class SpaceViewScreen extends Screen
      */
     public function description(): ?string
     {
-        return $this->space->city . ', ' . $this->space->category;
+        return $this->space->city.', '.$this->space->category;
     }
 
     /**

@@ -94,3 +94,39 @@ test('a maintenance cannot be closed with only view permission', function () {
 
     expect($maintenance->fresh()->status)->not->toBe(Maintenance::STATUS_CLOSED);
 });
+
+test('read-only screens require the permission their menu entry uses', function (string $route, string $permission) {
+    // Without the permission: blocked.
+    $this->actingAs(limitedBackOffice())->get($route)->assertForbidden();
+
+    // With it: still reachable, so nobody legitimate got locked out.
+    $this->actingAs(limitedBackOffice([$permission => true]))->get($route)->assertOk();
+})->with([
+    'espacios' => ['/admin/spaces', 'audit.can_audit'],
+    'listado preventivos' => ['/admin/preventive-matrix', 'system.edit_users'],
+    'reglas preventivas' => ['/admin/preventive-schedules', 'system.edit_users'],
+]);
+
+test('the space detail screen requires audit permission', function () {
+    $space = AdvertisingSpace::create([
+        'external_code' => 'SP-VIEW-1',
+        'city' => 'Bogotá',
+        'type' => 'Billboard',
+    ]);
+
+    $this->actingAs(limitedBackOffice())
+        ->get('/admin/spaces/'.$space->id)
+        ->assertForbidden();
+
+    $this->actingAs(limitedBackOffice(['audit.can_audit' => true]))
+        ->get('/admin/spaces/'.$space->id)
+        ->assertOk();
+});
+
+test('the admin dashboard stays reachable for any panel user', function () {
+    // Its menu entry has no ->permission() and it is the post-login landing
+    // page, so gating it would break the login redirect.
+    $this->actingAs(limitedBackOffice())
+        ->get(route('platform.main'))
+        ->assertOk();
+});

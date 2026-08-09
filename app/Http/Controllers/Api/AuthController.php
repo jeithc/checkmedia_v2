@@ -24,6 +24,13 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
+
+        if (! $user->is_active) {
+            throw ValidationException::withMessages([
+                'username' => ['Esta cuenta está desactivada.'],
+            ]);
+        }
+
         $token = $user->createToken($request->device_name)->plainTextToken;
 
         return response()->json([
@@ -57,6 +64,9 @@ class AuthController extends Controller
             'name' => $user->name,
             'username' => $user->username,
             'avatar' => $this->avatarUrl($user),
+            // The web flow forces rotation via middleware; the mobile client is
+            // handed the flag so it can prompt for a new password too.
+            'must_change_password' => (bool) $user->must_change_password,
         ];
     }
 

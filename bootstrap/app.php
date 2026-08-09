@@ -14,6 +14,17 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+
+        // Deactivated accounts must not be usable, whether through an existing
+        // session or an API token issued before the deactivation.
+        // The web group resolves the session guard lazily, so appending here is
+        // enough. The API equivalent is applied inside routes/api.php instead,
+        // because group middleware runs before the route's auth:sanctum and
+        // $request->user() would still be null here.
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsureUserIsActive::class);
+
+        // Force rotation of known-weak passwords (must_change_password).
+        $middleware->appendToGroup('web', \App\Http\Middleware\EnsurePasswordIsChanged::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

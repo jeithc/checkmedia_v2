@@ -12,7 +12,6 @@ class LoginController extends Controller
     /**
      * Handle an authentication attempt.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
     public function authenticate(Request $request)
@@ -23,15 +22,25 @@ class LoginController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
+            // A deactivated account must not get a session. The UI promises
+            // that unchecking "Is Active" prevents logging in.
+            if (! Auth::user()->is_active) {
+                Auth::logout();
+
+                return back()->withErrors([
+                    'username' => __('Esta cuenta está desactivada.'),
+                ])->onlyInput('username');
+            }
+
             $request->session()->regenerate();
 
             Toast::info(__('Bienvenido de nuevo!'));
 
             $user = Auth::user();
-            
+
             // Si el usuario no tiene acceso al panel de administración, redirigir a auditoría
-            if (!$user->hasAccess('platform.index')) {
-                 return redirect()->route('audit.form');
+            if (! $user->hasAccess('platform.index')) {
+                return redirect()->route('audit.form');
             }
 
             return redirect()->intended(route(config('platform.index')));
