@@ -14,9 +14,9 @@ beforeEach(function () {
         'email' => 'admin@test.com',
         'username' => 'admin',
         'password' => bcrypt('password'),
-        'is_superuser' => true,
         'permissions' => ['platform.index' => true],
     ]);
+    $this->admin->forceFill(['is_superuser' => true])->save();
 });
 
 test('screen loads without errors', function () {

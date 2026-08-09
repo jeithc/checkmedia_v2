@@ -249,6 +249,15 @@ class UserEditScreen extends Screen
         $user->fill($userData);
         $user->permissions = $permissions;
 
+        // Access-granting flags are excluded from $fillable so they can never
+        // arrive through fill(); assign them from the checkboxes this screen
+        // actually renders (UserEditLayout).
+        foreach (['is_active', 'must_change_password', 'is_superuser'] as $flag) {
+            if ($request->has("user.$flag")) {
+                $user->{$flag} = (bool) $request->input("user.$flag");
+            }
+        }
+
         $user->save();
 
         // Sync Roles

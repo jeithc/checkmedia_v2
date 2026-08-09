@@ -17,17 +17,23 @@ class User extends Authenticatable
      *
      * @var array
      */
+    /**
+     * `is_active`, `must_change_password` and `is_superuser` are deliberately
+     * NOT mass assignable: they gate access (hasAccess() short-circuits to true
+     * for superusers), so they must only ever be set explicitly by a screen
+     * that has checked who is asking. `permissions` stays fillable because
+     * Orchid's own User::createAdmin() — behind `artisan orchid:admin` — mass
+     * assigns it; screens must whitelist their input instead of fill()ing raw
+     * request data.
+     */
     protected $fillable = [
         'name',
         'username', // Added
         'advisual_usuario_guid', // Advisual solicitante (UsuarioGUID)
         'email',
         'password',
-        'permissions', // Added for mass assignment
-        'is_active', // Added
-        'must_change_password', // Added
+        'permissions', // Required by Orchid's createAdmin()
         'avatar_path', // Added
-        'is_superuser', // Added
     ];
 
     /**

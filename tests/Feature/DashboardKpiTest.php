@@ -14,9 +14,9 @@ beforeEach(function () {
         'email' => 'admin@test.com',
         'username' => 'admin',
         'password' => bcrypt('password'),
-        'is_superuser' => true,
         'permissions' => ['platform.index' => true],
     ]);
+    $this->admin->forceFill(['is_superuser' => true])->save();
     $this->actingAs($this->admin);
 });
 
@@ -174,4 +174,3 @@ test('main dashboard shows monthly purchase order cost chart and audit profile c
     $response->assertSee('Costo Ejecutado de OCs por Mes');
     $response->assertSee('Novedades por Estado y Categoría');
 });
-

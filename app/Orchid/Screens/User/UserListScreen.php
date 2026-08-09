@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
+use App\Models\User;
 use App\Orchid\Layouts\User\UserEditLayout;
-use App\Orchid\Layouts\User\UserFiltersLayout;
 use App\Orchid\Layouts\User\UserListLayout;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
-use App\Models\User;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
@@ -104,7 +104,25 @@ class UserListScreen extends Screen
             ],
         ]);
 
-        $user->fill($request->input('user'))->save();
+        // Whitelist the input: the modal renders UserEditLayout, which has no
+        // `permissions` field, so anything arriving under user[permissions] is
+        // injected and must not reach fill().
+        $user->fill(Arr::only($request->input('user', []), [
+            'name',
+            'username',
+            'email',
+            'avatar_path',
+        ]));
+
+        // Access-granting flags are excluded from $fillable; assign them from
+        // the checkboxes the modal renders.
+        foreach (['is_active', 'must_change_password', 'is_superuser'] as $flag) {
+            if ($request->has("user.$flag")) {
+                $user->{$flag} = (bool) $request->input("user.$flag");
+            }
+        }
+
+        $user->save();
 
         Toast::info(__('User was saved.'));
     }

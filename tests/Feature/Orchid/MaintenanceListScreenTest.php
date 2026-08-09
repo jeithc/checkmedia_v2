@@ -13,9 +13,9 @@ beforeEach(function () {
         'email' => 'admin@test.com',
         'username' => 'admin',
         'password' => bcrypt('password'),
-        'is_superuser' => true,
         'permissions' => ['platform.index' => true, 'maintenance.view' => true],
     ]);
+    $this->admin->forceFill(['is_superuser' => true])->save();
 });
 
 function makeSpaceWithMaintenance(string $code, string $category, ?string $type): AdvertisingSpace

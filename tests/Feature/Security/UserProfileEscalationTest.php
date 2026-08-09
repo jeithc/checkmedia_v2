@@ -10,15 +10,22 @@ uses(RefreshDatabase::class);
  * vector is a limited back-office user (not a field auditor, who is gated out
  * of /admin entirely). Such a user must still not be able to promote itself.
  */
-function backOfficeUser(array $attributes = []): User
+function backOfficeUser(array $guarded = []): User
 {
-    return User::create(array_merge([
+    $user = User::create([
         'name' => 'Back Office',
         'email' => 'back@test.com',
         'username' => 'backoffice',
         'password' => bcrypt('secret123'),
         'permissions' => ['platform.index' => true, 'maintenance.view' => true],
-    ], $attributes));
+    ]);
+
+    // is_active / is_superuser are not mass assignable by design.
+    if ($guarded !== []) {
+        $user->forceFill($guarded)->save();
+    }
+
+    return $user;
 }
 
 function postProfile(User $user, array $userInput)
@@ -86,4 +93,42 @@ test('a user can still update their own name and email', function () {
 
     expect($fresh->name)->toBe('Nuevo Nombre')
         ->and($fresh->email)->toBe('nuevo@test.com');
+});
+
+/**
+ * The user-list modal renders UserEditLayout, which has no `permissions` field,
+ * so anything arriving under user[permissions] is injected. It must not be
+ * mass assigned onto the target user.
+ */
+test('injected permissions are ignored by the user list modal', function () {
+    $admin = User::create([
+        'name' => 'Admin', 'email' => 'admin@test.com', 'username' => 'admin',
+        'password' => bcrypt('secret123'),
+        'permissions' => ['platform.index' => true, 'system.edit_users' => true],
+    ]);
+
+    $victim = User::create([
+        'name' => 'Victim', 'email' => 'victim@test.com', 'username' => 'victim',
+        'password' => bcrypt('secret123'), 'permissions' => [],
+    ]);
+
+    // Orchid resolves the `User $user` argument from the query string
+    // (prepareForExecuteMethod turns query params into route params), so the
+    // target user is addressed with ?user=<id>.
+    $url = route('platform.systems.users', ['method' => 'saveUser']).'?user='.$victim->id;
+
+    $this->actingAs($admin)->post($url, [
+        'user' => [
+            'name' => 'Victim renamed',
+            'username' => 'victim',
+            'email' => 'victim@test.com',
+            'permissions' => ['platform.systems.users' => true],
+        ],
+    ]);
+
+    $fresh = $victim->fresh();
+
+    // The legitimate edit went through, the injected permission did not.
+    expect($fresh->name)->toBe('Victim renamed')
+        ->and($fresh->hasAccess('platform.systems.users'))->toBeFalse();
 });
