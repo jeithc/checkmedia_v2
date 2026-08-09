@@ -101,6 +101,14 @@ class AuditController extends Controller
         return (new AuditResource($audit))->response()->setStatusCode($status);
     }
 
+    /**
+     * Any auditor may read any audit, deliberately — this is not a missing
+     * ownership check.
+     *
+     * SpaceController::search returns `existing_audit_id` when the week already
+     * has an audit, and the "complement" flow then loads it; that audit is
+     * frequently another auditor's. Scoping this to the owner would break it.
+     */
     public function show(Request $request, Audit $audit)
     {
         $user = $request->user();

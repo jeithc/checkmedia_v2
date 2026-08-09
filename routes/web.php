@@ -30,7 +30,7 @@ Route::group(['middleware' => 'web'], function () {
     })->name('platform.login');
 
     Route::post('/login', [LoginController::class, 'authenticate'])
-        ->middleware('throttle:5,1')
+        ->middleware('throttle:login')
         ->name('platform.login.auth');
 
     Route::post('/logout', function () {

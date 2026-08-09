@@ -137,7 +137,15 @@ return [
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
-            'trust_server_certificate' => true, // Often needed for local/legacy MSSQL
+            // This database lives on a separate VPS, so the traffic crosses the
+            // public internet. 'encrypt' should be turned on and
+            // trust_server_certificate turned off, but that only works once the
+            // server presents a certificate this host can validate — flipping
+            // it blind would break every Advisual integration at once. Both are
+            // env-driven so they can be tightened per environment; the defaults
+            // preserve the previous behaviour.
+            'encrypt' => env('ADVISUAL_ENCRYPT'),
+            'trust_server_certificate' => env('ADVISUAL_TRUST_CERT', true),
         ],
 
     ],
@@ -175,7 +183,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')) . '-database-'),
+            'prefix' => env('REDIS_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-database-'),
             'persistent' => env('REDIS_PERSISTENT', false),
         ],
 

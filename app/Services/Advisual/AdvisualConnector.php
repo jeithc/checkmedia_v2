@@ -93,6 +93,16 @@ class AdvisualConnector
 
         $dsn = "odbc:Driver=FreeTDS;Server={$host};Port={$port};Database={$database};TDS_Version=7.4;";
 
+        // This is the path actually used on Hostinger, and the server sits on a
+        // separate VPS, so the session crosses the public internet. FreeTDS does
+        // not request encryption unless asked, which leaves the query and result
+        // data unprotected. Enabling it requires a server certificate FreeTDS
+        // can negotiate, so it is opt-in per environment rather than a silent
+        // default that would break the integration.
+        if (config('database.connections.advisual.encrypt')) {
+            $dsn .= 'Encryption=require;';
+        }
+
         return new \PDO($dsn, $username, $password);
     }
 
@@ -135,9 +145,9 @@ class AdvisualConnector
     protected function combinedException(?\Throwable $eOdbc, \Throwable $eNative): \Exception
     {
         if ($eOdbc) {
-            return new \Exception('ODBC Error: ' . $eOdbc->getMessage() . ' | Native Error: ' . $eNative->getMessage(), 0, $eNative);
+            return new \Exception('ODBC Error: '.$eOdbc->getMessage().' | Native Error: '.$eNative->getMessage(), 0, $eNative);
         }
 
-        return new \Exception('Advisual Native Error: ' . $eNative->getMessage(), 0, $eNative);
+        return new \Exception('Advisual Native Error: '.$eNative->getMessage(), 0, $eNative);
     }
 }

@@ -13,7 +13,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: '*');
+        // Trusting '*' meant any client could set X-Forwarded-For and have
+        // Laravel believe it, which spoofs the IP behind rate limiting and
+        // pollutes logs. The app is deployed on shared hosting with no
+        // public-IP load balancer in front, so only loopback/private ranges
+        // need to be trusted. Override TRUSTED_PROXIES if a CDN such as
+        // Cloudflare is ever put in front (it needs that CDN's ranges).
+        $middleware->trustProxies(at: array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TRUSTED_PROXIES', '127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'))
+        ))));
 
         // Deactivated accounts must not be usable, whether through an existing
         // session or an API token issued before the deactivation.
