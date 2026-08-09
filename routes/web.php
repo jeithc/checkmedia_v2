@@ -1,20 +1,21 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Livewire\AuditForm;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     if (auth()->check()) {
         $user = auth()->user();
 
         // Si el usuario no tiene acceso al panel de administración, redirigir a auditoría
-        if (!$user->hasAccess('platform.index')) {
+        if (! $user->hasAccess('platform.index')) {
             return redirect()->route('audit.form');
         }
 
         // Otherwise, redirect to dashboard
         return redirect()->route('platform.main');
     }
+
     return redirect()->route('platform.login');
 });
 
@@ -28,29 +29,13 @@ Route::group(['middleware' => 'web'], function () {
         return view('vendor.platform.auth.login');
     })->name('platform.login');
 
-    Route::get('/test-email', function () {
-        try {
-            // Force debug mode
-            config(['mail.mailers.smtp.local_domain' => 'localhost']);
-
-            \Illuminate\Support\Facades\Log::info('Attempting to send email to jeith2@gmail.com');
-
-            Illuminate\Support\Facades\Mail::to('jeith2@gmail.com')->send(new App\Mail\TestEmail());
-
-            \Illuminate\Support\Facades\Log::info('Email sent command executed successfully');
-
-            return 'Correo enviado correctamente a jeith2@gmail.com. Revisa tu carpeta de spam.';
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Mail Error: ' . $e->getMessage());
-            return 'Error al enviar el correo: ' . $e->getMessage();
-        }
-    });
-
     Route::post('/login', [LoginController::class, 'authenticate'])
+        ->middleware('throttle:5,1')
         ->name('platform.login.auth');
 
     Route::post('/logout', function () {
         Illuminate\Support\Facades\Auth::logout();
+
         return redirect()->route('platform.login');
     })->name('platform.logout');
 
@@ -59,7 +44,7 @@ Route::group(['middleware' => 'web'], function () {
         ->name('password.request');
 
     Route::post('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetLinkController::class, 'store'])
-        ->middleware('guest')
+        ->middleware(['guest', 'throttle:5,1'])
         ->name('password.email');
 
     Route::get('/reset-password/{token}', [\App\Http\Controllers\Auth\NewPasswordController::class, 'create'])

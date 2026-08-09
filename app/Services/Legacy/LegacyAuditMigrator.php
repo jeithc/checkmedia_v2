@@ -39,9 +39,15 @@ class LegacyAuditMigrator
                     'email' => 'migration@checkmedia.local',
                     'password' => bcrypt(\Illuminate\Support\Str::random(32)),
                     'role' => 'auditor',
-                    'is_active' => false,
                 ]
             );
+
+            // is_active is not mass assignable (it is an access flag), so it has
+            // to be set explicitly. This is a placeholder account used only to
+            // own migrated rows; it must never be a usable login.
+            if ($this->migrationUser->is_active) {
+                $this->migrationUser->forceFill(['is_active' => false])->save();
+            }
         }
 
         return $this->migrationUser;
