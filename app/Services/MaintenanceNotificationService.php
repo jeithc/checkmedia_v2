@@ -11,6 +11,7 @@ use App\Models\Maintenance;
 use App\Models\UserNotificationSubscription;
 use Illuminate\Contracts\Mail\Mailable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Orchid\Platform\Notifications\DashboardMessage;
 use Orchid\Support\Color;
@@ -30,14 +31,24 @@ class MaintenanceNotificationService
             if (!$this->matchesFilter($sub, $space)) continue;
             if (!$sub->user) continue;
 
-            if ($sub->channel === 'email' && $sub->user->email) {
-                $mailable = $this->buildMailable($eventType, $model);
-                Mail::to($sub->user->email)->queue($mailable);
-            }
+            // Una notificación fallida no debe tumbar la acción del usuario (ej. rate limit SMTP)
+            try {
+                if ($sub->channel === 'email' && $sub->user->email) {
+                    $mailable = $this->buildMailable($eventType, $model);
+                    Mail::to($sub->user->email)->queue($mailable);
+                }
 
-            if (!in_array($sub->user->id, $notifiedUserIds)) {
-                $sub->user->notify($this->buildDashboardMessage($eventType, $model, $space));
-                $notifiedUserIds[] = $sub->user->id;
+                if (!in_array($sub->user->id, $notifiedUserIds)) {
+                    $sub->user->notify($this->buildDashboardMessage($eventType, $model, $space));
+                    $notifiedUserIds[] = $sub->user->id;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Fallo notificando suscripción', [
+                    'event_type' => $eventType,
+                    'user_id' => $sub->user->id,
+                    'channel' => $sub->channel,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
     }
