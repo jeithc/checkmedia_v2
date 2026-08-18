@@ -4,6 +4,7 @@ use App\Models\AdvertisingSpace;
 use App\Models\Maintenance;
 use App\Models\RequisitionBatch;
 use App\Models\User;
+use App\Services\AdvisualSyncService;
 use App\Services\RequisitionBatchService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -11,7 +12,12 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new RequisitionBatchService;
+    // Advisual is never hit for real in tests: by default it "knows" nothing, so
+    // a code missing locally stays missing unless a test says otherwise.
+    $this->sync = Mockery::mock(AdvisualSyncService::class);
+    $this->sync->shouldReceive('syncSpaceByCcde')->andReturn(null)->byDefault();
+
+    $this->service = new RequisitionBatchService($this->sync);
 });
 
 function makeBatchUser(): User
@@ -261,4 +267,68 @@ it('rolls back the whole batch when one maintenance fails to insert', function (
 
     expect(RequisitionBatch::count())->toBe(0)
         ->and(Maintenance::count())->toBe(0);
+});
+
+// --- importación automática de espacios desde Advisual -----------------------
+
+it('imports a space missing locally instead of rejecting the row', function () {
+    $sync = Mockery::mock(AdvisualSyncService::class);
+    $sync->shouldReceive('syncSpaceByCcde')
+        ->once()
+        ->with('26030')
+        ->andReturnUsing(fn (string $code) => makeBatchSpace($code));
+
+    $service = new RequisitionBatchService($sync);
+    $rows = $service->parseCsv('26030,preventivo,Pintura');
+
+    expect($service->validateRows($rows))->toBe([]);
+    expect(AdvertisingSpace::where('external_code', '26030')->exists())->toBeTrue();
+});
+
+it('still fails when Advisual does not have the space either', function () {
+    $rows = $this->service->parseCsv('99999,preventivo,Pintura');
+
+    expect($this->service->validateRows($rows))->toBe([
+        ['line_number' => 1, 'message' => "El espacio '99999' no existe en Advisual."],
+    ]);
+});
+
+it('does not ask Advisual for spaces already present locally', function () {
+    makeBatchSpace('703');
+
+    $sync = Mockery::mock(AdvisualSyncService::class);
+    $sync->shouldNotReceive('syncSpaceByCcde');
+
+    $service = new RequisitionBatchService($sync);
+
+    expect($service->validateRows($service->parseCsv('703,preventivo,Pintura')))->toBe([]);
+});
+
+it('imports a repeated missing code only once', function () {
+    $sync = Mockery::mock(AdvisualSyncService::class);
+    $sync->shouldReceive('syncSpaceByCcde')
+        ->once()                       // dos filas, una sola importación
+        ->with('26030')
+        ->andReturnUsing(fn (string $code) => makeBatchSpace($code));
+
+    $service = new RequisitionBatchService($sync);
+    $rows = $service->parseCsv("26030,preventivo,Pintura\n26030,preventivo,Pintura");
+
+    // el duplicado sigue siendo error, pero el espacio ya no se reporta inexistente
+    $errors = $service->validateRows($rows);
+    expect($errors)->toHaveCount(1)
+        ->and($errors[0]['message'])->toContain('duplicado');
+});
+
+it('treats an Advisual failure as a missing space instead of blowing up', function () {
+    $sync = Mockery::mock(AdvisualSyncService::class);
+    $sync->shouldReceive('syncSpaceByCcde')
+        ->once()
+        ->andThrow(new RuntimeException('Advisual caido'));
+
+    $service = new RequisitionBatchService($sync);
+    $errors = $service->validateRows($service->parseCsv('26030,preventivo,Pintura'));
+
+    expect($errors)->toHaveCount(1)
+        ->and($errors[0]['message'])->toContain('no existe en Advisual');
 });

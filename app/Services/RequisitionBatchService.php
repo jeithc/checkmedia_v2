@@ -7,6 +7,7 @@ use App\Models\Maintenance;
 use App\Models\RequisitionBatch;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RequisitionBatchService
 {
@@ -14,6 +15,16 @@ class RequisitionBatchService
      * The only maintenance type accepted in a batch (v1).
      */
     const ALLOWED_TYPE = 'preventivo';
+
+    /**
+     * Resolved lazily so the service stays newable without arguments.
+     */
+    protected ?AdvisualSyncService $sync;
+
+    public function __construct(?AdvisualSyncService $sync = null)
+    {
+        $this->sync = $sync;
+    }
 
     /**
      * Parse the pasted CSV/TSV into rows.
@@ -96,6 +107,20 @@ class RequisitionBatchService
 
         $existingCodes = array_flip($existingCodes);
 
+        // Spaces reach CheckMedia lazily: AuditForm imports one from Advisual the
+        // first time an auditor types its code. A batch would otherwise reject
+        // codes that are perfectly valid in Advisual but never audited yet, so
+        // import the missing ones here before calling them non-existent.
+        foreach (array_unique($codes) as $code) {
+            if (isset($existingCodes[$code])) {
+                continue;
+            }
+
+            if ($this->importSpace($code)) {
+                $existingCodes[$code] = true;
+            }
+        }
+
         $seen = [];
 
         foreach ($rows as $row) {
@@ -107,7 +132,7 @@ class RequisitionBatchService
             if ($externalCode === '') {
                 $errors[] = ['line_number' => $lineNumber, 'message' => 'El código de espacio es requerido.'];
             } elseif (! isset($existingCodes[$externalCode])) {
-                $errors[] = ['line_number' => $lineNumber, 'message' => "El espacio '{$externalCode}' no existe."];
+                $errors[] = ['line_number' => $lineNumber, 'message' => "El espacio '{$externalCode}' no existe en Advisual."];
             } elseif (isset($seen[$externalCode])) {
                 $errors[] = [
                     'line_number' => $lineNumber,
@@ -140,6 +165,29 @@ class RequisitionBatchService
      *
      * @param  array<int, array{line_number: int, external_code: string, type: string, description: string}>  $rows
      */
+    /**
+     * Pull a space from Advisual into advertising_spaces.
+     *
+     * Returns false when Advisual does not have it either, or when the lookup
+     * fails: a batch must never be blocked by a sync error it cannot explain,
+     * so the row falls through to the regular "no existe" validation error.
+     */
+    protected function importSpace(string $code): bool
+    {
+        try {
+            $this->sync ??= app(AdvisualSyncService::class);
+
+            return $this->sync->syncSpaceByCcde($code) !== null;
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo importar el espacio desde Advisual para el lote', [
+                'external_code' => $code,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
     public function createBatch(string $name, ?string $city, array $rows, User $user): RequisitionBatch
     {
         return DB::transaction(function () use ($name, $city, $rows, $user) {
