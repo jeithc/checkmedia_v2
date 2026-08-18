@@ -38,8 +38,10 @@ class Maintenance extends Model
         'estimated_cost',
         'final_cost',
         'advisual_requisition_id',
+        'advisual_requisition_line',
         'advisual_synced_at',
         'advisual_sync_error',
+        'requisition_batch_id',
         'advisual_purchase_order_id',
         'advisual_purchase_order_line_id',
         'advisual_purchase_order_description',
@@ -98,6 +100,11 @@ class Maintenance extends Model
     public function audit()
     {
         return $this->belongsTo(Audit::class);
+    }
+
+    public function requisitionBatch()
+    {
+        return $this->belongsTo(RequisitionBatch::class);
     }
 
     public function requestedBy()
