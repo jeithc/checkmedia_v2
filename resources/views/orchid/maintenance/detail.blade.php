@@ -192,25 +192,32 @@
             <h6 class="text-dark fw-bold border-bottom pb-2 mb-3">
                 <i class="icon-check me-2"></i>Cerrar Mantenimiento
             </h6>
-            <form method="POST" action="{{ route('platform.maintenances.close', $maintenance) }}" enctype="multipart/form-data">
-                @csrf
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Documento de Cierre (PDF o Imagen) *</label>
-                        <input type="file" name="closure_document" class="form-control" accept=".pdf,image/*" required>
-                        <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Comentario de Cierre</label>
-                        <textarea name="closure_comment" class="form-control" rows="2" placeholder="Nota opcional..."></textarea>
-                    </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-success fw-bold px-4">
-                            <i class="icon-check me-1"></i> Cerrar Mantenimiento
-                        </button>
-                    </div>
+            {{-- Sin <form> propio: Orchid envuelve el screen en un post-form global; un form anidado
+                 lo descarta el browser y el submit termina en POST /maintenances/{id} (método inexistente).
+                 El botón usa formaction, igual que los Button nativos de Orchid. --}}
+            @error('closure_document')
+                <div class="alert alert-danger py-2">{{ $message }}</div>
+            @enderror
+            @error('closure_comment')
+                <div class="alert alert-danger py-2">{{ $message }}</div>
+            @enderror
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Documento de Cierre (PDF o Imagen) *</label>
+                    <input type="file" name="closure_document" class="form-control" accept=".pdf,image/*" required>
+                    <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
                 </div>
-            </form>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Comentario de Cierre</label>
+                    <textarea name="closure_comment" class="form-control" rows="2" placeholder="Nota opcional...">{{ old('closure_comment') }}</textarea>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success fw-bold px-4"
+                            formaction="{{ route('platform.maintenances.close', $maintenance) }}">
+                        <i class="icon-check me-1"></i> Cerrar Mantenimiento
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     @endif

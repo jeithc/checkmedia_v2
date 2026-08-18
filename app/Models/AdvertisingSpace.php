@@ -22,6 +22,26 @@ class AdvertisingSpace extends Model
         'MASIVO - VALLAS DIGITAL',
     ];
 
+    // Presentación por unidad: etiqueta corta, color de familia, hueco = digital
+    public const BUSINESS_UNIT_META = [
+        'AEROPUERTOS ESTATICOS' => ['label' => 'Aeropuertos Estáticos', 'color' => '#0284c7', 'hollow' => false],
+        'AEROPUERTOS DIGITAL' => ['label' => 'Aeropuertos Digital', 'color' => '#0284c7', 'hollow' => true],
+        'RETAIL' => ['label' => 'Retail', 'color' => '#d97706', 'hollow' => false],
+        'MASIVO - ST' => ['label' => 'Masivo · ST', 'color' => '#4f46e5', 'hollow' => false],
+        'MASIVO - AU' => ['label' => 'Masivo · AU', 'color' => '#4f46e5', 'hollow' => false],
+        'MASIVO - VALLAS ESTATICAS' => ['label' => 'Vallas Estáticas', 'color' => '#4f46e5', 'hollow' => false],
+        'MASIVO - VALLAS DIGITAL' => ['label' => 'Vallas Digital', 'color' => '#4f46e5', 'hollow' => true],
+    ];
+
+    public static function businessUnitMeta(?string $unit): array
+    {
+        return self::BUSINESS_UNIT_META[$unit] ?? [
+            'label' => $unit ? mb_convert_case(mb_strtolower($unit), MB_CASE_TITLE) : null,
+            'color' => '#6c757d',
+            'hollow' => false,
+        ];
+    }
+
     // Tipos de elemento considerados digitales (para el split estático/digital)
     public const DIGITAL_TYPE_REGEX = '/\b(DIGITAL|LED|PANTALLA|MONITOR|VERTICAL DISPLAY)\b/u';
 
@@ -87,6 +107,42 @@ class AdvertisingSpace extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Filtra espacios por unidad de negocio (producto) replicando getBusinessUnitAttribute en SQL.
+     * ponytail: aproxima DIGITAL_TYPE_REGEX con LIKEs para ser portable MySQL/SQLite;
+     * si un tipo real produce falso positivo, persistir business_unit como columna.
+     */
+    public function scopeOfBusinessUnit($query, string $unit)
+    {
+        $digitalLikes = ['%DIGITAL%', '%LED%', '%PANTALLA%', '%MONITOR%', '%VERTICAL DISPLAY%'];
+
+        $isDigital = function ($q) use ($digitalLikes) {
+            foreach ($digitalLikes as $like) {
+                $q->orWhere('type', 'LIKE', $like);
+            }
+        };
+
+        $notDigital = function ($q) use ($digitalLikes) {
+            $q->whereNull('type')
+                ->orWhere(function ($q) use ($digitalLikes) {
+                    foreach ($digitalLikes as $like) {
+                        $q->where('type', 'NOT LIKE', $like);
+                    }
+                });
+        };
+
+        return match ($unit) {
+            'AEROPUERTOS ESTATICOS' => $query->where('category', 'AEROPUERTOS')->where($notDigital),
+            'AEROPUERTOS DIGITAL' => $query->where('category', 'AEROPUERTOS')->where($isDigital),
+            'RETAIL' => $query->where('category', 'LIKE', 'RETAIL%'),
+            'MASIVO - ST' => $query->where('category', 'SISTEMAS DE TRANSPORTE'),
+            'MASIVO - AU' => $query->where('category', 'LIKE', 'AMOBLAMIENTO URBANO%'),
+            'MASIVO - VALLAS ESTATICAS' => $query->where('category', 'VALLAS')->where($notDigital),
+            'MASIVO - VALLAS DIGITAL' => $query->where('category', 'VALLAS')->where($isDigital),
+            default => $query->whereRaw('1 = 0'),
+        };
     }
 
     public function audits()

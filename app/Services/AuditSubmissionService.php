@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Exceptions\AuditConflictException;
-use App\Exceptions\AuditOpenMaintenanceException;
 use App\Models\Audit;
 use App\Models\AuditPhoto;
 use App\Models\AuditValue;
@@ -35,9 +34,14 @@ class AuditSubmissionService
             throw new AuditConflictException($existing);
         }
 
-        if ($existing && $existing->hasOpenMaintenance()) {
-            throw new AuditOpenMaintenanceException;
-        }
+        // Valores cubiertos por un mantenimiento abierto quedan congelados: pertenecen a una
+        // requisición en curso. El resto de criterios sí puede complementarse (nueva requisición).
+        $coveredCriterionIds = $existing
+            ? $existing->values()
+                ->whereHas('maintenances', fn ($q) => $q->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED]))
+                ->pluck('audit_criterion_id')
+                ->all()
+            : [];
 
         $photoDateTime = $existing ? ($existing->audit_date ?? $data->capturedAt) : $data->capturedAt;
 
@@ -60,7 +64,7 @@ class AuditSubmissionService
         }
 
         try {
-            $audit = DB::transaction(function () use ($data, $weekData, $existing, $generalStatus, $uploadedPaths) {
+            $audit = DB::transaction(function () use ($data, $weekData, $existing, $generalStatus, $uploadedPaths, $coveredCriterionIds) {
                 $audit = Audit::updateOrCreate(
                     [
                         'advertising_space_id' => $data->space->id,
@@ -79,17 +83,35 @@ class AuditSubmissionService
                 );
 
                 if (! $audit->wasRecentlyCreated) {
-                    $audit->values()->delete();
+                    // Elimina solo valores de criterios que ya no vienen en el envío y que no
+                    // están amarrados a un mantenimiento abierto (pivot maintenance_audit_value).
+                    $audit->values()
+                        ->whereNotIn('audit_criterion_id', array_keys($data->values))
+                        ->whereNotIn('audit_criterion_id', $coveredCriterionIds)
+                        ->delete();
                 }
 
                 foreach ($data->values as $criterionId => $val) {
-                    AuditValue::create([
-                        'audit_id' => $audit->id,
-                        'audit_criterion_id' => $criterionId,
-                        'value' => $val['value'],
-                        'comment' => $val['value'] === 'bad' ? trim($val['comment'] ?? '') : null,
-                    ]);
+                    if (in_array($criterionId, $coveredCriterionIds)) {
+                        continue; // congelado: pertenece a una requisición abierta
+                    }
+
+                    AuditValue::updateOrCreate(
+                        [
+                            'audit_id' => $audit->id,
+                            'audit_criterion_id' => $criterionId,
+                        ],
+                        [
+                            'value' => $val['value'],
+                            'comment' => $val['value'] === 'bad' ? trim($val['comment'] ?? '') : null,
+                        ]
+                    );
                 }
+
+                // Estado general desde lo persistido (incluye valores congelados por mantenimiento)
+                $audit->update([
+                    'general_status' => $audit->values()->where('value', 'bad')->exists() ? 'bad' : 'good',
+                ]);
 
                 foreach ($uploadedPaths as $path) {
                     AuditPhoto::create([
@@ -135,12 +157,12 @@ class AuditSubmissionService
             spaceId: $data->space->id,
             type: $isNew ? SpaceActivityLog::TYPE_AUDIT_CREATED : SpaceActivityLog::TYPE_AUDIT_UPDATED,
             description: $isNew
-                ? "Auditoría creada ({$purposeLabel}) con estado: {$generalStatus}"
-                : "Auditoría actualizada ({$purposeLabel}). Estado: {$generalStatus}",
+                ? "Auditoría creada ({$purposeLabel}) con estado: {$audit->general_status}"
+                : "Auditoría actualizada ({$purposeLabel}). Estado: {$audit->general_status}",
             userId: $data->user->id,
             auditId: $audit->id,
             metadata: [
-                'general_status' => $generalStatus,
+                'general_status' => $audit->general_status,
                 'audit_purpose' => $data->purpose,
                 'photos_count' => count($data->photos),
                 'user_name' => $data->user->name ?? 'Sistema',
@@ -149,7 +171,7 @@ class AuditSubmissionService
             week: $weekData['week'],
         );
 
-        if ($generalStatus === 'bad') {
+        if ($audit->general_status === 'bad') {
             app(MaintenanceNotificationService::class)->notify('audit_bad_created', $audit);
         }
 

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Exceptions\AuditConflictException;
-use App\Exceptions\AuditOpenMaintenanceException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AuditDetailResource;
 use App\Http\Resources\AuditResource;
@@ -95,10 +94,6 @@ class AuditController extends Controller
                 'message' => 'Ya existe una auditoría para este espacio en esta semana.',
                 'existing_audit' => (new AuditResource($e->existing))->resolve(),
             ], 409);
-        } catch (AuditOpenMaintenanceException $e) {
-            return response()->json([
-                'message' => 'La auditoría tiene un mantenimiento abierto y no puede editarse.',
-            ], 422);
         }
 
         $status = $audit->wasRecentlyCreated ? 201 : 200;

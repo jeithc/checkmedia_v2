@@ -3,6 +3,7 @@
 namespace App\Orchid\Screens\Maintenance;
 
 use App\Models\Maintenance;
+use App\Orchid\Layouts\Maintenance\MaintenanceFiltersLayout;
 use App\Orchid\Layouts\Maintenance\MaintenanceListLayout;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
@@ -14,7 +15,7 @@ class MaintenanceListScreen extends Screen
         return [
             'maintenances' => Maintenance::with(['advertisingSpace', 'audit', 'requestedBy'])
                 ->where('type', Maintenance::TYPE_CORRECTIVE)
-                ->filters()
+                ->filters(MaintenanceFiltersLayout::class)
                 ->orderByRaw("CASE WHEN status = 'closed' THEN 1 ELSE 0 END")
                 ->orderBy('created_at', 'desc')
                 ->paginate(15),
@@ -44,6 +45,7 @@ class MaintenanceListScreen extends Screen
     public function layout(): iterable
     {
         return [
+            Layout::view('orchid.maintenance.product-filter'),
             MaintenanceListLayout::class,
         ];
     }
