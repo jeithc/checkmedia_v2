@@ -226,9 +226,24 @@ class AdvisualRequisitionService
             // RequisicionCreaUsuario mapeado al username (UsuarioLogin)
             $creaUsuario = $batch->createdBy ? $batch->createdBy->username : config('services.advisual.crea_usuario', 'CheckMedia');
 
+            // Reconcile before inserting: if a previous attempt inserted the header
+            // in Advisual but died before persisting the id locally, the batch
+            // token already exists there. Adopt that requisition instead of
+            // creating a second one.
+            if ($existingId = $this->findBatchRequisitionInAdvisual($batch)) {
+                Log::warning('Advisual batch requisition already existed; adopting it', [
+                    'batch_id' => $batch->id,
+                    'requisition_id' => $existingId,
+                ]);
+                $this->persistBatchSuccess($batch, $maintenances, $existingId, $now);
+
+                return true;
+            }
+
             $observacion = 'LOTE PREVENTIVO - '.$batch->name
                 .($batch->city ? ' - '.strtoupper($batch->city) : '')
-                .' - '.$maintenances->count().' espacios';
+                .' - '.$maintenances->count().' espacios'
+                .' '.$this->batchToken($batch);
             $observacion = mb_substr($observacion, 0, 8000);
 
             $reqId = $this->insertRequisicionHeader(
@@ -252,21 +267,7 @@ class AdvisualRequisitionService
                 $this->insertBatchRequisitionProductiva($reqId, $maintenance);
             }
 
-            $batch->update([
-                'advisual_requisition_id' => $reqId,
-                'advisual_synced_at' => $now,
-                'advisual_sync_error' => null,
-                'sending_at' => null,
-            ]);
-
-            foreach ($maintenances as $maintenance) {
-                $maintenance->update([
-                    'advisual_requisition_id' => $reqId,
-                    'advisual_synced_at' => $now,
-                    'advisual_sync_error' => null,
-                    'status' => Maintenance::STATUS_IN_PROGRESS,
-                ]);
-            }
+            $this->persistBatchSuccess($batch, $maintenances, $reqId, $now);
 
             Log::info('Advisual batch requisition created', [
                 'batch_id' => $batch->id,
@@ -572,6 +573,72 @@ class AdvisualRequisitionService
     /**
      * Best-effort rollback of a Requisicion when the detail insert fails.
      */
+    /**
+     * Stable identity of a batch inside Advisual, written into RequisicionObservacion.
+     */
+    private function batchToken(RequisitionBatch $batch): string
+    {
+        return '[CM-BATCH:'.$batch->id.']';
+    }
+
+    /**
+     * Find a live requisition Advisual already holds for this batch (by token).
+     * Annulled ones are ignored: they were cancelled on purpose.
+     */
+    private function findBatchRequisitionInAdvisual(RequisitionBatch $batch): ?int
+    {
+        // CHARINDEX, not LIKE: the token's brackets are a character class in a
+        // LIKE pattern ('[CM-BATCH:5]' matched 26k rows on the real server).
+        $row = $this->selectAdvisualOne(
+            'SELECT TOP 1 RequisicionCodigo
+             FROM Requisicion
+             WHERE CHARINDEX(?, RequisicionObservacion) > 0
+               AND (RequisicionAnulacionUsuario IS NULL OR LTRIM(RTRIM(RequisicionAnulacionUsuario)) = \'\')
+             ORDER BY RequisicionCodigo DESC',
+            [$this->batchToken($batch)]
+        );
+
+        return $row ? (int) $row->RequisicionCodigo : null;
+    }
+
+    /**
+     * Record a successful send. If the batch was cancelled locally while the
+     * send was in flight, the requisition we just created must not stay live:
+     * annul it and leave the maintenances closed instead of reopening them.
+     */
+    private function persistBatchSuccess(RequisitionBatch $batch, $maintenances, int $reqId, $now): void
+    {
+        $batch->update([
+            'advisual_requisition_id' => $reqId,
+            'advisual_synced_at' => $now,
+            'advisual_sync_error' => null,
+            'sending_at' => null,
+        ]);
+
+        if ($batch->fresh()->isCancelled()) {
+            Log::warning('Batch was cancelled during send; annulling the requisition just created', [
+                'batch_id' => $batch->id,
+                'requisition_id' => $reqId,
+            ]);
+            $this->cancelBatchRequisition($batch->fresh(), $batch->cancelledBy ?? $batch->createdBy);
+
+            foreach ($maintenances as $maintenance) {
+                $maintenance->update(['advisual_requisition_id' => $reqId, 'advisual_synced_at' => $now]);
+            }
+
+            return;
+        }
+
+        foreach ($maintenances as $maintenance) {
+            $maintenance->update([
+                'advisual_requisition_id' => $reqId,
+                'advisual_synced_at' => $now,
+                'advisual_sync_error' => null,
+                'status' => Maintenance::STATUS_IN_PROGRESS,
+            ]);
+        }
+    }
+
     /**
      * Annul a batch's requisition in Advisual, but only if purchasing has not
      * worked it yet (no purchase orders). Once an OC exists, purchasing owns the

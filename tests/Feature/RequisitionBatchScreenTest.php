@@ -278,3 +278,44 @@ test('a re-post while the first send is still in flight does not send to Advisua
 
     expect(RequisitionBatch::count())->toBe(1);
 });
+
+// --- ronda 4 de review ---------------------------------------------------------
+
+test('cancelling is refused while a send is in flight', function () {
+    // Null id != "never sent": otro request puede estar enviando ahora mismo.
+    $batch = RequisitionBatch::create(['name' => 'Lote', 'created_by' => $this->admin->id, 'sending_at' => now()]);
+    Maintenance::create([
+        'advertising_space_id' => $this->space->id, 'requested_by' => $this->admin->id, 'requested_at' => now(),
+        'type' => Maintenance::TYPE_PREVENTIVE, 'category' => 'preventivo', 'status' => Maintenance::STATUS_REPORTED,
+        'description' => 'x', 'requisition_batch_id' => $batch->id, 'advisual_requisition_line' => 1,
+    ]);
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldNotReceive('cancelBatchRequisition');
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)->post("/admin/requisition-batches/{$batch->id}/cancel");
+
+    expect($batch->fresh()->isCancelled())->toBeFalse()
+        ->and($batch->fresh()->maintenances()->first()->status)->toBe(Maintenance::STATUS_REPORTED);
+});
+
+test('dashboard closure KPIs ignore maintenances closed by batch cancellation', function () {
+    // 58 cancelados = 58 cierres de ~0 dias si no se excluyen (review P2).
+    $real = Maintenance::create([
+        'advertising_space_id' => $this->space->id, 'requested_by' => $this->admin->id,
+        'requested_at' => now()->subDays(10), 'closed_at' => now(), 'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'estructural', 'status' => Maintenance::STATUS_CLOSED, 'description' => 'x',
+        'closure_comment' => 'Trabajo hecho.',
+    ]);
+    Maintenance::create([
+        'advertising_space_id' => $this->space->id, 'requested_by' => $this->admin->id,
+        'requested_at' => now(), 'closed_at' => now(), 'type' => Maintenance::TYPE_PREVENTIVE,
+        'category' => 'preventivo', 'status' => Maintenance::STATUS_CLOSED, 'description' => 'x',
+        'closure_comment' => Maintenance::CLOSURE_CANCELLED_PREFIX.' Lote cancelado.',
+    ]);
+
+    $completed = Maintenance::query()->completedWork()->get();
+
+    expect($completed)->toHaveCount(1)
+        ->and($completed->first()->id)->toBe($real->id);
+});

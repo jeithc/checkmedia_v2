@@ -73,6 +73,15 @@ class RequisitionBatchDetailScreen extends Screen
             return redirect()->route('platform.requisition-batches.detail', $batch->id);
         }
 
+        // A null requisition id is not proof that nothing was sent: another
+        // request may be mid-send right now. Take the same in-flight claim the
+        // sender uses; if it is held, refuse instead of racing it.
+        if (! $batch->advisual_requisition_id && ! $service->claimSend($batch)) {
+            Toast::warning('El lote se está enviando a Advisual en este momento. Espera a que termine e inténtalo de nuevo.');
+
+            return redirect()->route('platform.requisition-batches.detail', $batch->id);
+        }
+
         if (! $advisual->cancelBatchRequisition($batch, $request->user())) {
             Toast::error('No se canceló el lote: '.($batch->fresh()->advisual_sync_error ?? 'error desconocido'));
 

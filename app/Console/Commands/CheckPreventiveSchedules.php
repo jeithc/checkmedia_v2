@@ -87,11 +87,7 @@ class CheckPreventiveSchedules extends Command
             // Un lote cancelado cierra sus mantenimientos sin haber hecho trabajo:
             // no cuenta como "último mantenimiento" o reiniciaría el ciclo preventivo.
             $lastMaintenance = Maintenance::where('advertising_space_id', $space->id)
-                ->where('status', Maintenance::STATUS_CLOSED)
-                ->where(function ($q) {
-                    $q->whereNull('closure_comment')
-                      ->orWhere('closure_comment', 'not like', Maintenance::CLOSURE_CANCELLED_PREFIX.'%');
-                })
+                ->completedWork()
                 ->latest('closed_at')
                 ->first();
             $maintenanceDate = $lastMaintenance ? $lastMaintenance->closed_at : null;

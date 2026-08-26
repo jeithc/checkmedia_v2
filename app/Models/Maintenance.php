@@ -33,6 +33,21 @@ class Maintenance extends Model
      */
     const CLOSURE_CANCELLED_PREFIX = '[CANCELADO]';
 
+    /**
+     * Closed rows that represent real completed work — i.e. not closed because
+     * their batch was cancelled. Use this wherever "closed" feeds a completion
+     * metric (avg closure time, closed counts, preventive schedule base date).
+     */
+    public function scopeCompletedWork($query)
+    {
+        return $query
+            ->where('maintenances.status', self::STATUS_CLOSED)
+            ->where(function ($q) {
+                $q->whereNull('maintenances.closure_comment')
+                    ->orWhere('maintenances.closure_comment', 'not like', self::CLOSURE_CANCELLED_PREFIX.'%');
+            });
+    }
+
     protected $fillable = [
         'advertising_space_id',
         'audit_id',
