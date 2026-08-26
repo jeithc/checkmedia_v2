@@ -129,3 +129,193 @@ test('user without advisual guid creates nothing', function () {
     expect(RequisitionBatch::count())->toBe(0);
     expect(Maintenance::count())->toBe(0);
 });
+
+test('re-submitting the same list redirects to the existing batch without creating another', function () {
+    // Reproduces prod 2026-08-24: same 58-space CSV posted 3 times in ~60s.
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('createBatchRequisition')->once()->andReturnUsing(function ($batch) {
+        $batch->update(['advisual_requisition_id' => 40741]);   // primer envio SI llego a Advisual
+
+        return true;
+    });                                                          // ONE call for TWO posts
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $payload = ['batch' => ['name' => 'Revision Bogota', 'city' => 'Bogota', 'csv' => '11220,preventivo,marcaciones']];
+
+    $this->actingAs($this->admin)->post('/admin/requisition-batches/create/create', $payload);
+    $first = RequisitionBatch::first();
+
+    $second = $this->actingAs($this->admin)->post('/admin/requisition-batches/create/create', $payload);
+
+    $second->assertRedirect('/admin/requisition-batches/'.$first->id);
+    expect(RequisitionBatch::count())->toBe(1);
+    expect(Maintenance::count())->toBe(1);
+});
+
+// --- cancelar lote ----------------------------------------------------------
+
+function makeSentBatch($admin, $space, ?int $reqId = 40743): RequisitionBatch
+{
+    $batch = RequisitionBatch::create(['name' => 'Dup', 'city' => 'Bogota', 'created_by' => $admin->id, 'advisual_requisition_id' => $reqId]);
+    Maintenance::create([
+        'advertising_space_id' => $space->id, 'requested_by' => $admin->id, 'requested_at' => now(),
+        'type' => Maintenance::TYPE_PREVENTIVE, 'category' => 'preventivo', 'status' => Maintenance::STATUS_IN_PROGRESS,
+        'description' => 'x', 'requisition_batch_id' => $batch->id, 'advisual_requisition_line' => 1,
+        'advisual_requisition_id' => $reqId,
+    ]);
+
+    return $batch;
+}
+
+test('cancelling a batch annuls in Advisual and closes its maintenances', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('cancelBatchRequisition')->once()->andReturn(true);
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)
+        ->post("/admin/requisition-batches/{$batch->id}/cancel")
+        ->assertRedirect("/admin/requisition-batches/{$batch->id}");
+
+    $batch->refresh();
+    expect($batch->isCancelled())->toBeTrue()
+        ->and($batch->cancelled_by)->toBe($this->admin->id)
+        ->and($batch->maintenances()->where('status', Maintenance::STATUS_CLOSED)->count())->toBe(1);
+});
+
+test('cancelling is refused and nothing changes locally when Advisual already has purchase orders', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('cancelBatchRequisition')->once()->andReturnUsing(function ($b) {
+        $b->update(['advisual_sync_error' => 'ya tiene órdenes de compra']);
+
+        return false;
+    });
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)->post("/admin/requisition-batches/{$batch->id}/cancel");
+
+    $batch->refresh();
+    expect($batch->isCancelled())->toBeFalse()
+        ->and($batch->maintenances()->first()->status)->toBe(Maintenance::STATUS_IN_PROGRESS);
+});
+
+test('detail screen shows the cancelled state and hides the cancel button', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+    $batch->update(['cancelled_at' => now(), 'cancelled_by' => $this->admin->id]);
+
+    $response = $this->actingAs($this->admin)->get("/admin/requisition-batches/{$batch->id}");
+
+    $response->assertOk()
+        ->assertSee('Lote cancelado')
+        ->assertDontSee('Cancelar lote');
+});
+
+test('detail screen shows the cancel button on an active batch', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+
+    $this->actingAs($this->admin)->get("/admin/requisition-batches/{$batch->id}")
+        ->assertOk()
+        ->assertSee('Cancelar lote');
+});
+
+test('create button has no custom onclick so Orchid keeps event.submitter', function () {
+    // A synthetic requestSubmit() has no submitter and breaks Orchid's form
+    // controller (review P1). Orchid already disables the button on submit.
+    $html = $this->actingAs($this->admin)->get('/admin/requisition-batches/create')->getContent();
+
+    expect($html)->toContain('Crear lote')
+        ->and($html)->not->toContain('requestSubmit')
+        ->and($html)->not->toContain('onclick=');
+});
+
+test('re-posting a list whose batch never reached Advisual retries the send on that batch', function () {
+    // Prod batch #4: created locally, request died before Advisual. Without this
+    // the re-post would park the user on a dead batch for 10 minutes (review P2).
+    $calls = 0;
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('createBatchRequisition')->twice()->andReturnUsing(function ($batch) use (&$calls) {
+        $calls++;
+        if ($calls === 1) {
+            $batch->update(['sending_at' => null]);          // el servicio real libera el claim al fallar (markBatchError)
+
+            return false;                                   // primer envio muere
+        }
+        $batch->update(['advisual_requisition_id' => 777]);  // reintento funciona
+
+        return true;
+    });
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $payload = ['batch' => ['name' => 'Lote', 'city' => null, 'csv' => '11220,preventivo,x']];
+    $this->actingAs($this->admin)->post('/admin/requisition-batches/create/create', $payload);
+    $this->actingAs($this->admin)->post('/admin/requisition-batches/create/create', $payload);
+
+    expect(RequisitionBatch::count())->toBe(1)
+        ->and(RequisitionBatch::first()->advisual_requisition_id)->toBe(777);
+});
+
+test('a re-post while the first send is still in flight does not send to Advisual again', function () {
+    // Review ronda 3: el lock de fila se soltaba antes del envío; dos POST
+    // solapados llegaban ambos a createBatchRequisition y creaban dos
+    // requisiciones en Advisual. Simulamos "en vuelo" con el claim ya tomado.
+    $batch = RequisitionBatch::create(['name' => 'Lote', 'city' => null, 'created_by' => $this->admin->id, 'sending_at' => now()]);
+    Maintenance::create([
+        'advertising_space_id' => $this->space->id, 'requested_by' => $this->admin->id, 'requested_at' => now(),
+        'type' => Maintenance::TYPE_PREVENTIVE, 'category' => 'preventivo', 'status' => Maintenance::STATUS_REPORTED,
+        'description' => 'x', 'requisition_batch_id' => $batch->id, 'advisual_requisition_line' => 1,
+    ]);
+
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldNotReceive('createBatchRequisition');   // NADIE envía de nuevo
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)
+        ->post('/admin/requisition-batches/create/create', ['batch' => ['name' => 'Lote', 'city' => null, 'csv' => '11220,preventivo,x']])
+        ->assertRedirect("/admin/requisition-batches/{$batch->id}");
+
+    expect(RequisitionBatch::count())->toBe(1);
+});
+
+// --- ronda 4 de review ---------------------------------------------------------
+
+test('cancelling is refused while a send is in flight', function () {
+    // Null id != "never sent": otro request puede estar enviando ahora mismo.
+    $batch = RequisitionBatch::create(['name' => 'Lote', 'created_by' => $this->admin->id, 'sending_at' => now()]);
+    Maintenance::create([
+        'advertising_space_id' => $this->space->id, 'requested_by' => $this->admin->id, 'requested_at' => now(),
+        'type' => Maintenance::TYPE_PREVENTIVE, 'category' => 'preventivo', 'status' => Maintenance::STATUS_REPORTED,
+        'description' => 'x', 'requisition_batch_id' => $batch->id, 'advisual_requisition_line' => 1,
+    ]);
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldNotReceive('cancelBatchRequisition');
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)->post("/admin/requisition-batches/{$batch->id}/cancel");
+
+    expect($batch->fresh()->isCancelled())->toBeFalse()
+        ->and($batch->fresh()->maintenances()->first()->status)->toBe(Maintenance::STATUS_REPORTED);
+});
+
+test('dashboard closure KPIs ignore maintenances closed by batch cancellation', function () {
+    // 58 cancelados = 58 cierres de ~0 dias si no se excluyen (review P2).
+    $real = Maintenance::create([
+        'advertising_space_id' => $this->space->id, 'requested_by' => $this->admin->id,
+        'requested_at' => now()->subDays(10), 'closed_at' => now(), 'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'estructural', 'status' => Maintenance::STATUS_CLOSED, 'description' => 'x',
+        'closure_comment' => 'Trabajo hecho.',
+    ]);
+    Maintenance::create([
+        'advertising_space_id' => $this->space->id, 'requested_by' => $this->admin->id,
+        'requested_at' => now(), 'closed_at' => now(), 'type' => Maintenance::TYPE_PREVENTIVE,
+        'category' => 'preventivo', 'status' => Maintenance::STATUS_CLOSED, 'description' => 'x',
+        'closure_comment' => Maintenance::CLOSURE_CANCELLED_PREFIX.' Lote cancelado.',
+    ]);
+
+    $completed = Maintenance::query()->completedWork()->get();
+
+    expect($completed)->toHaveCount(1)
+        ->and($completed->first()->id)->toBe($real->id);
+});

@@ -70,6 +70,36 @@ class AdvisualConnector
         $this->nativeStatement($sql, $bindings);
     }
 
+    /**
+     * Like statement() but returns the number of affected rows, so a caller can
+     * make a conditional UPDATE and learn whether its WHERE still held.
+     */
+    public function affectingStatement(string $sql, array $bindings = []): int
+    {
+        if ($this->shouldTryOdbc()) {
+            try {
+                $pdo = $this->odbcConnection();
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($bindings);
+
+                return $stmt->rowCount();
+            } catch (\Throwable $eOdbc) {
+                return $this->nativeAffectingStatement($sql, $bindings, $eOdbc);
+            }
+        }
+
+        return $this->nativeAffectingStatement($sql, $bindings);
+    }
+
+    protected function nativeAffectingStatement(string $sql, array $bindings, ?\Throwable $eOdbc = null): int
+    {
+        try {
+            return $this->connection()->affectingStatement($sql, $bindings);
+        } catch (\Throwable $eNative) {
+            throw $this->combinedException($eOdbc, $eNative);
+        }
+    }
+
     protected function shouldTryOdbc(): bool
     {
         if (app()->runningUnitTests()) {
@@ -135,9 +165,9 @@ class AdvisualConnector
     protected function combinedException(?\Throwable $eOdbc, \Throwable $eNative): \Exception
     {
         if ($eOdbc) {
-            return new \Exception('ODBC Error: ' . $eOdbc->getMessage() . ' | Native Error: ' . $eNative->getMessage(), 0, $eNative);
+            return new \Exception('ODBC Error: '.$eOdbc->getMessage().' | Native Error: '.$eNative->getMessage(), 0, $eNative);
         }
 
-        return new \Exception('Advisual Native Error: ' . $eNative->getMessage(), 0, $eNative);
+        return new \Exception('Advisual Native Error: '.$eNative->getMessage(), 0, $eNative);
     }
 }

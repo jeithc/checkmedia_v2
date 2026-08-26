@@ -20,10 +20,15 @@ class RequisitionBatch extends Model
         'advisual_requisition_id',
         'advisual_sync_error',
         'advisual_synced_at',
+        'sending_at',
+        'cancelled_at',
+        'cancelled_by',
     ];
 
     protected $casts = [
         'advisual_synced_at' => 'datetime',
+        'sending_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     protected $allowedSorts = [
@@ -40,6 +45,16 @@ class RequisitionBatch extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->cancelled_at !== null;
     }
 
     public function getTotalCostAttribute(): float

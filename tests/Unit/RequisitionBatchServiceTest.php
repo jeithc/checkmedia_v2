@@ -332,3 +332,214 @@ it('treats an Advisual failure as a missing space instead of blowing up', functi
     expect($errors)->toHaveCount(1)
         ->and($errors[0]['message'])->toContain('no existe en Advisual');
 });
+
+// --- protección contra reenvío del formulario --------------------------------
+// Caso real de prod (2026-08-24): el mismo lote de 58 vallas se envió 3 veces en
+// 60s porque el usuario reintentó mientras el primero aún cargaba. Resultado: 3
+// lotes y 2 requisiciones duplicadas en Advisual.
+
+it('detects a recent duplicate batch with the same codes from the same user', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('11220');
+
+    $rows = $this->service->parseCsv("703,preventivo,Pintura\n11220,preventivo,Pintura");
+    $first = $this->service->createBatch('Revision Bogota', 'Bogota', $rows, $user);
+
+    $dup = $this->service->findRecentDuplicate($rows, $user);
+
+    expect($dup)->not->toBeNull()
+        ->and($dup->id)->toBe($first->id);
+});
+
+it('ignores order of rows when detecting a duplicate', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('11220');
+
+    $this->service->createBatch('Lote', null,
+        $this->service->parseCsv("703,preventivo,A\n11220,preventivo,B"), $user);
+
+    $reordered = $this->service->parseCsv("11220,preventivo,B\n703,preventivo,A");
+
+    expect($this->service->findRecentDuplicate($reordered, $user))->not->toBeNull();
+});
+
+it('does not flag a batch with a different set of codes', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('11220');
+    makeBatchSpace('43');
+
+    $this->service->createBatch('Lote', null,
+        $this->service->parseCsv("703,preventivo,A\n11220,preventivo,B"), $user);
+
+    $other = $this->service->parseCsv("703,preventivo,A\n43,preventivo,C");
+
+    expect($this->service->findRecentDuplicate($other, $user))->toBeNull();
+});
+
+it('does not flag the same codes sent by a different user', function () {
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    $this->service->createBatch('Lote', null, $rows, makeBatchUser());
+
+    expect($this->service->findRecentDuplicate($rows, makeBatchUser()))->toBeNull();
+});
+
+it('does not flag an identical batch once the window has passed', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    $old = $this->service->createBatch('Lote', null, $rows, $user);
+    $old->forceFill(['created_at' => now()->subMinutes(RequisitionBatchService::DUPLICATE_WINDOW_MINUTES + 1)])->save();
+
+    expect($this->service->findRecentDuplicate($rows, $user))->toBeNull();
+});
+
+// --- cancelBatch (solo BD local; Advisual lo anula AdvisualRequisitionService) --
+
+it('cancels a batch by closing its maintenances and stamping who cancelled it', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('11220');
+    $batch = $this->service->createBatch('Lote', null,
+        $this->service->parseCsv("703,preventivo,A\n11220,preventivo,B"), $user);
+
+    $this->service->cancelBatch($batch, $user, 'duplicado por reenvío');
+    $batch->refresh();
+
+    expect($batch->isCancelled())->toBeTrue()
+        ->and($batch->cancelled_by)->toBe($user->id)
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->count())->toBe(2)   // no se borran
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->where('status', Maintenance::STATUS_CLOSED)->count())->toBe(2)
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->first()->closure_comment)->toContain('duplicado por reenvío')
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->first()->closure_comment)->toStartWith(Maintenance::CLOSURE_CANCELLED_PREFIX);
+});
+
+it('leaves already-closed maintenances untouched when cancelling', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+
+    $m = $batch->maintenances()->first();
+    $m->update(['status' => Maintenance::STATUS_CLOSED, 'closure_comment' => 'cerrado a mano']);
+
+    $this->service->cancelBatch($batch, $user);
+
+    expect($m->fresh()->closure_comment)->toBe('cerrado a mano');
+});
+
+// --- fixes de code review (PR #15) --------------------------------------------
+
+it('treats 703 and 0703 as different codes when detecting duplicates', function () {
+    // Loose unique() merged them and missed the duplicate (review P2).
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('0703');
+
+    $this->service->createBatch('Lote', null,
+        $this->service->parseCsv("703,preventivo,A\n0703,preventivo,B"), $user);
+
+    $same = $this->service->parseCsv("703,preventivo,A\n0703,preventivo,B");
+    expect($this->service->findRecentDuplicate($same, $user))->not->toBeNull();
+
+    $onlyOne = $this->service->parseCsv('703,preventivo,A');
+    expect($this->service->findRecentDuplicate($onlyOne, $user))->toBeNull();
+});
+
+it('keeps the valid code 0 when detecting duplicates', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('0');
+    $rows = $this->service->parseCsv('0,preventivo,A');
+
+    $this->service->createBatch('Lote', null, $rows, $user);
+
+    expect($this->service->findRecentDuplicate($rows, $user))->not->toBeNull();
+});
+
+it('createBatchUnlessDuplicate returns the existing batch and creates nothing on a re-post', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    [$first, $isNew1] = $this->service->createBatchUnlessDuplicate('Lote', null, $rows, $user);
+    [$second, $isNew2] = $this->service->createBatchUnlessDuplicate('Lote', null, $rows, $user);
+
+    expect($isNew1)->toBeTrue()
+        ->and($isNew2)->toBeFalse()
+        ->and($second->id)->toBe($first->id)
+        ->and(RequisitionBatch::count())->toBe(1);
+});
+
+it('does not treat a cancelled batch as a duplicate', function () {
+    // Found while testing: a cancelled batch with the same codes blocked a
+    // legitimate re-send for the whole window.
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    $cancelled = $this->service->createBatch('Lote', null, $rows, $user);
+    $this->service->cancelBatch($cancelled, $user);
+
+    expect($this->service->findRecentDuplicate($rows, $user))->toBeNull();
+});
+
+// --- claimSend: un solo request envía a Advisual (review ronda 3) --------------
+
+it('claimSend lets exactly one caller through for an unsent batch', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+
+    expect($this->service->claimSend($batch))->toBeTrue()
+        ->and($this->service->claimSend($batch->fresh()))->toBeFalse();   // segundo pierde
+});
+
+it('claimSend refuses a batch that already has a requisition', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+    $batch->update(['advisual_requisition_id' => 40741]);
+
+    expect($this->service->claimSend($batch))->toBeFalse();
+});
+
+it('claimSend takes over an abandoned claim older than the window', function () {
+    // El request murió a medias (lote #4 de prod): el claim no puede quedar colgado.
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+    $batch->update(['sending_at' => now()->subMinutes(RequisitionBatchService::SEND_CLAIM_MINUTES + 1)]);
+
+    expect($this->service->claimSend($batch))->toBeTrue();
+});
+
+it('releaseSend allows a retry after a failed send', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+
+    $this->service->claimSend($batch);
+    $this->service->releaseSend($batch);
+
+    expect($this->service->claimSend($batch->fresh()))->toBeTrue();
+});
+
+it('cancelBatch clears purchase-order data so the cost chart stops counting annulled orders', function () {
+    // Review ronda 5: cancelar solo se permite sin OC activa, asi que cualquier
+    // dato de OC sincronizado antes es de una orden que compras ya anulo.
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+    $batch->maintenances()->update(['advisual_purchase_order_id' => 198146, 'advisual_purchase_order_total' => 750000, 'final_cost' => 750000]);
+
+    $this->service->cancelBatch($batch, $user);
+    $m = $batch->maintenances()->first();
+
+    expect($m->advisual_purchase_order_id)->toBeNull()
+        ->and($m->advisual_purchase_order_total)->toBeNull()
+        ->and($m->final_cost)->toBeNull();
+});

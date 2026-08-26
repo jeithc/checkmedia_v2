@@ -49,6 +49,10 @@ class RequisitionBatchCreateScreen extends Screen
                 ->icon('bs.arrow-left')
                 ->route('platform.requisition-batches'),
 
+            // Orchid's form controller already disables the submitter and shows a
+            // spinner on submit (animateButton). Do NOT add a custom onclick: a
+            // synthetic requestSubmit() has no event.submitter and breaks the
+            // controller. Reload / back-button re-posts are stopped server-side.
             Button::make('Crear lote')
                 ->icon('bs.check-circle')
                 ->method('create'),
@@ -117,12 +121,38 @@ class RequisitionBatchCreateScreen extends Screen
 
         $city = trim((string) $request->input('batch.city'));
 
-        $batch = $service->createBatch(
+        // Same list, same user, minutes apart = a re-post (reload, back button,
+        // second tab). The duplicate check and the insert run under one lock so
+        // two concurrent posts cannot both pass the check.
+        [$batch, $isNew] = $service->createBatchUnlessDuplicate(
             trim((string) $request->input('batch.name')),
             $city === '' ? null : $city,
             $rows,
             $user
         );
+
+        if (! $isNew) {
+            if ($batch->advisual_requisition_id) {
+                Toast::warning("Este listado ya se envió hace poco como el lote #{$batch->id}. No se creó uno nuevo.");
+
+                return redirect()->route('platform.requisition-batches.detail', $batch->id);
+            }
+
+            // The earlier post created the batch but never reached Advisual
+            // (prod batch #4: user reloaded mid-request). Retry the send on the
+            // existing batch instead of parking the user on a dead detail page.
+            Toast::info("El lote #{$batch->id} ya existía pero no se había enviado a Advisual. Reintentando el envío.");
+        }
+
+        // Exactly one request may send a given batch. If another request is
+        // mid-send right now (two tabs, or a re-post while the first is still
+        // talking to Advisual), do not send again: that would create a second
+        // requisition in Advisual with the first one hidden.
+        if (! $service->claimSend($batch)) {
+            Toast::info("El lote #{$batch->id} ya se está enviando a Advisual en otra solicitud.");
+
+            return redirect()->route('platform.requisition-batches.detail', $batch->id);
+        }
 
         if ($advisual->createBatchRequisition($batch)) {
             Toast::success('Lote creado y enviado a Advisual (requisición '.$batch->fresh()->advisual_requisition_id.').');

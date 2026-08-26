@@ -195,8 +195,10 @@ class AdminDashboard extends Component
             ->distinct('av.id')
             ->count('av.id');
 
+        // Cancelled-batch rows are STATUS_CLOSED but no work was done: keep them
+        // out of completion KPIs or a cancelled 58-space batch reads as 58 closures.
         $closedMaintenances = $novedadesBase()
-            ->where('maintenances.status', Maintenance::STATUS_CLOSED)
+            ->completedWork()
             ->distinct('av.id')
             ->count('av.id');
 
@@ -209,7 +211,7 @@ class AdminDashboard extends Component
             : 'AVG(DATEDIFF(closed_at, requested_at))';
 
         $avgClosureRaw = (clone $maintenanceBase())
-            ->where('maintenances.status', Maintenance::STATUS_CLOSED)
+            ->completedWork()
             ->whereNotNull('maintenances.closed_at')
             ->whereNotNull('maintenances.requested_at')
             ->selectRaw("$diffExpr as avg_days")

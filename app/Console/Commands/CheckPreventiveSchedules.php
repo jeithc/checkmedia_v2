@@ -83,9 +83,11 @@ class CheckPreventiveSchedules extends Command
 
             // 4. Calcular Fecha Base (A o B o más reciente)
             // Según lo acordado, la fecha base de cálculo es la más reciente entre:
-            // A. Último mantenimiento cerrado
+            // A. Último mantenimiento cerrado.
+            // Un lote cancelado cierra sus mantenimientos sin haber hecho trabajo:
+            // no cuenta como "último mantenimiento" o reiniciaría el ciclo preventivo.
             $lastMaintenance = Maintenance::where('advertising_space_id', $space->id)
-                ->where('status', Maintenance::STATUS_CLOSED)
+                ->completedWork()
                 ->latest('closed_at')
                 ->first();
             $maintenanceDate = $lastMaintenance ? $lastMaintenance->closed_at : null;
