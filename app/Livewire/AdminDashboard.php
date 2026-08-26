@@ -127,14 +127,19 @@ class AdminDashboard extends Component
 
         $maintenanceBase = fn () => $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters);
 
+        // One source for "pendientes por solicitar": the KPI card and the widget
+        // below must always show the same number.
+        $pendingService = app(\App\Services\PendingMaintenanceService::class);
+        $pendingTotal = $pendingService->count($filters);
+
         $spaceQuery = AdvertisingSpace::query();
-        if (!empty($filters['external_code'])) {
+        if (! empty($filters['external_code'])) {
             $spaceQuery->where('external_code', 'like', '%'.$filters['external_code'].'%');
         }
-        if (!empty($filters['city'])) {
+        if (! empty($filters['city'])) {
             $spaceQuery->where('city', $filters['city']);
         }
-        if (!empty($filters['producto'])) {
+        if (! empty($filters['producto'])) {
             $spaceQuery->where('type', $filters['producto']);
         }
         $totalSpaces = (clone $spaceQuery)->count();
@@ -162,11 +167,11 @@ class AdminDashboard extends Component
                 'color' => $auditsWithIssues > 0 ? 'danger' : 'success',
             ],
             'pending_maint' => [
-                'label' => 'Mantenimientos en Curso',
-                'value' => number_format((clone $maintenanceBase())->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])->count()),
-                'subtext' => 'Solicitados, sin cerrar',
+                'label' => 'Mantenimientos Pend.',
+                'value' => number_format($pendingTotal),
+                'subtext' => 'Por solicitar',
                 'icon' => 'bs.tools',
-                'color' => 'primary',
+                'color' => $pendingTotal > 0 ? 'warning' : 'success',
             ],
             'audits_general' => [
                 'label' => 'Auditorías Generales',
@@ -281,8 +286,6 @@ class AdminDashboard extends Component
             ->pluck('total', 'status');
 
         // --- Pendientes por solicitar mantenimiento (criterio en PendingMaintenanceService) ---
-        $pendingService = app(\App\Services\PendingMaintenanceService::class);
-
         $pendingRequisitions = $pendingService->query($filters)
             ->limit(20)
             ->get()
@@ -296,8 +299,6 @@ class AdminDashboard extends Component
                     'days_waiting' => $a->audit_date ? (int) floor($a->audit_date->diffInDays(now())) : 0,
                 ];
             });
-
-        $pendingTotal = $pendingService->count($filters);
 
         // Same keys the pending screen reads, so the link lands already filtered.
         // Dates are passed only if the user changed them: the dashboard defaults

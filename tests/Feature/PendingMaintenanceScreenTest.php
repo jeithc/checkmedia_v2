@@ -100,3 +100,29 @@ test('screen requires maintenance.view', function () {
 
     $this->actingAs($viewer)->get('/admin/maintenances/pending')->assertForbidden();
 });
+
+test('dashboard KPI card "Mantenimientos Pend." equals the pending widget total', function () {
+    // 3 pendientes + 1 cubierto por mantenimiento abierto (no cuenta en ninguno)
+    foreach (['1', '2', '3'] as $c) {
+        pendingAudit($this->criterion, $c, 'PEREIRA', 'AEROPUERTOS');
+    }
+    $covered = pendingAudit($this->criterion, '4', 'PEREIRA', 'AEROPUERTOS');
+    $m = Maintenance::create(['advertising_space_id' => $covered->advertising_space_id, 'audit_id' => $covered->id, 'requested_by' => $this->admin->id,
+        'requested_at' => now(), 'type' => Maintenance::TYPE_CORRECTIVE, 'category' => 'estructural', 'status' => Maintenance::STATUS_REPORTED, 'description' => 'x']);
+    $m->auditValues()->attach($covered->values()->first()->id);
+
+    // rango amplio para que el default "semana actual" no recorte las auditorias de marzo
+    // El dashboard Livewire vive en /admin/main (platform.index). Rango amplio para
+    // que el default "semana actual" no recorte las auditorias de marzo.
+    $html = $this->actingAs($this->admin)->get('/admin/main?from=2026-01-01&to=2026-12-31')->content();
+
+    // widget: badge amarillo con el total
+    preg_match('/badge bg-warning text-dark ms-2">\s*(\d+)\s*</', $html, $widget);
+    expect($widget[1] ?? null)->toBe('3');
+
+    // card: el bloque "Mantenimientos Pend." contiene el mismo 3 antes de "Por solicitar"
+    $start = strpos($html, 'Mantenimientos Pend.');
+    expect($start)->not->toBeFalse();
+    $card = substr($html, $start, 800);
+    expect(preg_match('/>\s*3\s*<.*?Por solicitar/s', $card))->toBe(1);
+});
