@@ -430,3 +430,58 @@ it('leaves already-closed maintenances untouched when cancelling', function () {
 
     expect($m->fresh()->closure_comment)->toBe('cerrado a mano');
 });
+
+// --- fixes de code review (PR #15) --------------------------------------------
+
+it('treats 703 and 0703 as different codes when detecting duplicates', function () {
+    // Loose unique() merged them and missed the duplicate (review P2).
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('0703');
+
+    $this->service->createBatch('Lote', null,
+        $this->service->parseCsv("703,preventivo,A\n0703,preventivo,B"), $user);
+
+    $same = $this->service->parseCsv("703,preventivo,A\n0703,preventivo,B");
+    expect($this->service->findRecentDuplicate($same, $user))->not->toBeNull();
+
+    $onlyOne = $this->service->parseCsv('703,preventivo,A');
+    expect($this->service->findRecentDuplicate($onlyOne, $user))->toBeNull();
+});
+
+it('keeps the valid code 0 when detecting duplicates', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('0');
+    $rows = $this->service->parseCsv('0,preventivo,A');
+
+    $this->service->createBatch('Lote', null, $rows, $user);
+
+    expect($this->service->findRecentDuplicate($rows, $user))->not->toBeNull();
+});
+
+it('createBatchUnlessDuplicate returns the existing batch and creates nothing on a re-post', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    [$first, $isNew1] = $this->service->createBatchUnlessDuplicate('Lote', null, $rows, $user);
+    [$second, $isNew2] = $this->service->createBatchUnlessDuplicate('Lote', null, $rows, $user);
+
+    expect($isNew1)->toBeTrue()
+        ->and($isNew2)->toBeFalse()
+        ->and($second->id)->toBe($first->id)
+        ->and(RequisitionBatch::count())->toBe(1);
+});
+
+it('does not treat a cancelled batch as a duplicate', function () {
+    // Found while testing: a cancelled batch with the same codes blocked a
+    // legitimate re-send for the whole window.
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    $cancelled = $this->service->createBatch('Lote', null, $rows, $user);
+    $this->service->cancelBatch($cancelled, $user);
+
+    expect($this->service->findRecentDuplicate($rows, $user))->toBeNull();
+});

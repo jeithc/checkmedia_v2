@@ -49,13 +49,13 @@ class RequisitionBatchCreateScreen extends Screen
                 ->icon('bs.arrow-left')
                 ->route('platform.requisition-batches'),
 
-            // A 58-space batch talks to Advisual for several seconds with no
-            // feedback; users retried and produced duplicate requisitions. Lock
-            // the button on first click so there is only ever one submit.
+            // Orchid's form controller already disables the submitter and shows a
+            // spinner on submit (animateButton). Do NOT add a custom onclick: a
+            // synthetic requestSubmit() has no event.submitter and breaks the
+            // controller. Reload / back-button re-posts are stopped server-side.
             Button::make('Crear lote')
                 ->icon('bs.check-circle')
-                ->method('create')
-                ->set('onclick', "this.disabled=true;this.innerText='Creando lote…';this.form.requestSubmit();"),
+                ->method('create'),
         ];
     }
 
@@ -119,23 +119,30 @@ class RequisitionBatchCreateScreen extends Screen
                 ->with('requisition_batch_errors', $errors);
         }
 
-        // Same list, same user, minutes apart = the form was re-submitted (double
-        // click, reload, back button). Point at the existing batch instead of
-        // creating a second requisition in Advisual.
-        if ($duplicate = $service->findRecentDuplicate($rows, $user)) {
-            Toast::warning("Este listado ya se envió hace poco como el lote #{$duplicate->id}. No se creó uno nuevo.");
-
-            return redirect()->route('platform.requisition-batches.detail', $duplicate->id);
-        }
-
         $city = trim((string) $request->input('batch.city'));
 
-        $batch = $service->createBatch(
+        // Same list, same user, minutes apart = a re-post (reload, back button,
+        // second tab). The duplicate check and the insert run under one lock so
+        // two concurrent posts cannot both pass the check.
+        [$batch, $isNew] = $service->createBatchUnlessDuplicate(
             trim((string) $request->input('batch.name')),
             $city === '' ? null : $city,
             $rows,
             $user
         );
+
+        if (! $isNew) {
+            if ($batch->advisual_requisition_id) {
+                Toast::warning("Este listado ya se envió hace poco como el lote #{$batch->id}. No se creó uno nuevo.");
+
+                return redirect()->route('platform.requisition-batches.detail', $batch->id);
+            }
+
+            // The earlier post created the batch but never reached Advisual
+            // (prod batch #4: user reloaded mid-request). Retry the send on the
+            // existing batch instead of parking the user on a dead detail page.
+            Toast::info("El lote #{$batch->id} ya existía pero no se había enviado a Advisual. Reintentando el envío.");
+        }
 
         if ($advisual->createBatchRequisition($batch)) {
             Toast::success('Lote creado y enviado a Advisual (requisición '.$batch->fresh()->advisual_requisition_id.').');

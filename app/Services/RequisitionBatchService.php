@@ -207,19 +207,25 @@ class RequisitionBatchService
      */
     public function findRecentDuplicate(array $rows, User $user): ?RequisitionBatch
     {
+        // Codes are exact strings everywhere in this repo: '703' and '0703' are
+        // different spaces and '0' is a valid code. Loose unique()/filter()/sort()
+        // would merge or drop them and miss a real duplicate.
         $codes = collect($rows)
             ->map(fn ($row) => trim((string) ($row['external_code'] ?? '')))
-            ->filter()
-            ->unique()
-            ->sort()
+            ->filter(fn ($code) => $code !== '')
+            ->unique(strict: true)
+            ->sort(SORT_STRING)
             ->values();
 
         if ($codes->isEmpty()) {
             return null;
         }
 
+        // A cancelled batch is not a duplicate: cancelling and re-sending the
+        // same list is a legitimate flow and must not be blocked for 10 minutes.
         $candidates = RequisitionBatch::query()
             ->where('created_by', $user->id)
+            ->whereNull('cancelled_at')
             ->where('created_at', '>=', now()->subMinutes(self::DUPLICATE_WINDOW_MINUTES))
             ->withCount('maintenances')
             ->latest()
@@ -231,7 +237,7 @@ class RequisitionBatchService
                 ->join('advertising_spaces', 'advertising_spaces.id', '=', 'maintenances.advertising_space_id')
                 ->pluck('advertising_spaces.external_code')
                 ->map(fn ($code) => (string) $code)
-                ->sort()
+                ->sort(SORT_STRING)
                 ->values();
 
             if ($batchCodes->all() === $codes->all()) {
@@ -269,6 +275,31 @@ class RequisitionBatchService
                 'cancelled_by' => $user->id,
                 'advisual_sync_error' => null,
             ]);
+        });
+    }
+
+    /**
+     * Duplicate check + create as one atomic step.
+     *
+     * findRecentDuplicate() alone is a read: two concurrent valid posts (two
+     * tabs) could both pass it before either inserts, and each would create a
+     * batch and an Advisual requisition. Serialising on the user's row with
+     * lockForUpdate() inside the transaction makes the second post wait and then
+     * see the first batch. The cache driver is file-based in prod, so a DB row
+     * lock is the only lock that is actually atomic across PHP workers.
+     *
+     * @return array{0: RequisitionBatch, 1: bool} [batch, isNew]
+     */
+    public function createBatchUnlessDuplicate(string $name, ?string $city, array $rows, User $user): array
+    {
+        return DB::transaction(function () use ($name, $city, $rows, $user) {
+            User::query()->whereKey($user->id)->lockForUpdate()->first();
+
+            if ($existing = $this->findRecentDuplicate($rows, $user)) {
+                return [$existing, false];
+            }
+
+            return [$this->createBatch($name, $city, $rows, $user), true];
         });
     }
 

@@ -133,7 +133,11 @@ test('user without advisual guid creates nothing', function () {
 test('re-submitting the same list redirects to the existing batch without creating another', function () {
     // Reproduces prod 2026-08-24: same 58-space CSV posted 3 times in ~60s.
     $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
-    $mock->shouldReceive('createBatchRequisition')->once()->andReturn(true);   // ONE call for TWO posts
+    $mock->shouldReceive('createBatchRequisition')->once()->andReturnUsing(function ($batch) {
+        $batch->update(['advisual_requisition_id' => 40741]);   // primer envio SI llego a Advisual
+
+        return true;
+    });                                                          // ONE call for TWO posts
     app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
 
     $payload = ['batch' => ['name' => 'Revision Bogota', 'city' => 'Bogota', 'csv' => '11220,preventivo,marcaciones']];
@@ -215,4 +219,38 @@ test('detail screen shows the cancel button on an active batch', function () {
     $this->actingAs($this->admin)->get("/admin/requisition-batches/{$batch->id}")
         ->assertOk()
         ->assertSee('Cancelar lote');
+});
+
+test('create button has no custom onclick so Orchid keeps event.submitter', function () {
+    // A synthetic requestSubmit() has no submitter and breaks Orchid's form
+    // controller (review P1). Orchid already disables the button on submit.
+    $html = $this->actingAs($this->admin)->get('/admin/requisition-batches/create')->getContent();
+
+    expect($html)->toContain('Crear lote')
+        ->and($html)->not->toContain('requestSubmit')
+        ->and($html)->not->toContain('onclick=');
+});
+
+test('re-posting a list whose batch never reached Advisual retries the send on that batch', function () {
+    // Prod batch #4: created locally, request died before Advisual. Without this
+    // the re-post would park the user on a dead batch for 10 minutes (review P2).
+    $calls = 0;
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('createBatchRequisition')->twice()->andReturnUsing(function ($batch) use (&$calls) {
+        $calls++;
+        if ($calls === 1) {
+            return false;                                   // primer envio muere
+        }
+        $batch->update(['advisual_requisition_id' => 777]);  // reintento funciona
+
+        return true;
+    });
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $payload = ['batch' => ['name' => 'Lote', 'city' => null, 'csv' => '11220,preventivo,x']];
+    $this->actingAs($this->admin)->post('/admin/requisition-batches/create/create', $payload);
+    $this->actingAs($this->admin)->post('/admin/requisition-batches/create/create', $payload);
+
+    expect(RequisitionBatch::count())->toBe(1)
+        ->and(RequisitionBatch::first()->advisual_requisition_id)->toBe(777);
 });
