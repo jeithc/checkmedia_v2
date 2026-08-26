@@ -115,4 +115,88 @@ class CheckPreventiveSchedulesTest extends TestCase
             ->expectsOutputToContain("0 alertas")
             ->assertExitCode(0);
     }
+    /**
+     * Review P1 (PR #15): cancelling a batch closes its maintenances with a fresh
+     * closed_at but no work was done. The scheduler must not treat that as the
+     * last completed maintenance, or a cancellation would silence the reminder
+     * for a whole frequency cycle.
+     */
+    public function test_a_cancelled_batch_maintenance_does_not_reset_the_preventive_cycle()
+    {
+        PreventiveSchedule::create([
+            'element_type' => 'ESTRUCTURAL',
+            'city' => 'BOGOTA',
+            'frequency_days' => 100,
+            'is_active' => true,
+        ]);
+
+        // Espacio creado hace 85 días: está en ventana de alerta (faltan 15).
+        $space = new AdvertisingSpace();
+        $space->external_code = 'TEST-CANCEL-01';
+        $space->type = 'ESTRUCTURAL';
+        $space->city = 'BOGOTA';
+        $space->save();
+        $space->created_at = now()->subDays(85);
+        $space->save();
+
+        // Un lote cancelado HOY dejó un mantenimiento cerrado hoy, sin trabajo real.
+        Maintenance::create([
+            'advertising_space_id' => $space->id,
+            'type' => Maintenance::TYPE_PREVENTIVE,
+            'category' => 'preventivo',
+            'status' => Maintenance::STATUS_CLOSED,
+            'closure_comment' => Maintenance::CLOSURE_CANCELLED_PREFIX.' Lote cancelado.',
+            'closed_at' => now(),
+            'requested_at' => now(),
+            'description' => 'x',
+        ]);
+
+        // La alerta DEBE seguir saliendo: el cancelado no cuenta como mantenimiento hecho.
+        $this->mock(MaintenanceNotificationService::class, function (MockInterface $mock) use ($space) {
+            $mock->shouldReceive('notify')->once()
+                ->with('preventive_reminder', \Mockery::on(fn ($arg) => $arg->id === $space->id));
+        });
+
+        $this->artisan('checkmedia:check-preventive')
+            ->expectsOutputToContain("Alerta Preventiva para {$space->external_code}")
+            ->assertExitCode(0);
+    }
+
+    public function test_a_real_closed_maintenance_still_resets_the_preventive_cycle()
+    {
+        // Regresión del caso normal: un cierre real hoy sí reinicia el ciclo.
+        PreventiveSchedule::create([
+            'element_type' => 'ESTRUCTURAL',
+            'city' => 'BOGOTA',
+            'frequency_days' => 100,
+            'is_active' => true,
+        ]);
+
+        $space = new AdvertisingSpace();
+        $space->external_code = 'TEST-REAL-01';
+        $space->type = 'ESTRUCTURAL';
+        $space->city = 'BOGOTA';
+        $space->save();
+        $space->created_at = now()->subDays(85);
+        $space->save();
+
+        Maintenance::create([
+            'advertising_space_id' => $space->id,
+            'type' => Maintenance::TYPE_PREVENTIVE,
+            'category' => 'preventivo',
+            'status' => Maintenance::STATUS_CLOSED,
+            'closure_comment' => 'Trabajo realizado.',
+            'closed_at' => now(),
+            'requested_at' => now(),
+            'description' => 'x',
+        ]);
+
+        $this->mock(MaintenanceNotificationService::class, function (MockInterface $mock) {
+            $mock->shouldNotReceive('notify');
+        });
+
+        $this->artisan('checkmedia:check-preventive')
+            ->expectsOutputToContain('0 alertas')
+            ->assertExitCode(0);
+    }
 }

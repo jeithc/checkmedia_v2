@@ -24,6 +24,15 @@ class Maintenance extends Model
 
     const TYPE_PREVENTIVE = 'preventive';
 
+    /**
+     * closure_comment prefix for a maintenance closed because its batch was
+     * cancelled. It stays STATUS_CLOSED (so it is "not open" everywhere), but no
+     * work was done: anything that reads closed rows as completed work must
+     * skip rows whose comment starts with this. Stored in closure_comment, not a
+     * new column: resolution_type exists in some DBs but in no migration.
+     */
+    const CLOSURE_CANCELLED_PREFIX = '[CANCELADO]';
+
     protected $fillable = [
         'advertising_space_id',
         'audit_id',

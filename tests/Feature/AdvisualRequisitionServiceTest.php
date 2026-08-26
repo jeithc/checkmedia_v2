@@ -706,63 +706,55 @@ test('createBatchRequisition fails without touching Advisual when the creator ha
 });
 
 // --- cancelBatchRequisition ---------------------------------------------------
-// Cancelar un lote solo si compras no lo ha trabajado (sin OC). Se anula en
-// Advisual con el mismo patrón que usa compras a mano (Estado=3 + fecha + usuario),
-// nunca con DELETE, para dejar rastro y que el sync lo reconozca como anulada.
+// Cancelar un lote solo si compras no lo ha trabajado (sin OC ACTIVA). Un solo
+// UPDATE condicional (NOT EXISTS) en vez de COUNT+UPDATE, para que una OC creada
+// entre ambos no deje una requisición anulada con orden viva. Se anula con el
+// mismo patrón que compras a mano (Estado=3 + fecha + usuario), nunca DELETE.
 
-test('cancelBatchRequisition annuls in Advisual when the requisition has no purchase orders', function () {
+test('cancelBatchRequisition annuls in Advisual with one conditional UPDATE when no active PO exists', function () {
     $this->user->update(['username' => 'jheredia']);
     [$batch] = makeRequisitionBatch($this->user, ['43' => 1, '703' => 2]);
     $batch->update(['advisual_requisition_id' => 90001]);
 
     $conn = Mockery::mock();
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+    $conn->shouldNotReceive('selectOne');   // sin COUNT previo: el chequeo va dentro del UPDATE
 
-    $conn->shouldReceive('selectOne')
+    $sqlSeen = null;
+    $bindingsSeen = null;
+    $conn->shouldReceive('affectingStatement')
         ->once()
-        ->withArgs(fn ($sql, $b) => str_contains($sql, 'FROM OrdenCompra') && $b === [90001])
-        ->andReturn((object) ['c' => 0]);
+        ->withArgs(function ($sql, $bindings) use (&$sqlSeen, &$bindingsSeen) {
+            $sqlSeen = $sql;
+            $bindingsSeen = $bindings;
 
-    $annulled = null;
-    $conn->shouldReceive('statement')
-        ->once()
-        ->withArgs(function ($sql, $bindings) use (&$annulled) {
-            if (str_contains($sql, 'UPDATE Requisicion') && str_contains($sql, 'RequisicionEstado = 3')) {
-                $annulled = $bindings;
-
-                return true;
-            }
-
-            return false;
+            return str_contains($sql, 'UPDATE Requisicion');
         })
-        ->andReturn(true);
+        ->andReturn(1);   // 1 fila afectada = no había OC activa
 
     $result = (new AdvisualRequisitionService)->cancelBatchRequisition($batch, $this->user);
 
     expect($result)->toBeTrue()
-        ->and($annulled)->not->toBeNull()
-        ->and($annulled)->toContain(90001)
-        ->and($annulled)->toContain('jheredia');
+        ->and($sqlSeen)->toContain('RequisicionEstado = 3')
+        ->and($sqlSeen)->toContain('NOT EXISTS')
+        // mismo predicado de "OC activa" que usa el sync (review P1)
+        ->and($sqlSeen)->toContain('ISNULL(oc.OrdenCompraItemDel, 0) = 0')
+        ->and($sqlSeen)->toContain('ISNULL(o.OrdenEstado, 1) <> 2')
+        ->and($bindingsSeen)->toBe(['jheredia', 90001]);
 });
 
-test('cancelBatchRequisition refuses when the requisition already has purchase orders', function () {
+test('cancelBatchRequisition refuses when the conditional UPDATE affects no row (active PO exists)', function () {
     [$batch] = makeRequisitionBatch($this->user, ['43' => 1]);
     $batch->update(['advisual_requisition_id' => 90002]);
 
     $conn = Mockery::mock();
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
-
-    $conn->shouldReceive('selectOne')
-        ->once()
-        ->withArgs(fn ($sql) => str_contains($sql, 'FROM OrdenCompra'))
-        ->andReturn((object) ['c' => 3]);
-
-    $conn->shouldNotReceive('statement');   // nada se anula
+    $conn->shouldReceive('affectingStatement')->once()->andReturn(0);   // WHERE no se cumplió
 
     $result = (new AdvisualRequisitionService)->cancelBatchRequisition($batch, $this->user);
 
     expect($result)->toBeFalse()
-        ->and($batch->fresh()->advisual_sync_error)->toContain('órdenes de compra');
+        ->and($batch->fresh()->advisual_sync_error)->toContain('órdenes de compra activas');
 });
 
 test('cancelBatchRequisition succeeds without touching Advisual when the batch was never sent', function () {

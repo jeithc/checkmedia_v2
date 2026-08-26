@@ -415,7 +415,8 @@ it('cancels a batch by closing its maintenances and stamping who cancelled it', 
         ->and($batch->cancelled_by)->toBe($user->id)
         ->and(Maintenance::where('requisition_batch_id', $batch->id)->count())->toBe(2)   // no se borran
         ->and(Maintenance::where('requisition_batch_id', $batch->id)->where('status', Maintenance::STATUS_CLOSED)->count())->toBe(2)
-        ->and(Maintenance::where('requisition_batch_id', $batch->id)->first()->closure_comment)->toContain('duplicado por reenvío');
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->first()->closure_comment)->toContain('duplicado por reenvío')
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->first()->closure_comment)->toStartWith(Maintenance::CLOSURE_CANCELLED_PREFIX);
 });
 
 it('leaves already-closed maintenances untouched when cancelling', function () {

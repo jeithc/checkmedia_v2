@@ -592,26 +592,34 @@ class AdvisualRequisitionService
         }
 
         try {
-            $row = $this->selectAdvisualOne(
-                'SELECT COUNT(*) AS c FROM OrdenCompra
-                 WHERE OrdenCompraReqCodigo = ? AND ISNULL(OrdenCompraItemDel, 0) = 0',
-                [(int) $reqId]
-            );
-
-            if ((int) ($row->c ?? 0) > 0) {
-                $this->markBatchError($batch, "La requisición {$reqId} ya tiene órdenes de compra en Advisual. Compras debe anularla allá antes de cancelar el lote.");
-
-                return false;
-            }
-
-            $this->executeAdvisualWrite(
+            // One conditional UPDATE, not COUNT-then-UPDATE: purchasing could
+            // create an order between the two statements and we would annul a
+            // requisition that now has an active PO. The NOT EXISTS predicate is
+            // the same definition of "active order" the PO sync uses (item not
+            // deleted AND order header not annulled), so an order purchasing
+            // already annulled (OrdenEstado = 2) no longer blocks the cancel.
+            $affected = $this->connector->affectingStatement(
                 'UPDATE Requisicion
                  SET RequisicionEstado = 3,
                      RequisicionAnulacionFecha = GETDATE(),
                      RequisicionAnulacionUsuario = ?
-                 WHERE RequisicionCodigo = ?',
+                 WHERE RequisicionCodigo = ?
+                   AND NOT EXISTS (
+                       SELECT 1
+                       FROM OrdenCompra oc
+                       INNER JOIN Orden o ON o.OrdenCodigo = oc.OrdenCodigo
+                       WHERE oc.OrdenCompraReqCodigo = Requisicion.RequisicionCodigo
+                         AND ISNULL(oc.OrdenCompraItemDel, 0) = 0
+                         AND ISNULL(o.OrdenEstado, 1) <> 2
+                   )',
                 [$cancelledBy->username ?? 'checkmedia', (int) $reqId]
             );
+
+            if ($affected === 0) {
+                $this->markBatchError($batch, "La requisición {$reqId} ya tiene órdenes de compra activas en Advisual. Compras debe anularlas allá antes de cancelar el lote.");
+
+                return false;
+            }
 
             Log::info('Advisual batch requisition annulled', [
                 'batch_id' => $batch->id,

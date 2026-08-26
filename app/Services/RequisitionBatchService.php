@@ -267,7 +267,7 @@ class RequisitionBatchService
                     'status' => Maintenance::STATUS_CLOSED,
                     'closed_by' => $user->id,
                     'closed_at' => $now,
-                    'closure_comment' => 'Lote cancelado'.($reason ? ': '.$reason : '.'),
+                    'closure_comment' => Maintenance::CLOSURE_CANCELLED_PREFIX.' Lote cancelado'.($reason ? ': '.$reason : '.'),
                 ]);
 
             $batch->update([
