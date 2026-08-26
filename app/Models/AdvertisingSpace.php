@@ -133,14 +133,15 @@ class AdvertisingSpace extends Model
                 });
         };
 
+        // LIKE sin comodines = igualdad case-insensitive portable (el accessor uppercasea)
         return match ($unit) {
-            'AEROPUERTOS ESTATICOS' => $query->where('category', 'AEROPUERTOS')->where($notDigital),
-            'AEROPUERTOS DIGITAL' => $query->where('category', 'AEROPUERTOS')->where($isDigital),
+            'AEROPUERTOS ESTATICOS' => $query->where('category', 'LIKE', 'AEROPUERTOS')->where($notDigital),
+            'AEROPUERTOS DIGITAL' => $query->where('category', 'LIKE', 'AEROPUERTOS')->where($isDigital),
             'RETAIL' => $query->where('category', 'LIKE', 'RETAIL%'),
-            'MASIVO - ST' => $query->where('category', 'SISTEMAS DE TRANSPORTE'),
+            'MASIVO - ST' => $query->where('category', 'LIKE', 'SISTEMAS DE TRANSPORTE'),
             'MASIVO - AU' => $query->where('category', 'LIKE', 'AMOBLAMIENTO URBANO%'),
-            'MASIVO - VALLAS ESTATICAS' => $query->where('category', 'VALLAS')->where($notDigital),
-            'MASIVO - VALLAS DIGITAL' => $query->where('category', 'VALLAS')->where($isDigital),
+            'MASIVO - VALLAS ESTATICAS' => $query->where('category', 'LIKE', 'VALLAS')->where($notDigital),
+            'MASIVO - VALLAS DIGITAL' => $query->where('category', 'LIKE', 'VALLAS')->where($isDigital),
             default => $query->whereRaw('1 = 0'),
         };
     }

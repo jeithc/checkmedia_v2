@@ -3,8 +3,6 @@
 namespace App\Services;
 
 use App\Models\AdvertisingSpace;
-use App\Models\Audit;
-use App\Models\AuditCriterion;
 use App\Models\Maintenance;
 use App\Models\MaintenanceCategory;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,9 +18,9 @@ class AuditDashboardFilterService
      */
     private const CATEGORY_TO_CRITERION_KEY = [
         'estructural' => 'structural',
-        'ambiental'   => 'environmental',
-        'electrico'   => 'electrical',
-        'material'    => 'material',
+        'ambiental' => 'environmental',
+        'electrico' => 'electrical',
+        'material' => 'material',
     ];
 
     public const AUDIT_STATUSES = [
@@ -59,20 +57,20 @@ class AuditDashboardFilterService
         $date = $filter['date'] ?? [];
 
         return [
-            'external_code'    => null,
-            'city'             => $filter['city'] ?? null,
-            'producto'         => $filter['producto'] ?? null,
-            'category'         => $filter['category'] ?? null,
+            'external_code' => null,
+            'city' => $filter['city'] ?? null,
+            'producto' => $filter['producto'] ?? null,
+            'category' => $filter['category'] ?? null,
             'maintenance_type' => $filter['type'] ?? null,
-            'status'           => match ($filter['status'] ?? null) {
+            'status' => match ($filter['status'] ?? null) {
                 'abiertas' => 'open',
-                'closed'   => 'closed',
-                null, ''   => null,
-                default    => $filter['status'],
+                'closed' => 'closed',
+                null, '' => null,
+                default => $filter['status'],
             },
-            'date_from'        => is_array($date) ? ($date['start'] ?? null) : null,
-            'date_to'          => is_array($date) ? ($date['end'] ?? null) : null,
-            'has_rc'           => $filter['has_rc'] ?? null,
+            'date_from' => is_array($date) ? ($date['start'] ?? null) : null,
+            'date_to' => is_array($date) ? ($date['end'] ?? null) : null,
+            'has_rc' => $filter['has_rc'] ?? null,
         ];
     }
 
@@ -81,21 +79,21 @@ class AuditDashboardFilterService
         $query->when($f['date_from'] ?? null, fn ($q, $v) => $q->whereDate('audits.audit_date', '>=', $v));
         $query->when($f['date_to'] ?? null, fn ($q, $v) => $q->whereDate('audits.audit_date', '<=', $v));
 
-        if (!empty($f['external_code']) || !empty($f['city']) || !empty($f['producto'])) {
+        if (! empty($f['external_code']) || ! empty($f['city']) || ! empty($f['producto'])) {
             $query->whereHas('space', function (Builder $q) use ($f) {
-                if (!empty($f['external_code'])) {
+                if (! empty($f['external_code'])) {
                     $q->where('external_code', 'like', '%'.$f['external_code'].'%');
                 }
-                if (!empty($f['city'])) {
+                if (! empty($f['city'])) {
                     $q->where('city', $f['city']);
                 }
-                if (!empty($f['producto'])) {
-                    $q->where('category', $f['producto']);
+                if (! empty($f['producto'])) {
+                    $q->ofBusinessUnit($f['producto']);
                 }
             });
         }
 
-        if (!empty($f['category'])) {
+        if (! empty($f['category'])) {
             $criterionKey = self::CATEGORY_TO_CRITERION_KEY[$f['category']] ?? null;
             if ($criterionKey) {
                 $query->whereHas('values', function (Builder $q) use ($criterionKey) {
@@ -105,7 +103,7 @@ class AuditDashboardFilterService
             }
         }
 
-        if (!empty($f['status'])) {
+        if (! empty($f['status'])) {
             $query->where('audits.general_status', $f['status']);
         }
 
@@ -117,29 +115,29 @@ class AuditDashboardFilterService
         $query->when($f['date_from'] ?? null, fn ($q, $v) => $q->whereDate('maintenances.requested_at', '>=', $v));
         $query->when($f['date_to'] ?? null, fn ($q, $v) => $q->whereDate('maintenances.requested_at', '<=', $v));
 
-        if (!empty($f['external_code']) || !empty($f['city']) || !empty($f['producto'])) {
+        if (! empty($f['external_code']) || ! empty($f['city']) || ! empty($f['producto'])) {
             $query->whereHas('advertisingSpace', function (Builder $q) use ($f) {
-                if (!empty($f['external_code'])) {
+                if (! empty($f['external_code'])) {
                     $q->where('external_code', 'like', '%'.$f['external_code'].'%');
                 }
-                if (!empty($f['city'])) {
+                if (! empty($f['city'])) {
                     $q->where('city', $f['city']);
                 }
-                if (!empty($f['producto'])) {
-                    $q->where('category', $f['producto']);
+                if (! empty($f['producto'])) {
+                    $q->ofBusinessUnit($f['producto']);
                 }
             });
         }
 
-        if (!empty($f['category'])) {
+        if (! empty($f['category'])) {
             $query->where('maintenances.category', $f['category']);
         }
 
-        if (!empty($f['maintenance_type'])) {
+        if (! empty($f['maintenance_type'])) {
             $query->where('maintenances.type', $f['maintenance_type']);
         }
 
-        if (!empty($f['status'])) {
+        if (! empty($f['status'])) {
             if ($f['status'] === 'closed') {
                 $query->where('maintenances.status', Maintenance::STATUS_CLOSED);
             } elseif ($f['status'] === 'open') {
@@ -160,27 +158,21 @@ class AuditDashboardFilterService
 
     public function cities(): array
     {
-        return Cache::remember('dashboard.filter.cities', 300, fn () =>
-            AdvertisingSpace::query()
-                ->select('city')
-                ->whereNotNull('city')
-                ->where('city', '!=', '')
-                ->distinct()
-                ->orderBy('city')
-                ->pluck('city', 'city')
-                ->toArray()
+        return Cache::remember('dashboard.filter.cities', 300, fn () => AdvertisingSpace::query()
+            ->select('city')
+            ->whereNotNull('city')
+            ->where('city', '!=', '')
+            ->distinct()
+            ->orderBy('city')
+            ->pluck('city', 'city')
+            ->toArray()
         );
     }
 
     public function productos(): array
     {
-        return AdvertisingSpace::query()
-            ->select('category')
-            ->whereNotNull('category')
-            ->where('category', '!=', '')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category', 'category')
+        return collect(AdvertisingSpace::BUSINESS_UNITS)
+            ->mapWithKeys(fn ($u) => [$u => $u])
             ->toArray();
     }
 

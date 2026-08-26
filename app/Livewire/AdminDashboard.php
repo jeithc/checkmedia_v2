@@ -50,29 +50,6 @@ class AdminDashboard extends Component
         }
     }
 
-    public function filter()
-    {
-        if ($this->dateFrom && $this->dateTo && $this->dateFrom > $this->dateTo) {
-            $this->dateTo = $this->dateFrom;
-        }
-
-        return redirect()->route('platform.main', array_filter([
-            'from' => $this->dateFrom,
-            'to' => $this->dateTo,
-            'externalCode' => $this->externalCode,
-            'city' => $this->city,
-            'producto' => $this->producto,
-            'category' => $this->category,
-            'maintenanceType' => $this->maintenanceType,
-            'status' => $this->status,
-        ], fn ($v) => $v !== null && $v !== ''));
-    }
-
-    public function resetFilters()
-    {
-        return redirect()->route('platform.main');
-    }
-
     protected function buildFilters(): array
     {
         return [
@@ -128,14 +105,14 @@ class AdminDashboard extends Component
         $maintenanceBase = fn () => $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters);
 
         $spaceQuery = AdvertisingSpace::query();
-        if (!empty($filters['external_code'])) {
+        if (! empty($filters['external_code'])) {
             $spaceQuery->where('external_code', 'like', '%'.$filters['external_code'].'%');
         }
-        if (!empty($filters['city'])) {
+        if (! empty($filters['city'])) {
             $spaceQuery->where('city', $filters['city']);
         }
-        if (!empty($filters['producto'])) {
-            $spaceQuery->where('type', $filters['producto']);
+        if (! empty($filters['producto'])) {
+            $spaceQuery->ofBusinessUnit($filters['producto']);
         }
         $totalSpaces = (clone $spaceQuery)->count();
 
@@ -143,44 +120,28 @@ class AdminDashboard extends Component
             'total_spaces' => [
                 'label' => 'Espacios Publicitarios',
                 'value' => number_format($totalSpaces),
-                'subtext' => 'Total Activos',
-                'icon' => 'bs.geo-alt',
-                'color' => 'primary',
+                'subtext' => 'activos',
+                'color' => 'neutral',
             ],
             'audits_week' => [
-                'label' => 'Auditorías (Período)',
+                'label' => 'Auditorías del Período',
                 'value' => number_format($totalAuditsInRange),
-                'subtext' => 'En rango seleccionado',
-                'icon' => 'bs.check-circle',
-                'color' => 'primary',
+                'subtext' => number_format($generalAudits).' generales · '.number_format($structuralAudits).' estructurales',
+                'color' => 'neutral',
             ],
             'audits_with_issues' => [
                 'label' => 'Auditorías con Errores',
                 'value' => number_format($auditsWithIssues),
-                'subtext' => $criticalAudits > 0 ? $criticalAudits.' críticas sin resolver' : 'En rango seleccionado',
-                'icon' => 'bs.exclamation-triangle',
+                'subtext' => $criticalAudits > 0 ? $criticalAudits.' sin resolver' : 'todas resueltas',
                 'color' => $auditsWithIssues > 0 ? 'danger' : 'success',
+                'href' => '#auditorias-periodo',
             ],
             'pending_maint' => [
-                'label' => 'Mantenimientos Pend.',
+                'label' => 'Mantenimientos por Atender',
                 'value' => number_format((clone $maintenanceBase())->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])->count()),
-                'subtext' => 'Por Atender',
-                'icon' => 'bs.tools',
-                'color' => 'primary',
-            ],
-            'audits_general' => [
-                'label' => 'Auditorías Generales',
-                'value' => number_format($generalAudits),
-                'subtext' => 'Perfil auditor general',
-                'icon' => 'bs.clipboard-check',
-                'color' => 'primary',
-            ],
-            'audits_structural' => [
-                'label' => 'Auditorías Estructurales',
-                'value' => number_format($structuralAudits),
-                'subtext' => 'Perfil auditor estructural',
-                'icon' => 'bs.building-gear',
+                'subtext' => 'abiertos actualmente',
                 'color' => 'warning',
+                'href' => route('platform.maintenances'),
             ],
         ];
 
@@ -231,6 +192,9 @@ class AdminDashboard extends Component
             'total_maintenances' => $totalMaintenances,
             'avg_closure_days' => $avgClosureDays,
             'compliance_rate' => $complianceRate,
+            'good_audits' => $goodAudits,
+            'bad_audits' => $auditsWithIssues,
+            'total_audits' => $totalAuditsInRange,
         ];
 
         // Recent audits (top 10, prioritize bad)
@@ -284,8 +248,7 @@ class AdminDashboard extends Component
         // Auditorías con audit_values "bad" no cubiertos por mantenimiento abierto.
         $pendingFilter = function ($q) {
             $q->where('audit_values.value', 'bad')
-                ->whereDoesntHave('maintenances', fn ($mq) =>
-                    $mq->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])
+                ->whereDoesntHave('maintenances', fn ($mq) => $mq->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])
                 );
         };
 

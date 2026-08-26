@@ -26,7 +26,7 @@ test('dashboard loads with kpi section visible', function () {
     $response->assertOk();
     $response->assertSee('Novedades Abiertas vs Cerradas');
     $response->assertSee('Tiempo Promedio de Cierre');
-    $response->assertSee('Tasa de Cumplimiento');
+    $response->assertSee('Calidad del Período');
 });
 
 test('compliance rate reflects audit results in period', function () {
@@ -168,10 +168,8 @@ test('main dashboard shows monthly purchase order cost chart and audit profile c
     $response = $this->get(route('platform.main'));
 
     $response->assertOk();
-    $response->assertSee('Auditorías Generales');
-    $response->assertSee('Auditorías Estructurales');
-    $response->assertSee('Elementos Auditados (Por Mes)');
-    $response->assertSee('Costo Ejecutado de OCs por Mes');
-    $response->assertSee('Novedades por Estado y Categoría');
+    $response->assertSee('Auditorías del Período');
+    $response->assertSee('estructurales'); // desglose en subtext de la card
+    $response->assertSee('Actividad Mensual');
+    $response->assertSee('OCs por Valoración');
 });
-

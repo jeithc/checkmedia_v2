@@ -32,7 +32,7 @@ beforeEach(function () {
 
     $this->critStructural = AuditCriterion::create([
         'name' => 'Estructural',
-        'key'  => 'structural',
+        'key' => 'structural',
         'type' => 'boolean',
         'order_index' => 1,
         'applies_to' => 'general',
@@ -41,7 +41,7 @@ beforeEach(function () {
 
     $this->critEnvironmental = AuditCriterion::create([
         'name' => 'Ambiental',
-        'key'  => 'environmental',
+        'key' => 'environmental',
         'type' => 'boolean',
         'order_index' => 2,
         'applies_to' => 'general',
@@ -49,27 +49,29 @@ beforeEach(function () {
     ]);
 });
 
-function makeAuditForFilter(array $overrides = []): Audit {
+function makeAuditForFilter(array $overrides = []): Audit
+{
     return Audit::create(array_merge([
         'advertising_space_id' => test()->spaceA->id,
-        'user_id'              => test()->user->id,
-        'year'                 => 2026,
-        'week'                 => 1,
-        'audit_date'           => '2026-01-05',
-        'audit_type'           => Audit::TYPE_GENERAL,
-        'audit_purpose'        => Audit::PURPOSE_AUDIT_ONLY,
-        'general_status'       => 'good',
+        'user_id' => test()->user->id,
+        'year' => 2026,
+        'week' => 1,
+        'audit_date' => '2026-01-05',
+        'audit_type' => Audit::TYPE_GENERAL,
+        'audit_purpose' => Audit::PURPOSE_AUDIT_ONLY,
+        'general_status' => 'good',
     ], $overrides));
 }
 
-function makeMaintenanceForFilter(array $overrides = []): Maintenance {
+function makeMaintenanceForFilter(array $overrides = []): Maintenance
+{
     return Maintenance::create(array_merge([
         'advertising_space_id' => test()->spaceA->id,
-        'requested_by'         => test()->user->id,
-        'requested_at'         => now(),
-        'status'               => Maintenance::STATUS_REPORTED,
-        'type'                 => Maintenance::TYPE_CORRECTIVE,
-        'category'             => 'estructural',
+        'requested_by' => test()->user->id,
+        'requested_at' => now(),
+        'status' => Maintenance::STATUS_REPORTED,
+        'type' => Maintenance::TYPE_CORRECTIVE,
+        'category' => 'estructural',
     ], $overrides));
 }
 
@@ -102,14 +104,15 @@ test('city filter', function () {
         ->and($rows->first()->advertising_space_id)->toBe($this->spaceB->id);
 });
 
-test('producto filter', function () {
+test('producto filter matches business unit', function () {
     makeAuditForFilter(['advertising_space_id' => $this->spaceA->id]);
     makeAuditForFilter(['advertising_space_id' => $this->spaceB->id, 'week' => 2]);
 
-    $rows = $this->service->applyToAuditQuery(Audit::query(), ['producto' => 'Centros comerciales'])->get();
+    // spaceA: category Aeropuertos + type no digital → AEROPUERTOS ESTATICOS
+    $rows = $this->service->applyToAuditQuery(Audit::query(), ['producto' => 'AEROPUERTOS ESTATICOS'])->get();
 
     expect($rows)->toHaveCount(1)
-        ->and($rows->first()->advertising_space_id)->toBe($this->spaceB->id);
+        ->and($rows->first()->advertising_space_id)->toBe($this->spaceA->id);
 });
 
 test('category filter maps to criterion key and value=bad', function () {
@@ -168,7 +171,7 @@ test('date range filter on audits', function () {
 
     $rows = $this->service->applyToAuditQuery(Audit::query(), [
         'date_from' => '2026-02-01',
-        'date_to'   => '2026-02-28',
+        'date_to' => '2026-02-28',
     ])->get();
 
     expect($rows)->toHaveCount(1);
