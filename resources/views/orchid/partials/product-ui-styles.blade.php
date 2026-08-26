@@ -95,6 +95,27 @@
             white-space: nowrap;
         }
 
+        /* Inputs (date, text) inside a pill: drop the native chrome so they match the select */
+        .pf-select input {
+            border: 0;
+            outline: 0;
+            background: transparent;
+            font-size: .8125rem;
+            font-weight: 500;
+            color: #212529;
+            padding: 0;
+            width: auto;
+            font-family: inherit;
+        }
+        .pf-select input[type="date"] {
+            width: 7.6rem;
+        }
+        .pf-select input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: .55;
+            cursor: pointer;
+            margin-left: .2rem;
+        }
+
         .pf-select select {
             border: 0;
             background: transparent;
@@ -208,7 +229,14 @@
             font-size: .75rem;
             font-weight: 600;
             line-height: 1;
+            white-space: nowrap; /* a pill must never wrap onto two lines */
         }
+        /* A pill used as a link (row action) keeps its colors on hover instead of turning into a blue link */
+        a.mnt-badge:hover { filter: brightness(.95); text-decoration: none; }
+        a.mnt-badge--bad, a.mnt-badge--bad:hover { color: #991b1b; }
+
+        /* Row "view" icon: force a visible color; Orchid's link color can render it white on white */
+        .mnt-row-view, .mnt-row-view:hover { color: #495057 !important; }
 
         .mnt-badge--alta { background: #fee2e2; color: #991b1b; }
         .mnt-badge--media { background: #fef3c7; color: #92400e; }

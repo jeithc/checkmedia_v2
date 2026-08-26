@@ -65,12 +65,15 @@ test('screen lists all pending audits with pagination and a request button', fun
         pendingAudit($this->criterion, (string) (1000 + $i), 'PEREIRA', 'AEROPUERTOS');
     }
 
+    // Count the action pill per row (the text also appears in a title= attribute).
+    $pills = fn (string $html) => preg_match_all('/class="mnt-badge mnt-badge--bad text-decoration-none"/', $html);
+
     $page1 = $this->actingAs($this->admin)->get('/admin/maintenances/pending');
     $page1->assertOk()->assertSee('Solicitar mantenimiento')->assertSee('de 30');
-    expect(substr_count($page1->content(), 'Solicitar mantenimiento'))->toBe(25);
+    expect($pills($page1->content()))->toBe(25);
 
     $page2 = $this->actingAs($this->admin)->get('/admin/maintenances/pending?page=2');
-    expect(substr_count($page2->content(), 'Solicitar mantenimiento'))->toBe(5);
+    expect($pills($page2->content()))->toBe(5);
 });
 
 test('screen filters by producto and city using the dashboard query keys', function () {
