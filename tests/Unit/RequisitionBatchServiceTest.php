@@ -486,3 +486,44 @@ it('does not treat a cancelled batch as a duplicate', function () {
 
     expect($this->service->findRecentDuplicate($rows, $user))->toBeNull();
 });
+
+// --- claimSend: un solo request envía a Advisual (review ronda 3) --------------
+
+it('claimSend lets exactly one caller through for an unsent batch', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+
+    expect($this->service->claimSend($batch))->toBeTrue()
+        ->and($this->service->claimSend($batch->fresh()))->toBeFalse();   // segundo pierde
+});
+
+it('claimSend refuses a batch that already has a requisition', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+    $batch->update(['advisual_requisition_id' => 40741]);
+
+    expect($this->service->claimSend($batch))->toBeFalse();
+});
+
+it('claimSend takes over an abandoned claim older than the window', function () {
+    // El request murió a medias (lote #4 de prod): el claim no puede quedar colgado.
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+    $batch->update(['sending_at' => now()->subMinutes(RequisitionBatchService::SEND_CLAIM_MINUTES + 1)]);
+
+    expect($this->service->claimSend($batch))->toBeTrue();
+});
+
+it('releaseSend allows a retry after a failed send', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+
+    $this->service->claimSend($batch);
+    $this->service->releaseSend($batch);
+
+    expect($this->service->claimSend($batch->fresh()))->toBeTrue();
+});

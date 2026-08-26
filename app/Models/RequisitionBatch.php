@@ -20,12 +20,14 @@ class RequisitionBatch extends Model
         'advisual_requisition_id',
         'advisual_sync_error',
         'advisual_synced_at',
+        'sending_at',
         'cancelled_at',
         'cancelled_by',
     ];
 
     protected $casts = [
         'advisual_synced_at' => 'datetime',
+        'sending_at' => 'datetime',
         'cancelled_at' => 'datetime',
     ];
 

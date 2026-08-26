@@ -144,6 +144,16 @@ class RequisitionBatchCreateScreen extends Screen
             Toast::info("El lote #{$batch->id} ya existía pero no se había enviado a Advisual. Reintentando el envío.");
         }
 
+        // Exactly one request may send a given batch. If another request is
+        // mid-send right now (two tabs, or a re-post while the first is still
+        // talking to Advisual), do not send again: that would create a second
+        // requisition in Advisual with the first one hidden.
+        if (! $service->claimSend($batch)) {
+            Toast::info("El lote #{$batch->id} ya se está enviando a Advisual en otra solicitud.");
+
+            return redirect()->route('platform.requisition-batches.detail', $batch->id);
+        }
+
         if ($advisual->createBatchRequisition($batch)) {
             Toast::success('Lote creado y enviado a Advisual (requisición '.$batch->fresh()->advisual_requisition_id.').');
         } else {

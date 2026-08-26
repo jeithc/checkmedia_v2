@@ -279,28 +279,69 @@ class RequisitionBatchService
     }
 
     /**
-     * Duplicate check + create as one atomic step.
+     * A send claim older than this is considered abandoned (the request died
+     * mid-flight, like prod batch #4) and may be taken over by a new post.
+     */
+    const SEND_CLAIM_MINUTES = 5;
+
+    /**
+     * Duplicate check + create as one step.
      *
      * findRecentDuplicate() alone is a read: two concurrent valid posts (two
-     * tabs) could both pass it before either inserts, and each would create a
-     * batch and an Advisual requisition. Serialising on the user's row with
-     * lockForUpdate() inside the transaction makes the second post wait and then
-     * see the first batch. The cache driver is file-based in prod, so a DB row
-     * lock is the only lock that is actually atomic across PHP workers.
+     * tabs) could both pass it before either inserts. This narrows that window
+     * but does not close it on its own — the real guard is claimSend(), which
+     * is a single conditional UPDATE and therefore atomic on every engine
+     * (SQLite in dev/tests has no row locks; MySQL in prod does). Whoever loses
+     * the claim redirects to the batch that won, so at worst one extra local
+     * batch exists for a few minutes and Advisual is never hit twice.
      *
      * @return array{0: RequisitionBatch, 1: bool} [batch, isNew]
      */
     public function createBatchUnlessDuplicate(string $name, ?string $city, array $rows, User $user): array
     {
         return DB::transaction(function () use ($name, $city, $rows, $user) {
-            User::query()->whereKey($user->id)->lockForUpdate()->first();
-
             if ($existing = $this->findRecentDuplicate($rows, $user)) {
                 return [$existing, false];
             }
 
             return [$this->createBatch($name, $city, $rows, $user), true];
         });
+    }
+
+    /**
+     * Atomically claim the right to send this batch to Advisual.
+     *
+     * Two overlapping posts can both hold a batch with no requisition id (a
+     * re-post of an unsent batch, or two tabs). createBatchRequisition()
+     * persists the id only AFTER the external insert, so without a claim both
+     * would reach Advisual and create two requisitions with one of them hidden.
+     * A single UPDATE ... WHERE sending_at IS NULL is atomic in SQLite and MySQL
+     * alike: exactly one caller sees 1 affected row.
+     */
+    public function claimSend(RequisitionBatch $batch): bool
+    {
+        $affected = RequisitionBatch::query()
+            ->whereKey($batch->id)
+            ->whereNull('advisual_requisition_id')
+            ->whereNull('cancelled_at')
+            ->where(fn ($q) => $q->whereNull('sending_at')
+                ->orWhere('sending_at', '<', now()->subMinutes(self::SEND_CLAIM_MINUTES)))
+            ->update(['sending_at' => now()]);
+
+        if ($affected === 1) {
+            $batch->sending_at = now();
+        }
+
+        return $affected === 1;
+    }
+
+    /**
+     * Release the send claim so a later post may retry (used after a failed send).
+     */
+    public function releaseSend(RequisitionBatch $batch): void
+    {
+        RequisitionBatch::query()->whereKey($batch->id)->update(['sending_at' => null]);
+        $batch->sending_at = null;
     }
 
     public function createBatch(string $name, ?string $city, array $rows, User $user): RequisitionBatch

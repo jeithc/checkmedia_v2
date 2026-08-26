@@ -239,6 +239,8 @@ test('re-posting a list whose batch never reached Advisual retries the send on t
     $mock->shouldReceive('createBatchRequisition')->twice()->andReturnUsing(function ($batch) use (&$calls) {
         $calls++;
         if ($calls === 1) {
+            $batch->update(['sending_at' => null]);          // el servicio real libera el claim al fallar (markBatchError)
+
             return false;                                   // primer envio muere
         }
         $batch->update(['advisual_requisition_id' => 777]);  // reintento funciona
@@ -253,4 +255,26 @@ test('re-posting a list whose batch never reached Advisual retries the send on t
 
     expect(RequisitionBatch::count())->toBe(1)
         ->and(RequisitionBatch::first()->advisual_requisition_id)->toBe(777);
+});
+
+test('a re-post while the first send is still in flight does not send to Advisual again', function () {
+    // Review ronda 3: el lock de fila se soltaba antes del envío; dos POST
+    // solapados llegaban ambos a createBatchRequisition y creaban dos
+    // requisiciones en Advisual. Simulamos "en vuelo" con el claim ya tomado.
+    $batch = RequisitionBatch::create(['name' => 'Lote', 'city' => null, 'created_by' => $this->admin->id, 'sending_at' => now()]);
+    Maintenance::create([
+        'advertising_space_id' => $this->space->id, 'requested_by' => $this->admin->id, 'requested_at' => now(),
+        'type' => Maintenance::TYPE_PREVENTIVE, 'category' => 'preventivo', 'status' => Maintenance::STATUS_REPORTED,
+        'description' => 'x', 'requisition_batch_id' => $batch->id, 'advisual_requisition_line' => 1,
+    ]);
+
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldNotReceive('createBatchRequisition');   // NADIE envía de nuevo
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)
+        ->post('/admin/requisition-batches/create/create', ['batch' => ['name' => 'Lote', 'city' => null, 'csv' => '11220,preventivo,x']])
+        ->assertRedirect("/admin/requisition-batches/{$batch->id}");
+
+    expect(RequisitionBatch::count())->toBe(1);
 });

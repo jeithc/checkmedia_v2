@@ -256,6 +256,7 @@ class AdvisualRequisitionService
                 'advisual_requisition_id' => $reqId,
                 'advisual_synced_at' => $now,
                 'advisual_sync_error' => null,
+                'sending_at' => null,
             ]);
 
             foreach ($maintenances as $maintenance) {
@@ -668,7 +669,8 @@ class AdvisualRequisitionService
 
     protected function markBatchError(RequisitionBatch $batch, string $error): void
     {
-        $batch->update(['advisual_sync_error' => $error]);
+        // Release the send claim too: a failed send must be retryable.
+        $batch->update(['advisual_sync_error' => $error, 'sending_at' => null]);
 
         Log::error('Advisual batch requisition failed', [
             'batch_id' => $batch->id,
