@@ -104,7 +104,10 @@ class AdvisualPurchaseOrderSyncService
             );
 
             if (empty($purchaseOrders)) {
-                $maintenance->update([
+                // No ACTIVE order: either none yet, or purchasing annulled the
+                // one we synced before. Clear stale PO data so the batch stops
+                // reading as "Con OC" and totals stop counting annulled money.
+                $maintenance->update(Maintenance::PURCHASE_ORDER_NULLS + [
                     'advisual_purchase_order_last_checked_at' => $checkedAt,
                     'advisual_purchase_order_sync_error' => null,
                 ]);

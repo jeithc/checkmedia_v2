@@ -34,6 +34,24 @@ class Maintenance extends Model
     const CLOSURE_CANCELLED_PREFIX = '[CANCELADO]';
 
     /**
+     * Payload that wipes every synced purchase-order field. Used when Advisual
+     * reports no ACTIVE order for the line (purchasing annulled it) so totals
+     * and the executed-cost chart stop counting money for undone work.
+     */
+    const PURCHASE_ORDER_NULLS = [
+        'advisual_purchase_order_id' => null,
+        'advisual_purchase_order_line_id' => null,
+        'advisual_purchase_order_description' => null,
+        'advisual_purchase_order_quantity' => null,
+        'advisual_purchase_order_unit_price' => null,
+        'advisual_purchase_order_total' => null,
+        'advisual_purchase_order_created_at' => null,
+        'advisual_purchase_order_committed_at' => null,
+        'advisual_purchase_order_executed_at' => null,
+        'final_cost' => null,
+    ];
+
+    /**
      * Closed rows that represent real completed work — i.e. not closed because
      * their batch was cancelled. Use this wherever "closed" feeds a completion
      * metric (avg closure time, closed counts, preventive schedule base date).

@@ -274,18 +274,7 @@ class RequisitionBatchService
             // any PO data synced earlier belongs to an order purchasing has since
             // annulled. Clear it, or the batch totals and the executed-cost chart
             // keep reporting money for work that was never done.
-            $batch->maintenances()->update([
-                'advisual_purchase_order_id' => null,
-                'advisual_purchase_order_line_id' => null,
-                'advisual_purchase_order_description' => null,
-                'advisual_purchase_order_quantity' => null,
-                'advisual_purchase_order_unit_price' => null,
-                'advisual_purchase_order_total' => null,
-                'advisual_purchase_order_created_at' => null,
-                'advisual_purchase_order_committed_at' => null,
-                'advisual_purchase_order_executed_at' => null,
-                'final_cost' => null,
-            ]);
+            $batch->maintenances()->update(Maintenance::PURCHASE_ORDER_NULLS);
 
             $batch->update([
                 'cancelled_at' => $now,

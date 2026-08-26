@@ -98,6 +98,32 @@ test('it syncs purchase order data into maintenance final cost', function () {
         ->and($maintenance->advisual_purchase_order_sync_error)->toBeNull();
 });
 
+test('it clears stale purchase-order data when Advisual no longer has an active order', function () {
+    $maintenance = createMaintenanceForPurchaseOrderTest($this->space, [
+        'advisual_requisition_id' => 9003,
+        'advisual_purchase_order_id' => 555,
+        'advisual_purchase_order_total' => 1200000,
+        'final_cost' => 1200000,
+    ]);
+
+    $database = Mockery::mock(DatabaseManager::class);
+    $connection = Mockery::mock();
+    $database->shouldReceive('connection')->with('advisual')->andReturn($connection);
+    $connection->shouldReceive('selectOne')
+        ->withArgs(fn (string $sql) => str_contains($sql, 'FROM Requisicion'))
+        ->andReturn((object) ['RequisicionCodigo' => 9003, 'RequisicionEstado' => 1, 'RequisicionAnulacionFecha' => null, 'RequisicionAnulacionUsuario' => null]);
+    $connection->shouldReceive('select')->once()->andReturn([]);   // OC anulada por compras
+
+    (new AdvisualPurchaseOrderSyncService($database))->syncMaintenance($maintenance, Carbon::parse('2026-03-23 10:00:00'));
+
+    $maintenance->refresh();
+
+    expect($maintenance->advisual_purchase_order_id)->toBeNull()
+        ->and($maintenance->advisual_purchase_order_total)->toBeNull()
+        ->and($maintenance->final_cost)->toBeNull()
+        ->and($maintenance->advisual_purchase_order_sync_error)->toBeNull();
+});
+
 test('it marks the maintenance as checked when no purchase order exists yet', function () {
     $maintenance = createMaintenanceForPurchaseOrderTest($this->space, [
         'advisual_requisition_id' => 9002,
