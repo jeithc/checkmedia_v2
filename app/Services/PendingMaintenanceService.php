@@ -43,7 +43,10 @@ class PendingMaintenanceService
                     $q->with('criterion');
                 },
             ])
-            ->orderBy('audits.audit_date', 'asc');
+            // audit_date alone is not unique: rows sharing a date could repeat or
+            // vanish between paginated pages. id is the tie-breaker.
+            ->orderBy('audits.audit_date', 'asc')
+            ->orderBy('audits.id', 'asc');
     }
 
     public function count(array $filters): int

@@ -305,6 +305,7 @@ class AdminDashboard extends Component
         // to the current week, and a pending request from 137 days ago must not
         // vanish just because the link carried this week's range.
         $pendingAllUrl = route('platform.maintenances.pending', array_filter([
+            'externalCode' => $this->externalCode,
             'city' => $this->city,
             'producto' => $this->producto,
             'from' => $isDefaultWeek ? null : $this->dateFrom,

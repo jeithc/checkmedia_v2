@@ -1,3 +1,10 @@
+@php
+    // AuditDetailScreen requires audit.can_audit, but this screen only requires
+    // maintenance.view (seeded role "auditor-estructural" has one and not the
+    // other). Without this the whole row would be links to a 403.
+    $canOpenAudit = auth()->user()?->hasAccess('audit.can_audit');
+@endphp
+
 <div class="bg-white rounded shadow-sm overflow-hidden mb-4">
     <div class="px-4 py-3 border-bottom d-flex justify-content-between align-items-center">
         <h6 class="text-muted small text-uppercase fw-bold mb-0">
@@ -29,7 +36,11 @@
                         @endphp
                         <tr>
                             <td class="px-4 fw-bold">
-                                <a href="{{ route('platform.audit.detail', $audit->id) }}" class="text-decoration-none">#{{ $audit->id }}</a>
+                                @if($canOpenAudit)
+                                    <a href="{{ route('platform.audit.detail', $audit->id) }}" class="text-decoration-none">#{{ $audit->id }}</a>
+                                @else
+                                    #{{ $audit->id }}
+                                @endif
                             </td>
                             <td>{{ $audit->space?->external_code ?? '—' }}</td>
                             <td>{{ $audit->space?->city ?? '—' }}</td>
@@ -42,16 +53,20 @@
                                 {{-- Same action pattern as /admin/spaces: a pill for the primary action
                                      plus the eye icon to view. The audit detail owns the request flow. --}}
                                 <div class="d-flex justify-content-end align-items-center gap-2">
-                                    <a href="{{ route('platform.audit.detail', $audit->id) }}#solicitar"
-                                        class="mnt-badge mnt-badge--bad text-decoration-none" title="Solicitar mantenimiento">
-                                        Solicitar mantenimiento
-                                    </a>
-                                    <a href="{{ route('platform.audit.detail', $audit->id) }}" class="btn btn-sm btn-link mnt-row-view p-0" title="Ver auditoría" data-turbo="true">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
-                                            <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
-                                            <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
-                                        </svg>
-                                    </a>
+                                    @if($canOpenAudit)
+                                        <a href="{{ route('platform.audit.detail', $audit->id) }}#solicitar"
+                                            class="mnt-badge mnt-badge--bad text-decoration-none" title="Solicitar mantenimiento">
+                                            Solicitar mantenimiento
+                                        </a>
+                                        <a href="{{ route('platform.audit.detail', $audit->id) }}" class="btn btn-sm btn-link mnt-row-view p-0" title="Ver auditoría" data-turbo="true">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                                                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                                            </svg>
+                                        </a>
+                                    @else
+                                        <span class="small text-muted">Sin permiso</span>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

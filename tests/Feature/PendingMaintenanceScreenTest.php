@@ -14,7 +14,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->admin = User::create([
         'name' => 'Admin', 'email' => 'admin@test.com', 'username' => 'admin', 'password' => bcrypt('x'),
-        'permissions' => ['platform.index' => true, 'maintenance.view' => true],
+        'permissions' => ['platform.index' => true, 'maintenance.view' => true, 'audit.can_audit' => true],
     ]);
     $this->criterion = AuditCriterion::create(['name' => 'Estructural', 'key' => 'structural', 'order_index' => 1, 'is_active' => true]);
 });
@@ -74,6 +74,13 @@ test('screen lists all pending audits with pagination and a request button', fun
 
     $page2 = $this->actingAs($this->admin)->get('/admin/maintenances/pending?page=2');
     expect($pills($page2->content()))->toBe(5);
+
+    // Todas comparten audit_date: sin desempate por id las filas del borde se
+    // repiten o se pierden entre paginas.
+    $ids = fn (string $html) => preg_match_all('/>#(\d+)</', pendingRows($html), $m) ? $m[1] : [];
+    $all = array_merge($ids($page1->content()), $ids($page2->content()));
+    expect($all)->toHaveCount(30)
+        ->and(array_unique($all))->toHaveCount(30);
 });
 
 test('screen filters by producto and city using the dashboard query keys', function () {
@@ -148,4 +155,28 @@ test('product chips use the /admin/spaces business units with colored dots and f
     // el enlace del dashboard (producto=category) sigue funcionando y trae ambos
     $rows = pendingRows($this->actingAs($this->admin)->get('/admin/maintenances/pending?producto=AEROPUERTOS')->content());
     expect($rows)->toContain('BOGOTA')->toContain('PEREIRA');
+});
+
+test('a maintenance viewer without audit.can_audit sees the rows but no links to the audit detail', function () {
+    // Rol sembrado "auditor-estructural": maintenance.view sin audit.can_audit.
+    // AuditDetailScreen exige audit.can_audit, asi que los enlaces serian un 403.
+    $structural = User::create(['name' => 's', 'email' => 's@test.com', 'username' => 's', 'password' => bcrypt('x'),
+        'permissions' => ['platform.index' => true, 'maintenance.view' => true, 'audit.can_audit_structural' => true]]);
+    $audit = pendingAudit($this->criterion, '1', 'PEREIRA', 'AEROPUERTOS');
+
+    $rows = pendingRows($this->actingAs($structural)->get('/admin/maintenances/pending')->assertOk()->content());
+
+    expect($rows)->toContain('PEREIRA')
+        ->toContain('#'.$audit->id)
+        ->not->toContain(route('platform.audit.detail', $audit->id));
+});
+
+test('dashboard "Ver todas" link keeps the externalCode filter', function () {
+    pendingAudit($this->criterion, 'ABC123', 'PEREIRA', 'AEROPUERTOS');
+
+    $html = $this->actingAs($this->admin)
+        ->get('/admin/main?from=2026-01-01&to=2026-12-31&externalCode=ABC123')
+        ->content();
+
+    expect($html)->toContain('externalCode=ABC123');
 });
