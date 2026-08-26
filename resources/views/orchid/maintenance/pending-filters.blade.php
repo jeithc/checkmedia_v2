@@ -2,10 +2,17 @@
 
 @php
     $q = fn (array $over) => request()->fullUrlWithQuery($over + ['page' => null]);
+    $hasFilters = $filters['city'] || $filters['date_from'] || $filters['date_to'] || $filters['producto'];
 @endphp
 
-<div class="bg-white rounded shadow-sm p-3 mb-3">
-    {{-- Producto: same axis as the dashboard (advertising_spaces.category) --}}
+{{--
+    No <form> here on purpose: Orchid wraps every Layout::view inside its global
+    form#post-form (class h-100). A nested <form> is dropped by the browser and
+    its controls fall into post-form, which then stretches to full height and
+    pushes the table to the bottom of the page. Controls navigate by query
+    string instead, like the chips do.
+--}}
+<div class="bg-white rounded shadow-sm p-3 mb-3" data-pending-filters>
     <div class="product-filter-bar mb-2">
         <span class="pf-label">Producto</span>
         <a href="{{ $q(['producto' => null]) }}" class="pf-chip {{ $filters['producto'] ? '' : 'active' }}">Todos</a>
@@ -16,14 +23,10 @@
         @endforeach
     </div>
 
-    <form method="get" class="product-filter-bar">
-        @foreach(['externalCode', 'producto'] as $keep)
-            @if(request($keep))<input type="hidden" name="{{ $keep }}" value="{{ request($keep) }}">@endif
-        @endforeach
-
+    <div class="product-filter-bar">
         <label class="pf-select">
             <span>Ciudad</span>
-            <select name="city" onchange="this.form.submit()">
+            <select data-filter="city">
                 <option value="">Todas</option>
                 @foreach($cities as $city)
                     <option value="{{ $city }}" @selected($filters['city'] === $city)>{{ $city }}</option>
@@ -33,15 +36,29 @@
 
         <label class="pf-select">
             <span>Desde</span>
-            <input type="date" name="from" value="{{ $filters['date_from'] }}" onchange="this.form.submit()">
+            <input type="date" data-filter="from" value="{{ $filters['date_from'] }}">
         </label>
         <label class="pf-select">
             <span>Hasta</span>
-            <input type="date" name="to" value="{{ $filters['date_to'] }}" onchange="this.form.submit()">
+            <input type="date" data-filter="to" value="{{ $filters['date_to'] }}">
         </label>
 
-        @if($filters['city'] || $filters['date_from'] || $filters['date_to'] || $filters['producto'])
+        @if($hasFilters)
             <a href="{{ route('platform.maintenances.pending') }}" class="pf-chip">Limpiar</a>
         @endif
-    </form>
+    </div>
 </div>
+
+@push('scripts')
+<script>
+    // Each control rewrites its own query-string key and reloads; page resets.
+    document.querySelectorAll('[data-pending-filters] [data-filter]').forEach(function (el) {
+        el.addEventListener('change', function () {
+            var url = new URL(window.location.href);
+            if (el.value) { url.searchParams.set(el.dataset.filter, el.value); } else { url.searchParams.delete(el.dataset.filter); }
+            url.searchParams.delete('page');
+            window.location.assign(url.toString());
+        });
+    });
+</script>
+@endpush

@@ -300,11 +300,14 @@ class AdminDashboard extends Component
         $pendingTotal = $pendingService->count($filters);
 
         // Same keys the pending screen reads, so the link lands already filtered.
+        // Dates are passed only if the user changed them: the dashboard defaults
+        // to the current week, and a pending request from 137 days ago must not
+        // vanish just because the link carried this week's range.
         $pendingAllUrl = route('platform.maintenances.pending', array_filter([
             'city' => $this->city,
             'producto' => $this->producto,
-            'from' => $this->dateFrom,
-            'to' => $this->dateTo,
+            'from' => $isDefaultWeek ? null : $this->dateFrom,
+            'to' => $isDefaultWeek ? null : $this->dateTo,
         ]));
 
         return view('livewire.admin-dashboard', [
