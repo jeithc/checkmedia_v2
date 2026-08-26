@@ -126,3 +126,26 @@ test('dashboard KPI card "Mantenimientos Pend." equals the pending widget total'
     $card = substr($html, $start, 800);
     expect(preg_match('/>\s*3\s*<.*?Por solicitar/s', $card))->toBe(1);
 });
+
+test('product chips use the /admin/spaces business units with colored dots and filter by unit', function () {
+    // mismo category (AEROPUERTOS), distinto tipo -> distinta business unit
+    $estatico = AdvertisingSpace::create(['external_code' => '1', 'city' => 'PEREIRA', 'category' => 'AEROPUERTOS', 'type' => 'VALLA']);
+    $digital = AdvertisingSpace::create(['external_code' => '2', 'city' => 'BOGOTA', 'category' => 'AEROPUERTOS', 'type' => 'PANTALLA LED']);
+    foreach ([$estatico, $digital] as $sp) {
+        $wk = Audit::getCalendarYearAndWeek(\Carbon\Carbon::parse('2026-03-01'));
+        $a = Audit::create(['advertising_space_id' => $sp->id, 'user_id' => 1, 'year' => $wk['year'], 'week' => $wk['week'], 'audit_date' => '2026-03-01', 'general_status' => 'bad', 'observation' => '']);
+        AuditValue::create(['audit_id' => $a->id, 'audit_criterion_id' => $this->criterion->id, 'value' => 'bad']);
+    }
+
+    $html = $this->actingAs($this->admin)->get('/admin/maintenances/pending')->content();
+    // los 7 chips de spaces, con dot coloreado
+    expect($html)->toContain('Aeropuertos Estáticos')->toContain('Aeropuertos Digital')->toContain('Vallas Estáticas')
+        ->toContain('pf-dot')->toContain('--pf-dot-color: #0284c7');
+
+    $rows = pendingRows($this->actingAs($this->admin)->get('/admin/maintenances/pending?unit=AEROPUERTOS+DIGITAL')->content());
+    expect($rows)->toContain('BOGOTA')->not->toContain('PEREIRA');
+
+    // el enlace del dashboard (producto=category) sigue funcionando y trae ambos
+    $rows = pendingRows($this->actingAs($this->admin)->get('/admin/maintenances/pending?producto=AEROPUERTOS')->content());
+    expect($rows)->toContain('BOGOTA')->toContain('PEREIRA');
+});

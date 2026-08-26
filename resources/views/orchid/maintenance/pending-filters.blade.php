@@ -2,7 +2,7 @@
 
 @php
     $q = fn (array $over) => request()->fullUrlWithQuery($over + ['page' => null]);
-    $hasFilters = $filters['city'] || $filters['date_from'] || $filters['date_to'] || $filters['producto'];
+    $hasFilters = $filters['city'] || $filters['date_from'] || $filters['date_to'] || $filters['producto'] || $filters['business_unit'];
 @endphp
 
 {{--
@@ -13,12 +13,19 @@
     string instead, like the chips do.
 --}}
 <div class="bg-white rounded shadow-sm p-3 mb-3" data-pending-filters>
+    {{-- Same chips, colors and axis as /admin/spaces (business unit). Selecting a
+         unit clears `producto`: the coarser category filter the dashboard link sends
+         would otherwise fight with it. --}}
     <div class="product-filter-bar mb-2">
         <span class="pf-label">Producto</span>
-        <a href="{{ $q(['producto' => null]) }}" class="pf-chip {{ $filters['producto'] ? '' : 'active' }}">Todos</a>
-        @foreach($categories as $cat)
-            <a href="{{ $q(['producto' => $cat]) }}" class="pf-chip {{ $filters['producto'] === $cat ? 'active' : '' }}">
-                {{ \Illuminate\Support\Str::title(mb_strtolower($cat)) }}
+        <a href="{{ $q(['unit' => null, 'producto' => null]) }}"
+            class="pf-chip {{ ($filters['business_unit'] || $filters['producto']) ? '' : 'active' }}">Todos</a>
+        @foreach($units as $value => $unit)
+            <a href="{{ $q(['unit' => $value, 'producto' => null]) }}"
+                class="pf-chip {{ $filters['business_unit'] === $value ? 'active' : '' }}"
+                title="{{ $value }}">
+                <span class="pf-dot {{ $unit['hollow'] ? 'hollow' : '' }}" style="--pf-dot-color: {{ $unit['color'] }}"></span>
+                {{ $unit['label'] }}
             </a>
         @endforeach
     </div>

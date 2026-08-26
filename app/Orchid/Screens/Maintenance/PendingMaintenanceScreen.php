@@ -16,12 +16,15 @@ class PendingMaintenanceScreen extends Screen
         // Same query-string keys as the dashboard (city, producto, from, to) so
         // the widget's "Ver todas" link lands here already filtered.
         $filters = $filterService->parseFromRequest($request);
+        // Chips use the same business-unit axis (and colors) as /admin/spaces.
+        $filters['business_unit'] = $request->query('unit') ?: null;
 
         return [
             'audits' => $pending->query($filters)->paginate(25)->withQueryString(),
             'total' => $pending->count($filters),
             'filters' => $filters,
-            'categories' => AdvertisingSpace::query()->whereNotNull('category')->distinct()->orderBy('category')->pluck('category'),
+            'units' => collect(AdvertisingSpace::BUSINESS_UNITS)
+                ->mapWithKeys(fn ($u) => [$u => AdvertisingSpace::businessUnitMeta($u)]),
             'cities' => AdvertisingSpace::query()->whereNotNull('city')->distinct()->orderBy('city')->pluck('city'),
         ];
     }

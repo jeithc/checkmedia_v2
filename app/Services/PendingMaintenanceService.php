@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\Maintenance;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,7 +34,7 @@ class PendingMaintenanceService
     {
         $pending = $this->pendingValuesFilter();
 
-        return $this->filters->applyToAuditQuery(Audit::query(), $filters)
+        return $this->applyBusinessUnit($this->filters->applyToAuditQuery(Audit::query(), $filters), $filters)
             ->whereHas('values', $pending)
             ->with([
                 'space',
@@ -47,8 +48,24 @@ class PendingMaintenanceService
 
     public function count(array $filters): int
     {
-        return $this->filters->applyToAuditQuery(Audit::query(), $filters)
+        return $this->applyBusinessUnit($this->filters->applyToAuditQuery(Audit::query(), $filters), $filters)
             ->whereHas('values', $this->pendingValuesFilter())
             ->count();
+    }
+
+    /**
+     * Optional finer axis than `producto` (category): the business unit used by
+     * /admin/spaces chips (e.g. "AEROPUERTOS DIGITAL"). Both may be present —
+     * the dashboard link sends `producto`, the screen chips send `unit`.
+     */
+    protected function applyBusinessUnit(Builder $query, array $filters): Builder
+    {
+        $unit = $filters['business_unit'] ?? null;
+
+        if (! $unit || ! in_array($unit, AdvertisingSpace::BUSINESS_UNITS, true)) {
+            return $query;
+        }
+
+        return $query->whereHas('space', fn (Builder $q) => $q->ofBusinessUnit($unit));
     }
 }
