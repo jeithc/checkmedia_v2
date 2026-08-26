@@ -696,8 +696,15 @@ class AdvisualRequisitionService
      *
      * A batch that was never sent has nothing to annul and succeeds trivially.
      */
+    /**
+     * Why the last cancelBatchRequisition() call was refused for a healthy
+     * requisition (active PO). Null when it succeeded or failed with a real error.
+     */
+    public ?string $lastCancelRefusal = null;
+
     public function cancelBatchRequisition(RequisitionBatch $batch, User $cancelledBy): bool
     {
+        $this->lastCancelRefusal = null;
         $reqId = $batch->advisual_requisition_id;
 
         if (! $reqId) {
@@ -729,7 +736,10 @@ class AdvisualRequisitionService
             );
 
             if ($affected === 0) {
-                $this->markBatchError($batch, "La requisición {$reqId} ya tiene órdenes de compra activas en Advisual. Compras debe anularlas allá antes de cancelar el lote.");
+                // Not an error state: the requisition is healthy and purchasing
+                // has worked it. Report the reason to the caller without writing
+                // advisual_sync_error, which the list renders as a red "Error".
+                $this->lastCancelRefusal = "La requisición {$reqId} ya tiene órdenes de compra activas en Advisual. No se canceló nada; el lote sigue su proceso normal.";
 
                 return false;
             }

@@ -767,10 +767,13 @@ test('cancelBatchRequisition refuses when the conditional UPDATE affects no row 
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
     $conn->shouldReceive('affectingStatement')->once()->andReturn(0);   // WHERE no se cumplió
 
-    $result = (new AdvisualRequisitionService)->cancelBatchRequisition($batch, $this->user);
+    $service = new AdvisualRequisitionService;
+    $result = $service->cancelBatchRequisition($batch, $this->user);
 
+    // Rechazo != error: se informa al caller, NO se persiste (la lista lo pintaria rojo).
     expect($result)->toBeFalse()
-        ->and($batch->fresh()->advisual_sync_error)->toContain('órdenes de compra activas');
+        ->and($service->lastCancelRefusal)->toContain('órdenes de compra activas')
+        ->and($batch->fresh()->advisual_sync_error)->toBeNull();
 });
 
 test('cancelBatchRequisition succeeds without touching Advisual when the batch was never sent', function () {

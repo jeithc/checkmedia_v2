@@ -15,7 +15,7 @@ beforeEach(function () {
         'username' => 'admin',
         'password' => bcrypt('password'),
         'is_superuser' => true,
-        'permissions' => ['platform.index' => true, 'platform.requisition-batches' => true],
+        'permissions' => ['platform.index' => true, 'platform.requisition-batches' => true, 'requisition-batches.cancel' => true],
         'advisual_usuario_guid' => 'GUID-1',
     ]);
 
@@ -188,8 +188,8 @@ test('cancelling is refused and nothing changes locally when Advisual already ha
     $batch = makeSentBatch($this->admin, $this->space);
 
     $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
-    $mock->shouldReceive('cancelBatchRequisition')->once()->andReturnUsing(function ($b) {
-        $b->update(['advisual_sync_error' => 'ya tiene órdenes de compra']);
+    $mock->shouldReceive('cancelBatchRequisition')->once()->andReturnUsing(function ($b) use ($mock) {
+        $mock->lastCancelRefusal = 'ya tiene órdenes de compra activas';
 
         return false;
     });
@@ -318,4 +318,67 @@ test('dashboard closure KPIs ignore maintenances closed by batch cancellation', 
 
     expect($completed)->toHaveCount(1)
         ->and($completed->first()->id)->toBe($real->id);
+});
+
+// --- estado, filtro y permiso (PR lotes-estado-filtro-permiso) -----------------
+
+test('list hides cancelled batches by default and shows them with the filter', function () {
+    RequisitionBatch::create(['name' => 'Lote Activo', 'created_by' => $this->admin->id]);
+    RequisitionBatch::create(['name' => 'Lote Cancelado', 'created_by' => $this->admin->id, 'cancelled_at' => now(), 'cancelled_by' => $this->admin->id]);
+
+    $default = $this->actingAs($this->admin)->get('/admin/requisition-batches')->content();
+    expect($default)->toContain('Lote Activo')->not->toContain('Lote Cancelado');
+
+    $cancelled = $this->actingAs($this->admin)->get('/admin/requisition-batches?status=cancelled')->content();
+    expect($cancelled)->toContain('Lote Cancelado')->not->toContain('Lote Activo');
+
+    $all = $this->actingAs($this->admin)->get('/admin/requisition-batches?status=all')->content();
+    expect($all)->toContain('Lote Activo')->toContain('Lote Cancelado');
+});
+
+test('list shows a status badge per batch and no longer renders Error in the requisition column', function () {
+    RequisitionBatch::create(['name' => 'Con error', 'created_by' => $this->admin->id, 'advisual_sync_error' => 'boom']);
+    RequisitionBatch::create(['name' => 'Enviando', 'created_by' => $this->admin->id, 'sending_at' => now()]);
+    RequisitionBatch::create(['name' => 'Sin enviar', 'created_by' => $this->admin->id]);
+
+    $html = $this->actingAs($this->admin)->get('/admin/requisition-batches?status=all')->content();
+
+    expect($html)->toContain('badge bg-danger')      // Error
+        ->toContain('Enviando')
+        ->toContain('Sin enviar');
+});
+
+test('a refused cancellation informs the user and leaves the batch with no error state', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('cancelBatchRequisition')->once()->andReturnUsing(function () use ($mock) {
+        $mock->lastCancelRefusal = 'ya tiene órdenes de compra activas';
+
+        return false;
+    });
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)->post("/admin/requisition-batches/{$batch->id}/cancel");
+
+    $batch->refresh();
+    expect($batch->advisual_sync_error)->toBeNull()
+        ->and($batch->status)->toBe(RequisitionBatch::STATUS_ACTIVE)
+        ->and($batch->isCancelled())->toBeFalse();
+});
+
+test('cancelling requires the requisition-batches.cancel permission', function () {
+    $viewer = User::create([
+        'name' => 'Viewer', 'email' => 'viewer@test.com', 'username' => 'viewer', 'password' => bcrypt('x'),
+        'permissions' => ['platform.index' => true, 'platform.requisition-batches' => true],   // sin cancel
+    ]);
+    $batch = makeSentBatch($this->admin, $this->space);
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldNotReceive('cancelBatchRequisition');
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($viewer)->post("/admin/requisition-batches/{$batch->id}/cancel")->assertForbidden();
+    expect($batch->fresh()->isCancelled())->toBeFalse();
+
+    // y el boton no se muestra
+    $this->actingAs($viewer)->get("/admin/requisition-batches/{$batch->id}")->assertOk()->assertDontSee('Cancelar lote');
 });

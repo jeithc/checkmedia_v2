@@ -56,7 +56,7 @@ class RequisitionBatchDetailScreen extends Screen
                 ->type(\Orchid\Support\Color::DANGER)
                 ->method('cancel')
                 ->confirm('Se cerrarán los mantenimientos del lote y, si la requisición aún no tiene órdenes de compra, se anulará en Advisual. Esta acción no se puede deshacer.')
-                ->canSee(! $this->batch->isCancelled()),
+                ->canSee(! $this->batch->isCancelled() && request()->user()->hasAccess('requisition-batches.cancel')),
         ];
     }
 
@@ -67,6 +67,8 @@ class RequisitionBatchDetailScreen extends Screen
      */
     public function cancel(RequisitionBatch $batch, Request $request, AdvisualRequisitionService $advisual, RequisitionBatchService $service)
     {
+        abort_unless($request->user()->hasAccess('requisition-batches.cancel'), 403);
+
         if ($batch->isCancelled()) {
             Toast::info('Este lote ya estaba cancelado.');
 
@@ -83,7 +85,13 @@ class RequisitionBatchDetailScreen extends Screen
         }
 
         if (! $advisual->cancelBatchRequisition($batch, $request->user())) {
-            Toast::error('No se canceló el lote: '.($batch->fresh()->advisual_sync_error ?? 'error desconocido'));
+            // A refusal (active PO) is information, not a failure: nothing changed
+            // and the batch keeps its normal flow. Only a real Advisual error is red.
+            if ($advisual->lastCancelRefusal) {
+                Toast::info($advisual->lastCancelRefusal);
+            } else {
+                Toast::error('No se canceló el lote: '.($batch->fresh()->advisual_sync_error ?? 'error desconocido'));
+            }
 
             return redirect()->route('platform.requisition-batches.detail', $batch->id);
         }

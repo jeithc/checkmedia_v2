@@ -543,3 +543,29 @@ it('cancelBatch clears purchase-order data so the cost chart stops counting annu
         ->and($m->advisual_purchase_order_total)->toBeNull()
         ->and($m->final_cost)->toBeNull();
 });
+
+// --- RequisitionBatch::status (derivado) -----------------------------------------
+
+it('derives the batch status in priority order', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    $b = $this->service->createBatch('Lote', null, $rows, $user);
+    expect($b->status)->toBe(RequisitionBatch::STATUS_UNSENT);
+
+    $b->update(['sending_at' => now()]);
+    expect($b->fresh()->status)->toBe(RequisitionBatch::STATUS_SENDING);
+
+    $b->update(['sending_at' => null, 'advisual_requisition_id' => 1]);
+    expect($b->fresh()->status)->toBe(RequisitionBatch::STATUS_ACTIVE);
+
+    $b->maintenances()->update(['advisual_purchase_order_id' => 9]);
+    expect($b->fresh()->status)->toBe(RequisitionBatch::STATUS_WITH_PO);
+
+    $b->update(['advisual_sync_error' => 'x']);
+    expect($b->fresh()->status)->toBe(RequisitionBatch::STATUS_ERROR);   // error gana a con-OC
+
+    $b->update(['cancelled_at' => now()]);
+    expect($b->fresh()->status)->toBe(RequisitionBatch::STATUS_CANCELLED); // cancelado gana a todo
+});

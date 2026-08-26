@@ -57,6 +57,67 @@ class RequisitionBatch extends Model
         return $this->cancelled_at !== null;
     }
 
+    const STATUS_CANCELLED = 'cancelled';
+
+    const STATUS_ERROR = 'error';
+
+    const STATUS_SENDING = 'sending';
+
+    const STATUS_UNSENT = 'unsent';
+
+    const STATUS_WITH_PO = 'with_po';
+
+    const STATUS_ACTIVE = 'active';
+
+    /**
+     * Derived lifecycle state, in priority order. Not stored: every input already
+     * lives on the row, and a stored copy would drift.
+     */
+    public function getStatusAttribute(): string
+    {
+        if ($this->cancelled_at) {
+            return self::STATUS_CANCELLED;
+        }
+        if ($this->advisual_sync_error) {
+            return self::STATUS_ERROR;
+        }
+        if ($this->sending_at) {
+            return self::STATUS_SENDING;
+        }
+        if (! $this->advisual_requisition_id) {
+            return self::STATUS_UNSENT;
+        }
+        if ($this->spaces_count > 0 && $this->with_po_count === $this->spaces_count) {
+            return self::STATUS_WITH_PO;
+        }
+
+        return self::STATUS_ACTIVE;
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_CANCELLED => 'Cancelado',
+            self::STATUS_ERROR => 'Error',
+            self::STATUS_SENDING => 'Enviando',
+            self::STATUS_UNSENT => 'Sin enviar',
+            self::STATUS_WITH_PO => 'Con OC',
+            default => 'Activo',
+        };
+    }
+
+    public function getStatusColorAttribute(): string
+    {
+        return match ($this->status) {
+            self::STATUS_CANCELLED => 'secondary',
+            self::STATUS_ERROR => 'danger',
+            self::STATUS_SENDING => 'warning',
+            self::STATUS_UNSENT => 'secondary',
+            self::STATUS_WITH_PO => 'success',
+            default => 'primary',
+        };
+    }
+
     public function getTotalCostAttribute(): float
     {
         return (float) $this->maintenances()->sum('advisual_purchase_order_total');
