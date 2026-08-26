@@ -74,7 +74,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-4 py-3 border-top">{{ $audits->links() }}</div>
+        <div class="px-4 py-3 border-top">{{ $audits->links('pagination::bootstrap-5') }}</div>
     @else
         <div class="text-center text-muted py-4">
             <p class="mb-0">Sin auditorías pendientes por solicitar mantenimiento con estos filtros.</p>
