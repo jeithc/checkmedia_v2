@@ -49,6 +49,11 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('maintenance.view')
                 ->divider(),
 
+            Menu::make('Pendientes por Solicitar')
+                ->icon('bs.exclamation-circle')
+                ->route('platform.maintenances.pending')
+                ->permission('maintenance.view'),
+
             Menu::make('Lotes Preventivos')
                 ->icon('bs.list-ul')
                 ->route('platform.requisition-batches')

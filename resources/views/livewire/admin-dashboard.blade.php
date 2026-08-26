@@ -364,8 +364,13 @@
                     <span class="badge bg-warning text-dark ms-2">{{ $pendingTotal }}</span>
                 @endif
             </h6>
-            @if($pendingTotal > count($pendingRequisitions))
-                <small class="text-muted">Mostrando {{ count($pendingRequisitions) }} de {{ $pendingTotal }}</small>
+            @if($pendingTotal > 0)
+                <a href="{{ $pendingAllUrl }}" class="small text-decoration-none">
+                    @if($pendingTotal > count($pendingRequisitions))
+                        Mostrando {{ count($pendingRequisitions) }} de {{ $pendingTotal }} &middot;
+                    @endif
+                    Ver todas &rarr;
+                </a>
             @endif
         </div>
         @if(count($pendingRequisitions) > 0)
