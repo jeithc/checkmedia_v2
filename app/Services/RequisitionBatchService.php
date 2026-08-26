@@ -242,6 +242,36 @@ class RequisitionBatchService
         return null;
     }
 
+    /**
+     * Cancel a batch locally, once Advisual has been (or did not need to be) annulled.
+     *
+     * Maintenances are closed, not deleted: the whole point of a batch is the
+     * audit trail, and a closed maintenance with no purchase order never reaches
+     * the cost chart. Caller must run cancelBatchRequisition() first — this only
+     * touches the local DB.
+     */
+    public function cancelBatch(RequisitionBatch $batch, User $user, ?string $reason = null): void
+    {
+        DB::transaction(function () use ($batch, $user, $reason) {
+            $now = now();
+
+            $batch->maintenances()
+                ->where('status', '!=', Maintenance::STATUS_CLOSED)
+                ->update([
+                    'status' => Maintenance::STATUS_CLOSED,
+                    'closed_by' => $user->id,
+                    'closed_at' => $now,
+                    'closure_comment' => 'Lote cancelado'.($reason ? ': '.$reason : '.'),
+                ]);
+
+            $batch->update([
+                'cancelled_at' => $now,
+                'cancelled_by' => $user->id,
+                'advisual_sync_error' => null,
+            ]);
+        });
+    }
+
     public function createBatch(string $name, ?string $city, array $rows, User $user): RequisitionBatch
     {
         return DB::transaction(function () use ($name, $city, $rows, $user) {

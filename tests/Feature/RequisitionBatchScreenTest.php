@@ -147,3 +147,72 @@ test('re-submitting the same list redirects to the existing batch without creati
     expect(RequisitionBatch::count())->toBe(1);
     expect(Maintenance::count())->toBe(1);
 });
+
+// --- cancelar lote ----------------------------------------------------------
+
+function makeSentBatch($admin, $space, ?int $reqId = 40743): RequisitionBatch
+{
+    $batch = RequisitionBatch::create(['name' => 'Dup', 'city' => 'Bogota', 'created_by' => $admin->id, 'advisual_requisition_id' => $reqId]);
+    Maintenance::create([
+        'advertising_space_id' => $space->id, 'requested_by' => $admin->id, 'requested_at' => now(),
+        'type' => Maintenance::TYPE_PREVENTIVE, 'category' => 'preventivo', 'status' => Maintenance::STATUS_IN_PROGRESS,
+        'description' => 'x', 'requisition_batch_id' => $batch->id, 'advisual_requisition_line' => 1,
+        'advisual_requisition_id' => $reqId,
+    ]);
+
+    return $batch;
+}
+
+test('cancelling a batch annuls in Advisual and closes its maintenances', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('cancelBatchRequisition')->once()->andReturn(true);
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)
+        ->post("/admin/requisition-batches/{$batch->id}/cancel")
+        ->assertRedirect("/admin/requisition-batches/{$batch->id}");
+
+    $batch->refresh();
+    expect($batch->isCancelled())->toBeTrue()
+        ->and($batch->cancelled_by)->toBe($this->admin->id)
+        ->and($batch->maintenances()->where('status', Maintenance::STATUS_CLOSED)->count())->toBe(1);
+});
+
+test('cancelling is refused and nothing changes locally when Advisual already has purchase orders', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('cancelBatchRequisition')->once()->andReturnUsing(function ($b) {
+        $b->update(['advisual_sync_error' => 'ya tiene órdenes de compra']);
+
+        return false;
+    });
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $this->actingAs($this->admin)->post("/admin/requisition-batches/{$batch->id}/cancel");
+
+    $batch->refresh();
+    expect($batch->isCancelled())->toBeFalse()
+        ->and($batch->maintenances()->first()->status)->toBe(Maintenance::STATUS_IN_PROGRESS);
+});
+
+test('detail screen shows the cancelled state and hides the cancel button', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+    $batch->update(['cancelled_at' => now(), 'cancelled_by' => $this->admin->id]);
+
+    $response = $this->actingAs($this->admin)->get("/admin/requisition-batches/{$batch->id}");
+
+    $response->assertOk()
+        ->assertSee('Lote cancelado')
+        ->assertDontSee('Cancelar lote');
+});
+
+test('detail screen shows the cancel button on an active batch', function () {
+    $batch = makeSentBatch($this->admin, $this->space);
+
+    $this->actingAs($this->admin)->get("/admin/requisition-batches/{$batch->id}")
+        ->assertOk()
+        ->assertSee('Cancelar lote');
+});

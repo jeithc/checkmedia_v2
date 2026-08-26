@@ -704,3 +704,72 @@ test('createBatchRequisition fails without touching Advisual when the creator ha
             ->and($maintenance->advisual_sync_error)->toContain('Advisual');
     }
 });
+
+// --- cancelBatchRequisition ---------------------------------------------------
+// Cancelar un lote solo si compras no lo ha trabajado (sin OC). Se anula en
+// Advisual con el mismo patrón que usa compras a mano (Estado=3 + fecha + usuario),
+// nunca con DELETE, para dejar rastro y que el sync lo reconozca como anulada.
+
+test('cancelBatchRequisition annuls in Advisual when the requisition has no purchase orders', function () {
+    $this->user->update(['username' => 'jheredia']);
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1, '703' => 2]);
+    $batch->update(['advisual_requisition_id' => 90001]);
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql, $b) => str_contains($sql, 'FROM OrdenCompra') && $b === [90001])
+        ->andReturn((object) ['c' => 0]);
+
+    $annulled = null;
+    $conn->shouldReceive('statement')
+        ->once()
+        ->withArgs(function ($sql, $bindings) use (&$annulled) {
+            if (str_contains($sql, 'UPDATE Requisicion') && str_contains($sql, 'RequisicionEstado = 3')) {
+                $annulled = $bindings;
+
+                return true;
+            }
+
+            return false;
+        })
+        ->andReturn(true);
+
+    $result = (new AdvisualRequisitionService)->cancelBatchRequisition($batch, $this->user);
+
+    expect($result)->toBeTrue()
+        ->and($annulled)->not->toBeNull()
+        ->and($annulled)->toContain(90001)
+        ->and($annulled)->toContain('jheredia');
+});
+
+test('cancelBatchRequisition refuses when the requisition already has purchase orders', function () {
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1]);
+    $batch->update(['advisual_requisition_id' => 90002]);
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+
+    $conn->shouldReceive('selectOne')
+        ->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'FROM OrdenCompra'))
+        ->andReturn((object) ['c' => 3]);
+
+    $conn->shouldNotReceive('statement');   // nada se anula
+
+    $result = (new AdvisualRequisitionService)->cancelBatchRequisition($batch, $this->user);
+
+    expect($result)->toBeFalse()
+        ->and($batch->fresh()->advisual_sync_error)->toContain('órdenes de compra');
+});
+
+test('cancelBatchRequisition succeeds without touching Advisual when the batch was never sent', function () {
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1]);
+    expect($batch->advisual_requisition_id)->toBeNull();
+
+    DB::shouldReceive('connection')->with('advisual')->never();
+
+    expect((new AdvisualRequisitionService)->cancelBatchRequisition($batch, $this->user))->toBeTrue();
+});

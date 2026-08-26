@@ -398,3 +398,35 @@ it('does not flag an identical batch once the window has passed', function () {
 
     expect($this->service->findRecentDuplicate($rows, $user))->toBeNull();
 });
+
+// --- cancelBatch (solo BD local; Advisual lo anula AdvisualRequisitionService) --
+
+it('cancels a batch by closing its maintenances and stamping who cancelled it', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('11220');
+    $batch = $this->service->createBatch('Lote', null,
+        $this->service->parseCsv("703,preventivo,A\n11220,preventivo,B"), $user);
+
+    $this->service->cancelBatch($batch, $user, 'duplicado por reenvío');
+    $batch->refresh();
+
+    expect($batch->isCancelled())->toBeTrue()
+        ->and($batch->cancelled_by)->toBe($user->id)
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->count())->toBe(2)   // no se borran
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->where('status', Maintenance::STATUS_CLOSED)->count())->toBe(2)
+        ->and(Maintenance::where('requisition_batch_id', $batch->id)->first()->closure_comment)->toContain('duplicado por reenvío');
+});
+
+it('leaves already-closed maintenances untouched when cancelling', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+
+    $m = $batch->maintenances()->first();
+    $m->update(['status' => Maintenance::STATUS_CLOSED, 'closure_comment' => 'cerrado a mano']);
+
+    $this->service->cancelBatch($batch, $user);
+
+    expect($m->fresh()->closure_comment)->toBe('cerrado a mano');
+});

@@ -8,7 +8,12 @@
                     <span class="fs-5 fw-bold text-dark">#{{ $batch->id }}</span>
                 </div>
                 <div>
-                    <h5 class="mb-0 text-dark">{{ $batch->name }}</h5>
+                    <h5 class="mb-0 text-dark">
+                        {{ $batch->name }}
+                        @if($batch->isCancelled())
+                            <span class="badge bg-danger ms-2">Cancelado</span>
+                        @endif
+                    </h5>
                     <small class="text-muted d-block">
                         {{ $batch->city ?: 'Sin ciudad' }} &middot;
                         Creado por {{ $batch->createdBy?->name ?? 'N/A' }} el {{ $batch->created_at->format('d/m/Y H:i') }}
@@ -31,6 +36,18 @@
             </div>
         </div>
     </div>
+
+    @if($batch->isCancelled())
+        <div class="col-12 mb-3">
+            <div class="alert alert-warning mb-0">
+                <strong>Lote cancelado</strong> por {{ $batch->cancelledBy?->name ?? 'N/A' }}
+                el {{ $batch->cancelled_at->format('d/m/Y H:i') }}.
+                @if($batch->advisual_requisition_id)
+                    La requisición {{ $batch->advisual_requisition_id }} quedó anulada en Advisual.
+                @endif
+            </div>
+        </div>
+    @endif
 
     @if($batch->advisual_sync_error)
         <div class="col-12 mb-3">

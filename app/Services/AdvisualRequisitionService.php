@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Maintenance;
 use App\Models\RequisitionBatch;
+use App\Models\User;
 use App\Services\Advisual\AdvisualConnector;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -570,6 +571,62 @@ class AdvisualRequisitionService
     /**
      * Best-effort rollback of a Requisicion when the detail insert fails.
      */
+    /**
+     * Annul a batch's requisition in Advisual, but only if purchasing has not
+     * worked it yet (no purchase orders). Once an OC exists, purchasing owns the
+     * cancellation and must do it on their side.
+     *
+     * Mirrors what purchasing does by hand (1,200+ real cases follow this exact
+     * pattern): RequisicionEstado = 3 plus annulment date and user. Never a
+     * DELETE — the row stays as an audit trail and the PO sync already treats
+     * this state as cancelled and stops touching the batch.
+     *
+     * A batch that was never sent has nothing to annul and succeeds trivially.
+     */
+    public function cancelBatchRequisition(RequisitionBatch $batch, User $cancelledBy): bool
+    {
+        $reqId = $batch->advisual_requisition_id;
+
+        if (! $reqId) {
+            return true;
+        }
+
+        try {
+            $row = $this->selectAdvisualOne(
+                'SELECT COUNT(*) AS c FROM OrdenCompra
+                 WHERE OrdenCompraReqCodigo = ? AND ISNULL(OrdenCompraItemDel, 0) = 0',
+                [(int) $reqId]
+            );
+
+            if ((int) ($row->c ?? 0) > 0) {
+                $this->markBatchError($batch, "La requisición {$reqId} ya tiene órdenes de compra en Advisual. Compras debe anularla allá antes de cancelar el lote.");
+
+                return false;
+            }
+
+            $this->executeAdvisualWrite(
+                'UPDATE Requisicion
+                 SET RequisicionEstado = 3,
+                     RequisicionAnulacionFecha = GETDATE(),
+                     RequisicionAnulacionUsuario = ?
+                 WHERE RequisicionCodigo = ?',
+                [$cancelledBy->username ?? 'checkmedia', (int) $reqId]
+            );
+
+            Log::info('Advisual batch requisition annulled', [
+                'batch_id' => $batch->id,
+                'requisition_id' => $reqId,
+                'cancelled_by' => $cancelledBy->username,
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->markBatchError($batch, 'No se pudo anular la requisición en Advisual: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
     private function deleteRequisicion(int $requisicionCodigo): void
     {
         $this->executeAdvisualWrite(
