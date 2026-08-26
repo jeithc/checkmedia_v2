@@ -4,7 +4,6 @@ namespace App\Orchid\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Orchid\Filters\Filter;
-use Orchid\Screen\Fields\Select;
 
 class RequisitionBatchStatusFilter extends Filter
 {
@@ -48,24 +47,26 @@ class RequisitionBatchStatusFilter extends Filter
         };
     }
 
+    /**
+     * Rendered as chips by orchid.requisition-batch.status-filter, not by Orchid.
+     */
     public function display(): array
     {
-        return [
-            Select::make('status')
-                ->options([
-                    self::ACTIVE => 'Activos',
-                    self::CANCELLED => 'Cancelados',
-                    self::ALL => 'Todos',
-                ])
-                ->value($this->value())
-                ->title('Estado'),
-        ];
+        return [];
+    }
+
+    /**
+     * Same resolution as value(), usable from a Blade view without an instance.
+     */
+    public static function current(): string
+    {
+        $value = (string) request()->get('status', self::DEFAULT);
+
+        return in_array($value, [self::ACTIVE, self::CANCELLED, self::ALL], true) ? $value : self::DEFAULT;
     }
 
     public function value(): string
     {
-        $value = (string) $this->request->get('status', self::DEFAULT);
-
-        return in_array($value, [self::ACTIVE, self::CANCELLED, self::ALL], true) ? $value : self::DEFAULT;
+        return self::current();
     }
 }

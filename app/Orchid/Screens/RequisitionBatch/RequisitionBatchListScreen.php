@@ -7,6 +7,7 @@ use App\Orchid\Layouts\RequisitionBatch\RequisitionBatchFiltersLayout;
 use App\Orchid\Layouts\RequisitionBatch\RequisitionBatchListLayout;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
+use Orchid\Support\Facades\Layout;
 
 class RequisitionBatchListScreen extends Screen
 {
@@ -49,7 +50,7 @@ class RequisitionBatchListScreen extends Screen
     public function layout(): iterable
     {
         return [
-            RequisitionBatchFiltersLayout::class,
+            Layout::view('orchid.requisition-batch.status-filter'),
             RequisitionBatchListLayout::class,
         ];
     }
