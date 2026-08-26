@@ -270,6 +270,23 @@ class RequisitionBatchService
                     'closure_comment' => Maintenance::CLOSURE_CANCELLED_PREFIX.' Lote cancelado'.($reason ? ': '.$reason : '.'),
                 ]);
 
+            // Cancelling is only allowed once no ACTIVE purchase order remains, so
+            // any PO data synced earlier belongs to an order purchasing has since
+            // annulled. Clear it, or the batch totals and the executed-cost chart
+            // keep reporting money for work that was never done.
+            $batch->maintenances()->update([
+                'advisual_purchase_order_id' => null,
+                'advisual_purchase_order_line_id' => null,
+                'advisual_purchase_order_description' => null,
+                'advisual_purchase_order_quantity' => null,
+                'advisual_purchase_order_unit_price' => null,
+                'advisual_purchase_order_total' => null,
+                'advisual_purchase_order_created_at' => null,
+                'advisual_purchase_order_committed_at' => null,
+                'advisual_purchase_order_executed_at' => null,
+                'final_cost' => null,
+            ]);
+
             $batch->update([
                 'cancelled_at' => $now,
                 'cancelled_by' => $user->id,
@@ -300,6 +317,14 @@ class RequisitionBatchService
     public function createBatchUnlessDuplicate(string $name, ?string $city, array $rows, User $user): array
     {
         return DB::transaction(function () use ($name, $city, $rows, $user) {
+            // Serialise equivalent submissions on the user's row. Without this,
+            // two posts that both pass the read-only duplicate check create two
+            // batches and each claims its OWN row, so both reach Advisual. The
+            // per-batch claim (claimSend) covers re-posts of an existing batch and
+            // cancel-vs-send; this lock covers two brand-new batches. No-op on
+            // SQLite (dev/tests), a real row lock on MySQL (prod).
+            User::query()->whereKey($user->id)->lockForUpdate()->first();
+
             if ($existing = $this->findRecentDuplicate($rows, $user)) {
                 return [$existing, false];
             }

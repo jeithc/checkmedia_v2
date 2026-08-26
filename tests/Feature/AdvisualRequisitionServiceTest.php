@@ -457,7 +457,7 @@ test('createBatchRequisition inserts one Requisicion header and N RequisicionPro
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
     // ronda 4: antes de insertar se busca el token del lote en Advisual (nada previo)
     $conn->shouldReceive('selectOne')->once()
-        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, RequisicionObservacion)'))
+        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, r.RequisicionObservacion)'))
         ->andReturn(null);
 
     $conn->shouldReceive('selectOne')
@@ -526,7 +526,7 @@ test('createBatchRequisition sends each line with its own RequiProdEspacioCodigo
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
     // ronda 4: antes de insertar se busca el token del lote en Advisual (nada previo)
     $conn->shouldReceive('selectOne')->once()
-        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, RequisicionObservacion)'))
+        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, r.RequisicionObservacion)'))
         ->andReturn(null);
 
     $conn->shouldReceive('selectOne')
@@ -600,7 +600,7 @@ test('createBatchRequisition uses advisual_requisition_line as RequiProdCodigo, 
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
     // ronda 4: antes de insertar se busca el token del lote en Advisual (nada previo)
     $conn->shouldReceive('selectOne')->once()
-        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, RequisicionObservacion)'))
+        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, r.RequisicionObservacion)'))
         ->andReturn(null);
 
     $conn->shouldReceive('selectOne')
@@ -650,7 +650,7 @@ test('createBatchRequisition stores advisual_requisition_id on the batch and on 
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
     // ronda 4: antes de insertar se busca el token del lote en Advisual (nada previo)
     $conn->shouldReceive('selectOne')->once()
-        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, RequisicionObservacion)'))
+        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, r.RequisicionObservacion)'))
         ->andReturn(null);
 
     $conn->shouldReceive('selectOne')
@@ -792,8 +792,8 @@ test('createBatchRequisition adopts a requisition Advisual already holds for the
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
     $conn->shouldReceive('selectOne')
         ->once()
-        ->withArgs(fn ($sql, $b) => str_contains($sql, 'CHARINDEX(?, RequisicionObservacion)') && $b === ['[CM-BATCH:'.$batch->id.']'])
-        ->andReturn((object) ['RequisicionCodigo' => 40799]);
+        ->withArgs(fn ($sql, $b) => str_contains($sql, 'CHARINDEX(?, r.RequisicionObservacion)') && $b === ['[CM-BATCH:'.$batch->id.']'])
+        ->andReturn((object) ['RequisicionCodigo' => 40799, 'lineas' => 2]);   // completa: 2 de 2
     $conn->shouldNotReceive('statement');   // ningun INSERT
 
     $result = (new AdvisualRequisitionService)->createBatchRequisition($batch);
@@ -808,7 +808,7 @@ test('createBatchRequisition writes the batch token into the Advisual observatio
 
     $conn = Mockery::mock();
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
-    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, RequisicionObservacion)'))->andReturn(null);
+    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, r.RequisicionObservacion)'))->andReturn(null);
     $headerBindings = null;
     $conn->shouldReceive('selectOne')->once()->withArgs(function ($sql, $b) use (&$headerBindings) {
         if (str_contains($sql, 'INSERT INTO Requisicion')) {
@@ -835,7 +835,7 @@ test('a batch cancelled while its send was in flight ends up annulled, not in pr
 
     $conn = Mockery::mock();
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
-    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, RequisicionObservacion)'))->andReturn(null);
+    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, r.RequisicionObservacion)'))->andReturn(null);
     $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO Requisicion'))->andReturn((object) ['id' => 88020]);
     $conn->shouldReceive('selectOne')->withArgs(fn ($sql) => str_contains($sql, 'FROM Espacio'))->andReturn((object) ['EspacioLocacionCodigo' => 1, 'ProductoCodigo' => 2]);
     $conn->shouldReceive('selectOne')->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))->andReturn((object) ['UnidadCodigo' => 13]);
@@ -846,4 +846,56 @@ test('a batch cancelled while its send was in flight ends up annulled, not in pr
     (new AdvisualRequisitionService)->createBatchRequisition($batch);
 
     expect($batch->fresh()->maintenances()->where('status', Maintenance::STATUS_IN_PROGRESS)->count())->toBe(0);
+});
+
+// --- ronda 5 ---------------------------------------------------------------------
+
+test('createBatchRequisition does not adopt a partial requisition; it annuls it and inserts a complete one', function () {
+    // Worker murio tras la cabecera y solo 1 de 2 lineas.
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1, '703' => 2]);
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+    $conn->shouldReceive('selectOne')->once()
+        ->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX(?, r.RequisicionObservacion)'))
+        ->andReturn((object) ['RequisicionCodigo' => 40800, 'lineas' => 1]);   // parcial: 1 de 2
+    $annulled = false;
+    $conn->shouldReceive('statement')->withArgs(function ($sql, $b) use (&$annulled) {
+        if (str_contains($sql, 'RequisicionEstado = 3') && $b[1] === 40800) {
+            $annulled = true;
+        }
+
+        return true;
+    })->andReturn(true);
+    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO Requisicion'))->andReturn((object) ['id' => 40801]);
+    $conn->shouldReceive('selectOne')->withArgs(fn ($sql) => str_contains($sql, 'FROM Espacio'))->andReturn((object) ['EspacioLocacionCodigo' => 1, 'ProductoCodigo' => 2]);
+    $conn->shouldReceive('selectOne')->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))->andReturn((object) ['UnidadCodigo' => 13]);
+
+    $result = (new AdvisualRequisitionService)->createBatchRequisition($batch);
+
+    expect($result)->toBeTrue()
+        ->and($annulled)->toBeTrue()                                          // la parcial se anulo
+        ->and($batch->fresh()->advisual_requisition_id)->toBe(40801);         // se inserto una nueva completa
+});
+
+test('a batch cancelled mid-send is un-cancelled when the annulment is refused', function () {
+    // Claim vencido + compras adjunto una OC antes de que el sender terminara:
+    // la anulacion falla y el estado local "cancelado" seria mentira.
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1]);
+    $batch->update(['cancelled_at' => now(), 'cancelled_by' => $this->user->id]);
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'CHARINDEX'))->andReturn(null);
+    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'INSERT INTO Requisicion'))->andReturn((object) ['id' => 88030]);
+    $conn->shouldReceive('selectOne')->withArgs(fn ($sql) => str_contains($sql, 'FROM Espacio'))->andReturn((object) ['EspacioLocacionCodigo' => 1, 'ProductoCodigo' => 2]);
+    $conn->shouldReceive('selectOne')->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))->andReturn((object) ['UnidadCodigo' => 13]);
+    $conn->shouldReceive('statement')->andReturn(true);
+    $conn->shouldReceive('affectingStatement')->once()->andReturn(0);   // anulacion RECHAZADA (OC activa)
+
+    (new AdvisualRequisitionService)->createBatchRequisition($batch);
+
+    expect($batch->fresh()->isCancelled())->toBeFalse()                  // se des-cancelo
+        ->and($batch->fresh()->advisual_requisition_id)->toBe(88030)
+        ->and($batch->fresh()->maintenances()->first()->status)->toBe(Maintenance::STATUS_IN_PROGRESS);
 });

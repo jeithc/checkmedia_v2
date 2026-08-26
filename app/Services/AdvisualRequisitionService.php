@@ -230,7 +230,7 @@ class AdvisualRequisitionService
             // in Advisual but died before persisting the id locally, the batch
             // token already exists there. Adopt that requisition instead of
             // creating a second one.
-            if ($existingId = $this->findBatchRequisitionInAdvisual($batch)) {
+            if ($existingId = $this->findBatchRequisitionInAdvisual($batch, $maintenances->count())) {
                 Log::warning('Advisual batch requisition already existed; adopting it', [
                     'batch_id' => $batch->id,
                     'requisition_id' => $existingId,
@@ -585,20 +585,45 @@ class AdvisualRequisitionService
      * Find a live requisition Advisual already holds for this batch (by token).
      * Annulled ones are ignored: they were cancelled on purpose.
      */
-    private function findBatchRequisitionInAdvisual(RequisitionBatch $batch): ?int
+    private function findBatchRequisitionInAdvisual(RequisitionBatch $batch, int $expectedLines): ?int
     {
         // CHARINDEX, not LIKE: the token's brackets are a character class in a
         // LIKE pattern ('[CM-BATCH:5]' matched 26k rows on the real server).
+        // Only adopt a header whose detail rows are COMPLETE: a worker that died
+        // mid-insert leaves a partial requisition, and adopting it would mean
+        // some spaces never reach purchasing.
         $row = $this->selectAdvisualOne(
-            'SELECT TOP 1 RequisicionCodigo
-             FROM Requisicion
-             WHERE CHARINDEX(?, RequisicionObservacion) > 0
-               AND (RequisicionAnulacionUsuario IS NULL OR LTRIM(RTRIM(RequisicionAnulacionUsuario)) = \'\')
-             ORDER BY RequisicionCodigo DESC',
+            'SELECT TOP 1 r.RequisicionCodigo,
+                    (SELECT COUNT(*) FROM RequisicionProductiva p WHERE p.RequisicionCodigo = r.RequisicionCodigo) AS lineas
+             FROM Requisicion r
+             WHERE CHARINDEX(?, r.RequisicionObservacion) > 0
+               AND (r.RequisicionAnulacionUsuario IS NULL OR LTRIM(RTRIM(r.RequisicionAnulacionUsuario)) = \'\')
+             ORDER BY r.RequisicionCodigo DESC',
             [$this->batchToken($batch)]
         );
 
-        return $row ? (int) $row->RequisicionCodigo : null;
+        if (! $row) {
+            return null;
+        }
+
+        if ((int) $row->lineas !== $expectedLines) {
+            // Partial: do not adopt. Annul it so the fresh insert below is the only
+            // live requisition for this batch, then fall through to insert.
+            Log::warning('Advisual batch requisition found but incomplete; annulling and re-inserting', [
+                'batch_id' => $batch->id,
+                'requisition_id' => $row->RequisicionCodigo,
+                'lines_found' => (int) $row->lineas,
+                'lines_expected' => $expectedLines,
+            ]);
+            $this->executeAdvisualWrite(
+                'UPDATE Requisicion SET RequisicionEstado = 3, RequisicionAnulacionFecha = GETDATE(), RequisicionAnulacionUsuario = ? WHERE RequisicionCodigo = ?',
+                ['checkmedia', (int) $row->RequisicionCodigo]
+            );
+
+            return null;
+        }
+
+        return (int) $row->RequisicionCodigo;
     }
 
     /**
@@ -608,35 +633,55 @@ class AdvisualRequisitionService
      */
     private function persistBatchSuccess(RequisitionBatch $batch, $maintenances, int $reqId, $now): void
     {
-        $batch->update([
-            'advisual_requisition_id' => $reqId,
-            'advisual_synced_at' => $now,
-            'advisual_sync_error' => null,
-            'sending_at' => null,
-        ]);
-
-        if ($batch->fresh()->isCancelled()) {
-            Log::warning('Batch was cancelled during send; annulling the requisition just created', [
-                'batch_id' => $batch->id,
-                'requisition_id' => $reqId,
+        // Batch + N maintenances in ONE local transaction: if the process died
+        // between them the batch would say "sent" while its maintenances had no
+        // requisition id, and the PO sync (which keys on the maintenance id)
+        // would never see that work again.
+        // Via the model's connection, not the DB facade: tests mock DB::connection
+        // for the 'advisual' link and a facade-level transaction would hit that mock.
+        $batch->getConnection()->transaction(function () use ($batch, $maintenances, $reqId, $now) {
+            $batch->update([
+                'advisual_requisition_id' => $reqId,
+                'advisual_synced_at' => $now,
+                'advisual_sync_error' => null,
+                'sending_at' => null,
             ]);
-            $this->cancelBatchRequisition($batch->fresh(), $batch->cancelledBy ?? $batch->createdBy);
 
             foreach ($maintenances as $maintenance) {
-                $maintenance->update(['advisual_requisition_id' => $reqId, 'advisual_synced_at' => $now]);
+                $maintenance->update([
+                    'advisual_requisition_id' => $reqId,
+                    'advisual_synced_at' => $now,
+                    'advisual_sync_error' => null,
+                    'status' => Maintenance::STATUS_IN_PROGRESS,
+                ]);
             }
+        });
+
+        if (! $batch->fresh()->isCancelled()) {
+            return;
+        }
+
+        // Cancelled locally while this send was in flight: the requisition we
+        // just created must not stay live.
+        Log::warning('Batch was cancelled during send; annulling the requisition just created', [
+            'batch_id' => $batch->id,
+            'requisition_id' => $reqId,
+        ]);
+
+        if ($this->cancelBatchRequisition($batch->fresh(), $batch->cancelledBy ?? $batch->createdBy)) {
+            $batch->maintenances()->update(['status' => Maintenance::STATUS_CLOSED]);
 
             return;
         }
 
-        foreach ($maintenances as $maintenance) {
-            $maintenance->update([
-                'advisual_requisition_id' => $reqId,
-                'advisual_synced_at' => $now,
-                'advisual_sync_error' => null,
-                'status' => Maintenance::STATUS_IN_PROGRESS,
-            ]);
-        }
+        // Annulment refused (purchasing already attached an active PO): the
+        // external work is real, so the local "cancelled" state is the lie.
+        // Un-cancel and leave the batch in progress with the error visible.
+        Log::error('Could not annul requisition created during cancellation; reverting local cancel', [
+            'batch_id' => $batch->id,
+            'requisition_id' => $reqId,
+        ]);
+        $batch->update(['cancelled_at' => null, 'cancelled_by' => null]);
     }
 
     /**

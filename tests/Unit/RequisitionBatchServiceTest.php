@@ -527,3 +527,19 @@ it('releaseSend allows a retry after a failed send', function () {
 
     expect($this->service->claimSend($batch->fresh()))->toBeTrue();
 });
+
+it('cancelBatch clears purchase-order data so the cost chart stops counting annulled orders', function () {
+    // Review ronda 5: cancelar solo se permite sin OC activa, asi que cualquier
+    // dato de OC sincronizado antes es de una orden que compras ya anulo.
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $batch = $this->service->createBatch('Lote', null, $this->service->parseCsv('703,preventivo,A'), $user);
+    $batch->maintenances()->update(['advisual_purchase_order_id' => 198146, 'advisual_purchase_order_total' => 750000, 'final_cost' => 750000]);
+
+    $this->service->cancelBatch($batch, $user);
+    $m = $batch->maintenances()->first();
+
+    expect($m->advisual_purchase_order_id)->toBeNull()
+        ->and($m->advisual_purchase_order_total)->toBeNull()
+        ->and($m->final_cost)->toBeNull();
+});
