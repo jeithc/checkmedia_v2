@@ -382,3 +382,18 @@ test('cancelling requires the requisition-batches.cancel permission', function (
     // y el boton no se muestra
     $this->actingAs($viewer)->get("/admin/requisition-batches/{$batch->id}")->assertOk()->assertDontSee('Cancelar lote');
 });
+
+test('status filter renders as chips with the current one active', function () {
+    $html = $this->actingAs($this->admin)->get('/admin/requisition-batches')->content();
+
+    expect($html)->toContain('pf-chip')
+        ->toContain('Activos')->toContain('Cancelados')->toContain('Todos')
+        ->not->toContain('<select');   // ya no es el Select de Orchid
+
+    // default -> Activos marcado
+    expect(preg_match('/class="pf-chip active">\s*(<span[^>]*><\/span>)?\s*Activos/s', $html))->toBe(1);
+
+    // ?status=cancelled -> Cancelados marcado
+    $html2 = $this->actingAs($this->admin)->get('/admin/requisition-batches?status=cancelled')->content();
+    expect(preg_match('/class="pf-chip active">\s*(<span[^>]*><\/span>)?\s*Cancelados/s', $html2))->toBe(1);
+});
