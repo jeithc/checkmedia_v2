@@ -397,3 +397,17 @@ test('status filter renders as chips with the current one active', function () {
     $html2 = $this->actingAs($this->admin)->get('/admin/requisition-batches?status=cancelled')->content();
     expect(preg_match('/class="pf-chip active">\s*(<span[^>]*><\/span>)?\s*Cancelados/s', $html2))->toBe(1);
 });
+
+test('list page loads batch counts with withCount instead of one query per row', function () {
+    foreach (range(1, 5) as $_) {
+        makeSentBatch($this->admin, $this->space);
+    }
+
+    DB::enableQueryLog();
+    $this->actingAs($this->admin)->get('/admin/requisition-batches')->assertOk();
+    $lazyCounts = collect(DB::getQueryLog())->filter(fn ($q) => str_contains($q['query'], 'select count(*) as aggregate from "maintenances"'));
+    DB::disableQueryLog();
+
+    // spaces_count + with_po_count come from withCount(): 0 lazy count queries per rendered row
+    expect($lazyCounts->count())->toBe(0);
+});

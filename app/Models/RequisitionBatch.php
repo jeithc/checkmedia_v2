@@ -123,13 +123,17 @@ class RequisitionBatch extends Model
         return (float) $this->maintenances()->sum('advisual_purchase_order_total');
     }
 
+    /**
+     * Both counts prefer the value loaded by withCount() on the list query;
+     * the lazy query is the fallback for single-model use.
+     */
     public function getSpacesCountAttribute(): int
     {
-        return $this->maintenances()->count();
+        return (int) ($this->attributes['spaces_count'] ?? $this->maintenances()->count());
     }
 
     public function getWithPoCountAttribute(): int
     {
-        return $this->maintenances()->whereNotNull('advisual_purchase_order_id')->count();
+        return (int) ($this->attributes['with_po_count'] ?? $this->maintenances()->whereNotNull('advisual_purchase_order_id')->count());
     }
 }

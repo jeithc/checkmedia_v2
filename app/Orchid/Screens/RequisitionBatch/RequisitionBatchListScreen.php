@@ -17,6 +17,10 @@ class RequisitionBatchListScreen extends Screen
             // filters(RequisitionBatchFiltersLayout::class) runs the status filter,
             // whose default hides cancelled batches even with no query string.
             'batches' => RequisitionBatch::with('createdBy')
+                ->withCount([
+                    'maintenances as spaces_count',
+                    'maintenances as with_po_count' => fn ($q) => $q->whereNotNull('advisual_purchase_order_id'),
+                ])
                 ->filters(RequisitionBatchFiltersLayout::class)
                 ->orderBy('created_at', 'desc')
                 ->paginate(15),

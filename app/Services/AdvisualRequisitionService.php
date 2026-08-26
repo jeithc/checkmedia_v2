@@ -736,6 +736,14 @@ class AdvisualRequisitionService
             );
 
             if ($affected === 0) {
+                // Zero rows also happens when the requisition no longer exists
+                // in Advisual: that IS a sync inconsistency, not a refusal.
+                if (! $this->selectAdvisualOne('SELECT 1 AS x FROM Requisicion WHERE RequisicionCodigo = ?', [(int) $reqId])) {
+                    $this->markBatchError($batch, "La requisición {$reqId} no existe en Advisual.");
+
+                    return false;
+                }
+
                 // Not an error state: the requisition is healthy and purchasing
                 // has worked it. Report the reason to the caller without writing
                 // advisual_sync_error, which the list renders as a red "Error".

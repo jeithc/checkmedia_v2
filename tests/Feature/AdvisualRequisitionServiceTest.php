@@ -766,6 +766,7 @@ test('cancelBatchRequisition refuses when the conditional UPDATE affects no row 
     $conn = Mockery::mock();
     DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
     $conn->shouldReceive('affectingStatement')->once()->andReturn(0);   // WHERE no se cumplió
+    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'FROM Requisicion WHERE RequisicionCodigo'))->andReturn((object) ['x' => 1]);
 
     $service = new AdvisualRequisitionService;
     $result = $service->cancelBatchRequisition($batch, $this->user);
@@ -774,6 +775,22 @@ test('cancelBatchRequisition refuses when the conditional UPDATE affects no row 
     expect($result)->toBeFalse()
         ->and($service->lastCancelRefusal)->toContain('órdenes de compra activas')
         ->and($batch->fresh()->advisual_sync_error)->toBeNull();
+});
+
+test('cancelBatchRequisition reports a missing requisition as a sync error, not as an active-PO refusal', function () {
+    [$batch] = makeRequisitionBatch($this->user, ['43' => 1]);
+    $batch->update(['advisual_requisition_id' => 90003]);
+
+    $conn = Mockery::mock();
+    DB::shouldReceive('connection')->with('advisual')->andReturn($conn);
+    $conn->shouldReceive('affectingStatement')->once()->andReturn(0);
+    $conn->shouldReceive('selectOne')->once()->withArgs(fn ($sql) => str_contains($sql, 'FROM Requisicion WHERE RequisicionCodigo'))->andReturn(null);
+
+    $service = new AdvisualRequisitionService;
+
+    expect($service->cancelBatchRequisition($batch, $this->user))->toBeFalse()
+        ->and($service->lastCancelRefusal)->toBeNull()
+        ->and($batch->fresh()->advisual_sync_error)->toContain('no existe en Advisual');
 });
 
 test('cancelBatchRequisition succeeds without touching Advisual when the batch was never sent', function () {
@@ -895,6 +912,7 @@ test('a batch cancelled mid-send is un-cancelled when the annulment is refused',
     $conn->shouldReceive('selectOne')->withArgs(fn ($sql) => str_contains($sql, 'FROM Unidadmedida'))->andReturn((object) ['UnidadCodigo' => 13]);
     $conn->shouldReceive('statement')->andReturn(true);
     $conn->shouldReceive('affectingStatement')->once()->andReturn(0);   // anulacion RECHAZADA (OC activa)
+    $conn->shouldReceive('selectOne')->withArgs(fn ($sql) => str_contains($sql, 'FROM Requisicion WHERE RequisicionCodigo'))->andReturn((object) ['x' => 1]);
 
     (new AdvisualRequisitionService)->createBatchRequisition($batch);
 
