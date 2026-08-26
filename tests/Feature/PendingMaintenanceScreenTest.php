@@ -1,0 +1,182 @@
+<?php
+
+use App\Models\AdvertisingSpace;
+use App\Models\Audit;
+use App\Models\AuditCriterion;
+use App\Models\AuditValue;
+use App\Models\Maintenance;
+use App\Models\User;
+use App\Services\PendingMaintenanceService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->admin = User::create([
+        'name' => 'Admin', 'email' => 'admin@test.com', 'username' => 'admin', 'password' => bcrypt('x'),
+        'permissions' => ['platform.index' => true, 'maintenance.view' => true, 'audit.can_audit' => true],
+    ]);
+    $this->criterion = AuditCriterion::create(['name' => 'Estructural', 'key' => 'structural', 'order_index' => 1, 'is_active' => true]);
+});
+
+function pendingAudit(AuditCriterion $criterion, string $code, string $city, string $category, string $date = '2026-03-01'): Audit
+{
+    $space = AdvertisingSpace::create(['external_code' => $code, 'city' => $city, 'category' => $category, 'type' => 'Valla']);
+    $wk = Audit::getCalendarYearAndWeek(\Carbon\Carbon::parse($date));
+    $audit = Audit::create([
+        'advertising_space_id' => $space->id, 'user_id' => 1, 'year' => $wk['year'], 'week' => $wk['week'],
+        'audit_date' => $date, 'general_status' => 'bad', 'observation' => '',
+    ]);
+    AuditValue::create(['audit_id' => $audit->id, 'audit_criterion_id' => $criterion->id, 'value' => 'bad']);
+
+    return $audit;
+}
+
+function pendingRows(string $html): string
+{
+    // The city <select> lists every city, so assert on the results table only.
+    preg_match('/<tbody>(.*?)<\/tbody>/s', $html, $m);
+
+    return $m[1] ?? '';
+}
+
+test('service counts audits with a bad criterion and no open maintenance, and nothing else', function () {
+    $pending = pendingAudit($this->criterion, '100', 'PEREIRA', 'AEROPUERTOS');
+    $covered = pendingAudit($this->criterion, '200', 'PEREIRA', 'AEROPUERTOS');
+    // covered: its bad value has an OPEN maintenance
+    $m = Maintenance::create(['advertising_space_id' => $covered->advertising_space_id, 'audit_id' => $covered->id, 'requested_by' => $this->admin->id,
+        'requested_at' => now(), 'type' => Maintenance::TYPE_CORRECTIVE, 'category' => 'estructural', 'status' => Maintenance::STATUS_REPORTED, 'description' => 'x']);
+    $m->auditValues()->attach($covered->values()->first()->id);
+    // closed maintenance does NOT cover: back to pending
+    $reopened = pendingAudit($this->criterion, '300', 'PEREIRA', 'AEROPUERTOS');
+    $m2 = Maintenance::create(['advertising_space_id' => $reopened->advertising_space_id, 'audit_id' => $reopened->id, 'requested_by' => $this->admin->id,
+        'requested_at' => now(), 'type' => Maintenance::TYPE_CORRECTIVE, 'category' => 'estructural', 'status' => Maintenance::STATUS_CLOSED, 'description' => 'x']);
+    $m2->auditValues()->attach($reopened->values()->first()->id);
+
+    $svc = app(PendingMaintenanceService::class);
+    $ids = $svc->query([])->pluck('audits.id')->all();
+
+    expect($svc->count([]))->toBe(2)
+        ->and($ids)->toContain($pending->id)->toContain($reopened->id)->not->toContain($covered->id);
+});
+
+test('screen lists all pending audits with pagination and a request button', function () {
+    foreach (range(1, 30) as $i) {
+        pendingAudit($this->criterion, (string) (1000 + $i), 'PEREIRA', 'AEROPUERTOS');
+    }
+
+    // Count the action pill per row (the text also appears in a title= attribute).
+    $pills = fn (string $html) => preg_match_all('/class="mnt-badge mnt-badge--bad text-decoration-none"/', $html);
+
+    $page1 = $this->actingAs($this->admin)->get('/admin/maintenances/pending');
+    $page1->assertOk()->assertSee('Solicitar mantenimiento')->assertSee('de 30');
+    expect($pills($page1->content()))->toBe(25);
+
+    $page2 = $this->actingAs($this->admin)->get('/admin/maintenances/pending?page=2');
+    expect($pills($page2->content()))->toBe(5);
+
+    // Todas comparten audit_date: sin desempate por id las filas del borde se
+    // repiten o se pierden entre paginas.
+    $ids = fn (string $html) => preg_match_all('/>#(\d+)</', pendingRows($html), $m) ? $m[1] : [];
+    $all = array_merge($ids($page1->content()), $ids($page2->content()));
+    expect($all)->toHaveCount(30)
+        ->and(array_unique($all))->toHaveCount(30);
+});
+
+test('screen filters by producto and city using the dashboard query keys', function () {
+    pendingAudit($this->criterion, '1', 'PEREIRA', 'AEROPUERTOS');
+    pendingAudit($this->criterion, '2', 'BOGOTA', 'VALLAS');
+
+    $rows = pendingRows($this->actingAs($this->admin)->get('/admin/maintenances/pending?producto=VALLAS')->content());
+    expect($rows)->toContain('BOGOTA')->not->toContain('PEREIRA');
+
+    $rows = pendingRows($this->actingAs($this->admin)->get('/admin/maintenances/pending?city=PEREIRA')->content());
+    expect($rows)->toContain('PEREIRA')->not->toContain('BOGOTA');
+});
+
+test('screen filters by date range on audit_date', function () {
+    pendingAudit($this->criterion, '1', 'PEREIRA', 'AEROPUERTOS', '2026-01-10');
+    pendingAudit($this->criterion, '2', 'BOGOTA', 'AEROPUERTOS', '2026-06-10');
+
+    $rows = pendingRows($this->actingAs($this->admin)->get('/admin/maintenances/pending?from=2026-05-01&to=2026-07-01')->content());
+    expect($rows)->toContain('BOGOTA')->not->toContain('PEREIRA');
+});
+
+test('screen requires maintenance.view', function () {
+    $viewer = User::create(['name' => 'v', 'email' => 'v@test.com', 'username' => 'v', 'password' => bcrypt('x'), 'permissions' => ['platform.index' => true]]);
+
+    $this->actingAs($viewer)->get('/admin/maintenances/pending')->assertForbidden();
+});
+
+test('dashboard KPI card "Mantenimientos Pend." equals the pending widget total', function () {
+    // 3 pendientes + 1 cubierto por mantenimiento abierto (no cuenta en ninguno)
+    foreach (['1', '2', '3'] as $c) {
+        pendingAudit($this->criterion, $c, 'PEREIRA', 'AEROPUERTOS');
+    }
+    $covered = pendingAudit($this->criterion, '4', 'PEREIRA', 'AEROPUERTOS');
+    $m = Maintenance::create(['advertising_space_id' => $covered->advertising_space_id, 'audit_id' => $covered->id, 'requested_by' => $this->admin->id,
+        'requested_at' => now(), 'type' => Maintenance::TYPE_CORRECTIVE, 'category' => 'estructural', 'status' => Maintenance::STATUS_REPORTED, 'description' => 'x']);
+    $m->auditValues()->attach($covered->values()->first()->id);
+
+    // rango amplio para que el default "semana actual" no recorte las auditorias de marzo
+    // El dashboard Livewire vive en /admin/main (platform.index). Rango amplio para
+    // que el default "semana actual" no recorte las auditorias de marzo.
+    $html = $this->actingAs($this->admin)->get('/admin/main?from=2026-01-01&to=2026-12-31')->content();
+
+    // widget: badge amarillo con el total
+    preg_match('/badge bg-warning text-dark ms-2">\s*(\d+)\s*</', $html, $widget);
+    expect($widget[1] ?? null)->toBe('3');
+
+    // card: el bloque "Mantenimientos Pend." contiene el mismo 3 antes de "Por solicitar"
+    $start = strpos($html, 'Mantenimientos Pend.');
+    expect($start)->not->toBeFalse();
+    $card = substr($html, $start, 800);
+    expect(preg_match('/>\s*3\s*<.*?Por solicitar/s', $card))->toBe(1);
+});
+
+test('product chips use the /admin/spaces business units with colored dots and filter by unit', function () {
+    // mismo category (AEROPUERTOS), distinto tipo -> distinta business unit
+    $estatico = AdvertisingSpace::create(['external_code' => '1', 'city' => 'PEREIRA', 'category' => 'AEROPUERTOS', 'type' => 'VALLA']);
+    $digital = AdvertisingSpace::create(['external_code' => '2', 'city' => 'BOGOTA', 'category' => 'AEROPUERTOS', 'type' => 'PANTALLA LED']);
+    foreach ([$estatico, $digital] as $sp) {
+        $wk = Audit::getCalendarYearAndWeek(\Carbon\Carbon::parse('2026-03-01'));
+        $a = Audit::create(['advertising_space_id' => $sp->id, 'user_id' => 1, 'year' => $wk['year'], 'week' => $wk['week'], 'audit_date' => '2026-03-01', 'general_status' => 'bad', 'observation' => '']);
+        AuditValue::create(['audit_id' => $a->id, 'audit_criterion_id' => $this->criterion->id, 'value' => 'bad']);
+    }
+
+    $html = $this->actingAs($this->admin)->get('/admin/maintenances/pending')->content();
+    // los 7 chips de spaces, con dot coloreado
+    expect($html)->toContain('Aeropuertos Estáticos')->toContain('Aeropuertos Digital')->toContain('Vallas Estáticas')
+        ->toContain('pf-dot')->toContain('--pf-dot-color: #0284c7');
+
+    $rows = pendingRows($this->actingAs($this->admin)->get('/admin/maintenances/pending?unit=AEROPUERTOS+DIGITAL')->content());
+    expect($rows)->toContain('BOGOTA')->not->toContain('PEREIRA');
+
+    // el enlace del dashboard (producto=category) sigue funcionando y trae ambos
+    $rows = pendingRows($this->actingAs($this->admin)->get('/admin/maintenances/pending?producto=AEROPUERTOS')->content());
+    expect($rows)->toContain('BOGOTA')->toContain('PEREIRA');
+});
+
+test('a maintenance viewer without audit.can_audit sees the rows but no links to the audit detail', function () {
+    // Rol sembrado "auditor-estructural": maintenance.view sin audit.can_audit.
+    // AuditDetailScreen exige audit.can_audit, asi que los enlaces serian un 403.
+    $structural = User::create(['name' => 's', 'email' => 's@test.com', 'username' => 's', 'password' => bcrypt('x'),
+        'permissions' => ['platform.index' => true, 'maintenance.view' => true, 'audit.can_audit_structural' => true]]);
+    $audit = pendingAudit($this->criterion, '1', 'PEREIRA', 'AEROPUERTOS');
+
+    $rows = pendingRows($this->actingAs($structural)->get('/admin/maintenances/pending')->assertOk()->content());
+
+    expect($rows)->toContain('PEREIRA')
+        ->toContain('#'.$audit->id)
+        ->not->toContain(route('platform.audit.detail', $audit->id));
+});
+
+test('dashboard "Ver todas" link keeps the externalCode filter', function () {
+    pendingAudit($this->criterion, 'ABC123', 'PEREIRA', 'AEROPUERTOS');
+
+    $html = $this->actingAs($this->admin)
+        ->get('/admin/main?from=2026-01-01&to=2026-12-31&externalCode=ABC123')
+        ->content();
+
+    expect($html)->toContain('externalCode=ABC123');
+});

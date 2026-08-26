@@ -186,6 +186,7 @@ Route::screen('audit-criteria', AuditCriterionListScreen::class)
 
 // Maintenance Screens
 use App\Orchid\Screens\Maintenance\MaintenanceListScreen;
+use App\Orchid\Screens\Maintenance\PendingMaintenanceScreen;
 use App\Orchid\Screens\Maintenance\MaintenanceDetailScreen;
 
 Route::screen('maintenances', MaintenanceListScreen::class)
@@ -193,6 +194,12 @@ Route::screen('maintenances', MaintenanceListScreen::class)
     ->breadcrumbs(fn(Trail $trail) => $trail
         ->parent('platform.index')
         ->push('Mantenimientos', route('platform.maintenances')));
+
+Route::screen('maintenances/pending', PendingMaintenanceScreen::class)
+    ->name('platform.maintenances.pending')
+    ->breadcrumbs(fn(Trail $trail) => $trail
+        ->parent('platform.maintenances')
+        ->push('Pendientes por Solicitar', route('platform.maintenances.pending')));
 
 Route::screen('maintenances/{maintenance}', MaintenanceDetailScreen::class)
     ->name('platform.maintenances.detail')

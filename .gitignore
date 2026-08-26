@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Playwright MCP output (screenshots, snapshots)
+.playwright-mcp/
+/*.png

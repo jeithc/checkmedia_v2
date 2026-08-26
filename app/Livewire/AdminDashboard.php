@@ -127,14 +127,19 @@ class AdminDashboard extends Component
 
         $maintenanceBase = fn () => $filterService->applyToMaintenanceQuery(Maintenance::query(), $filters);
 
+        // One source for "pendientes por solicitar": the KPI card and the widget
+        // below must always show the same number.
+        $pendingService = app(\App\Services\PendingMaintenanceService::class);
+        $pendingTotal = $pendingService->count($filters);
+
         $spaceQuery = AdvertisingSpace::query();
-        if (!empty($filters['external_code'])) {
+        if (! empty($filters['external_code'])) {
             $spaceQuery->where('external_code', 'like', '%'.$filters['external_code'].'%');
         }
-        if (!empty($filters['city'])) {
+        if (! empty($filters['city'])) {
             $spaceQuery->where('city', $filters['city']);
         }
-        if (!empty($filters['producto'])) {
+        if (! empty($filters['producto'])) {
             $spaceQuery->where('type', $filters['producto']);
         }
         $totalSpaces = (clone $spaceQuery)->count();
@@ -163,10 +168,10 @@ class AdminDashboard extends Component
             ],
             'pending_maint' => [
                 'label' => 'Mantenimientos Pend.',
-                'value' => number_format((clone $maintenanceBase())->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])->count()),
-                'subtext' => 'Por Atender',
+                'value' => number_format($pendingTotal),
+                'subtext' => 'Por solicitar',
                 'icon' => 'bs.tools',
-                'color' => 'primary',
+                'color' => $pendingTotal > 0 ? 'warning' : 'success',
             ],
             'audits_general' => [
                 'label' => 'Auditorías Generales',
@@ -280,48 +285,32 @@ class AdminDashboard extends Component
             ->groupBy('maintenances.status')
             ->pluck('total', 'status');
 
-        // --- Chart: Pendientes por solicitar mantenimiento ---
-        // Auditorías con audit_values "bad" no cubiertos por mantenimiento abierto.
-        $pendingFilter = function ($q) {
-            $q->where('audit_values.value', 'bad')
-                ->whereDoesntHave('maintenances', fn ($mq) =>
-                    $mq->whereNotIn('maintenances.status', [Maintenance::STATUS_CLOSED])
-                );
-        };
-
-        $pendingRequisitions = (clone $auditBase())
-            ->whereHas('values', $pendingFilter)
-            ->with([
-                'space',
-                'values' => function ($q) use ($pendingFilter) {
-                    $pendingFilter($q);
-                    $q->with('criterion');
-                },
-            ])
-            ->orderBy('audits.audit_date', 'asc')
+        // --- Pendientes por solicitar mantenimiento (criterio en PendingMaintenanceService) ---
+        $pendingRequisitions = $pendingService->query($filters)
             ->limit(20)
             ->get()
-            ->map(function (Audit $a) {
-                $criteria = $a->values
-                    ->pluck('criterion.name')
-                    ->filter()
-                    ->unique()
-                    ->values()
-                    ->join(', ');
-
+            ->map(function ($a) {
                 return [
                     'audit_id' => $a->id,
-                    'space_code' => $a->space?->external_code ?? '—',
-                    'city' => $a->space?->city ?? '—',
-                    'criteria' => $criteria !== '' ? $criteria : '—',
+                    'space_code' => $a->space?->external_code,
+                    'city' => $a->space?->city,
+                    'criteria' => $a->values->map(fn ($v) => $v->criterion?->name)->filter()->unique()->implode(', '),
                     'audit_date' => $a->audit_date,
                     'days_waiting' => $a->audit_date ? (int) floor($a->audit_date->diffInDays(now())) : 0,
                 ];
             });
 
-        $pendingTotal = (clone $auditBase())
-            ->whereHas('values', $pendingFilter)
-            ->count();
+        // Same keys the pending screen reads, so the link lands already filtered.
+        // Dates are passed only if the user changed them: the dashboard defaults
+        // to the current week, and a pending request from 137 days ago must not
+        // vanish just because the link carried this week's range.
+        $pendingAllUrl = route('platform.maintenances.pending', array_filter([
+            'externalCode' => $this->externalCode,
+            'city' => $this->city,
+            'producto' => $this->producto,
+            'from' => $isDefaultWeek ? null : $this->dateFrom,
+            'to' => $isDefaultWeek ? null : $this->dateTo,
+        ]));
 
         return view('livewire.admin-dashboard', [
             'metrics' => $metrics,
@@ -333,6 +322,7 @@ class AdminDashboard extends Component
             'maintByStatus' => $maintByStatus,
             'pendingRequisitions' => $pendingRequisitions,
             'pendingTotal' => $pendingTotal,
+            'pendingAllUrl' => $pendingAllUrl,
             'filterOptions' => [
                 'cities' => $filterService->cities(),
                 'productos' => $filterService->productos(),
