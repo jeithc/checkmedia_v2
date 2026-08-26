@@ -39,14 +39,12 @@ class RequisitionBatchListLayout extends Table
                 ->align(TD::ALIGN_RIGHT)
                 ->render(fn (RequisitionBatch $batch) => '$ '.number_format($batch->total_cost, 0, ',', '.')),
 
-            TD::make('advisual_requisition_id', 'Requisición')
-                ->render(function (RequisitionBatch $batch) {
-                    if ($batch->advisual_sync_error) {
-                        return "<span class='badge bg-danger'>Error</span>";
-                    }
+            TD::make('status', 'Estado')
+                ->align(TD::ALIGN_CENTER)
+                ->render(fn (RequisitionBatch $batch) => "<span class='badge bg-{$batch->status_color}'>{$batch->status_label}</span>"),
 
-                    return $batch->advisual_requisition_id ?? '-';
-                }),
+            TD::make('advisual_requisition_id', 'Requisición')
+                ->render(fn (RequisitionBatch $batch) => $batch->advisual_requisition_id ?? '-'),
 
             TD::make('created_at', 'Fecha')
                 ->sort()

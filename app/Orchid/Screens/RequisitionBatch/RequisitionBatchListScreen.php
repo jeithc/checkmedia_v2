@@ -3,6 +3,7 @@
 namespace App\Orchid\Screens\RequisitionBatch;
 
 use App\Models\RequisitionBatch;
+use App\Orchid\Layouts\RequisitionBatch\RequisitionBatchFiltersLayout;
 use App\Orchid\Layouts\RequisitionBatch\RequisitionBatchListLayout;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
@@ -12,8 +13,10 @@ class RequisitionBatchListScreen extends Screen
     public function query(): iterable
     {
         return [
+            // filters(RequisitionBatchFiltersLayout::class) runs the status filter,
+            // whose default hides cancelled batches even with no query string.
             'batches' => RequisitionBatch::with('createdBy')
-                ->filters()
+                ->filters(RequisitionBatchFiltersLayout::class)
                 ->orderBy('created_at', 'desc')
                 ->paginate(15),
         ];
@@ -46,6 +49,7 @@ class RequisitionBatchListScreen extends Screen
     public function layout(): iterable
     {
         return [
+            RequisitionBatchFiltersLayout::class,
             RequisitionBatchListLayout::class,
         ];
     }

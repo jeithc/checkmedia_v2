@@ -115,7 +115,8 @@ class PlatformProvider extends OrchidServiceProvider
             ItemPermission::group('Mantenimientos')
                 ->addPermission('maintenance.view', 'Ver Mantenimientos')
                 ->addPermission('maintenance.close', 'Cerrar Mantenimientos')
-                ->addPermission('platform.requisition-batches', 'Lotes de Requisiciones Preventivas'),
+                ->addPermission('platform.requisition-batches', 'Lotes de Requisiciones Preventivas')
+                ->addPermission('requisition-batches.cancel', 'Cancelar Lotes (anula en Advisual)'),
 
             ItemPermission::group('Reportes')
                 ->addPermission('reports.create_shared', 'Crear Reportes'),
