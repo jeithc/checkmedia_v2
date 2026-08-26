@@ -17,6 +17,14 @@ class RequisitionBatchService
     const ALLOWED_TYPE = 'preventivo';
 
     /**
+     * A batch with the same codes from the same user inside this window is a
+     * form re-submit, not a new request. Ten minutes is far longer than the
+     * ~60s the real incident spanned, and far shorter than any legitimate
+     * reason to send the same list twice.
+     */
+    const DUPLICATE_WINDOW_MINUTES = 10;
+
+    /**
      * Resolved lazily so the service stays newable without arguments.
      */
     protected ?AdvisualSyncService $sync;
@@ -186,6 +194,52 @@ class RequisitionBatchService
 
             return false;
         }
+    }
+
+    /**
+     * Find a batch this user created recently with exactly the same set of codes.
+     *
+     * Prod incident 2026-08-24: one 58-space list was posted three times in ~60s
+     * (user retried while the first request was still talking to Advisual),
+     * producing three batches and two duplicate requisitions. The browser can
+     * disable the button, but only the server can stop a reload or a back-button
+     * re-post, so the check lives here.
+     */
+    public function findRecentDuplicate(array $rows, User $user): ?RequisitionBatch
+    {
+        $codes = collect($rows)
+            ->map(fn ($row) => trim((string) ($row['external_code'] ?? '')))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($codes->isEmpty()) {
+            return null;
+        }
+
+        $candidates = RequisitionBatch::query()
+            ->where('created_by', $user->id)
+            ->where('created_at', '>=', now()->subMinutes(self::DUPLICATE_WINDOW_MINUTES))
+            ->withCount('maintenances')
+            ->latest()
+            ->get()
+            ->where('maintenances_count', $codes->count());
+
+        foreach ($candidates as $batch) {
+            $batchCodes = $batch->maintenances()
+                ->join('advertising_spaces', 'advertising_spaces.id', '=', 'maintenances.advertising_space_id')
+                ->pluck('advertising_spaces.external_code')
+                ->map(fn ($code) => (string) $code)
+                ->sort()
+                ->values();
+
+            if ($batchCodes->all() === $codes->all()) {
+                return $batch;
+            }
+        }
+
+        return null;
     }
 
     public function createBatch(string $name, ?string $city, array $rows, User $user): RequisitionBatch

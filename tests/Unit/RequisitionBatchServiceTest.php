@@ -332,3 +332,69 @@ it('treats an Advisual failure as a missing space instead of blowing up', functi
     expect($errors)->toHaveCount(1)
         ->and($errors[0]['message'])->toContain('no existe en Advisual');
 });
+
+// --- protección contra reenvío del formulario --------------------------------
+// Caso real de prod (2026-08-24): el mismo lote de 58 vallas se envió 3 veces en
+// 60s porque el usuario reintentó mientras el primero aún cargaba. Resultado: 3
+// lotes y 2 requisiciones duplicadas en Advisual.
+
+it('detects a recent duplicate batch with the same codes from the same user', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('11220');
+
+    $rows = $this->service->parseCsv("703,preventivo,Pintura\n11220,preventivo,Pintura");
+    $first = $this->service->createBatch('Revision Bogota', 'Bogota', $rows, $user);
+
+    $dup = $this->service->findRecentDuplicate($rows, $user);
+
+    expect($dup)->not->toBeNull()
+        ->and($dup->id)->toBe($first->id);
+});
+
+it('ignores order of rows when detecting a duplicate', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('11220');
+
+    $this->service->createBatch('Lote', null,
+        $this->service->parseCsv("703,preventivo,A\n11220,preventivo,B"), $user);
+
+    $reordered = $this->service->parseCsv("11220,preventivo,B\n703,preventivo,A");
+
+    expect($this->service->findRecentDuplicate($reordered, $user))->not->toBeNull();
+});
+
+it('does not flag a batch with a different set of codes', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    makeBatchSpace('11220');
+    makeBatchSpace('43');
+
+    $this->service->createBatch('Lote', null,
+        $this->service->parseCsv("703,preventivo,A\n11220,preventivo,B"), $user);
+
+    $other = $this->service->parseCsv("703,preventivo,A\n43,preventivo,C");
+
+    expect($this->service->findRecentDuplicate($other, $user))->toBeNull();
+});
+
+it('does not flag the same codes sent by a different user', function () {
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    $this->service->createBatch('Lote', null, $rows, makeBatchUser());
+
+    expect($this->service->findRecentDuplicate($rows, makeBatchUser()))->toBeNull();
+});
+
+it('does not flag an identical batch once the window has passed', function () {
+    $user = makeBatchUser();
+    makeBatchSpace('703');
+    $rows = $this->service->parseCsv('703,preventivo,A');
+
+    $old = $this->service->createBatch('Lote', null, $rows, $user);
+    $old->forceFill(['created_at' => now()->subMinutes(RequisitionBatchService::DUPLICATE_WINDOW_MINUTES + 1)])->save();
+
+    expect($this->service->findRecentDuplicate($rows, $user))->toBeNull();
+});

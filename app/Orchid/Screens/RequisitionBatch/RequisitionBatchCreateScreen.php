@@ -49,9 +49,13 @@ class RequisitionBatchCreateScreen extends Screen
                 ->icon('bs.arrow-left')
                 ->route('platform.requisition-batches'),
 
+            // A 58-space batch talks to Advisual for several seconds with no
+            // feedback; users retried and produced duplicate requisitions. Lock
+            // the button on first click so there is only ever one submit.
             Button::make('Crear lote')
                 ->icon('bs.check-circle')
-                ->method('create'),
+                ->method('create')
+                ->set('onclick', "this.disabled=true;this.innerText='Creando lote…';this.form.requestSubmit();"),
         ];
     }
 
@@ -113,6 +117,15 @@ class RequisitionBatchCreateScreen extends Screen
             return back()
                 ->withInput()
                 ->with('requisition_batch_errors', $errors);
+        }
+
+        // Same list, same user, minutes apart = the form was re-submitted (double
+        // click, reload, back button). Point at the existing batch instead of
+        // creating a second requisition in Advisual.
+        if ($duplicate = $service->findRecentDuplicate($rows, $user)) {
+            Toast::warning("Este listado ya se envió hace poco como el lote #{$duplicate->id}. No se creó uno nuevo.");
+
+            return redirect()->route('platform.requisition-batches.detail', $duplicate->id);
         }
 
         $city = trim((string) $request->input('batch.city'));

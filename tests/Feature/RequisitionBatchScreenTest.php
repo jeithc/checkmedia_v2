@@ -129,3 +129,21 @@ test('user without advisual guid creates nothing', function () {
     expect(RequisitionBatch::count())->toBe(0);
     expect(Maintenance::count())->toBe(0);
 });
+
+test('re-submitting the same list redirects to the existing batch without creating another', function () {
+    // Reproduces prod 2026-08-24: same 58-space CSV posted 3 times in ~60s.
+    $mock = Mockery::mock(App\Services\AdvisualRequisitionService::class);
+    $mock->shouldReceive('createBatchRequisition')->once()->andReturn(true);   // ONE call for TWO posts
+    app()->instance(App\Services\AdvisualRequisitionService::class, $mock);
+
+    $payload = ['batch' => ['name' => 'Revision Bogota', 'city' => 'Bogota', 'csv' => '11220,preventivo,marcaciones']];
+
+    $this->actingAs($this->admin)->post('/admin/requisition-batches/create/create', $payload);
+    $first = RequisitionBatch::first();
+
+    $second = $this->actingAs($this->admin)->post('/admin/requisition-batches/create/create', $payload);
+
+    $second->assertRedirect('/admin/requisition-batches/'.$first->id);
+    expect(RequisitionBatch::count())->toBe(1);
+    expect(Maintenance::count())->toBe(1);
+});
