@@ -52,7 +52,11 @@ class AuditSubmissionService
                 $photo,
                 $photoDateTime->format('Y-m-d g:i a')
             );
-            $uploadedPaths[] = $watermarked->store('audit-photos', 's3');
+            $uploadedPaths[] = ['path' => $watermarked->store('audit-photos', 's3'), 'type' => 'image'];
+        }
+        if ($data->evidencePdf) {
+            // ponytail: PDF estructural sin watermark; reemplaza a las fotos
+            $uploadedPaths[] = ['path' => $data->evidencePdf->store('audit-photos', 's3'), 'type' => 'pdf'];
         }
 
         $generalStatus = 'good';
@@ -113,11 +117,11 @@ class AuditSubmissionService
                     'general_status' => $audit->values()->where('value', 'bad')->exists() ? 'bad' : 'good',
                 ]);
 
-                foreach ($uploadedPaths as $path) {
+                foreach ($uploadedPaths as $upload) {
                     AuditPhoto::create([
                         'audit_id' => $audit->id,
-                        'file_path' => $path,
-                        'file_type' => 'image',
+                        'file_path' => $upload['path'],
+                        'file_type' => $upload['type'],
                     ]);
                 }
 

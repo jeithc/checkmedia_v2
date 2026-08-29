@@ -214,6 +214,14 @@
 
             <!-- Gallery -->
             <div class="border-top pt-3">
+                @php($evidencePdf = $audit->photos->firstWhere('file_type', 'pdf'))
+                @if($evidencePdf)
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-black mb-0">Evidencia PDF</h5>
+                        <a href="{{ $evidencePdf->url }}" target="_blank" class="btn btn-sm btn-outline-primary">Descargar / abrir</a>
+                    </div>
+                    <iframe src="{{ $evidencePdf->url }}" class="w-100 border rounded" style="height: 70vh;"></iframe>
+                @else
                 <h5 class="text-black mb-3">Imágenes</h5>
                 @if($audit->photos->count() > 0)
                     <div class="row g-2">
@@ -230,6 +238,7 @@
                     </div>
                 @else
                     <p class="text-muted">No hay imágenes registradas.</p>
+                @endif
                 @endif
             </div>
 

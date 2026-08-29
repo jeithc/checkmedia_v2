@@ -165,9 +165,13 @@
                 <h4 class="text-sm font-bold text-gray-700 mb-4">Fotos registradas</h4>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     @foreach($this->existingAudit->photos as $photo)
+                    @if($photo->is_pdf)
+                    <a href="{{ $photo->url }}" target="_blank" class="col-span-2 flex items-center gap-2 p-3 rounded-lg border border-purple-200 bg-purple-50 text-sm font-semibold text-purple-700">Ver PDF de evidencia</a>
+                    @else
                     <a href="{{ $photo->url }}" target="_blank" class="block aspect-square rounded-lg overflow-hidden border border-gray-200 group">
                         <img src="{{ $photo->url }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
                     </a>
+                    @endif
                     @endforeach
                 </div>
             </div>
@@ -420,10 +424,44 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="bg-gray-50 px-6 py-3 border-b border-gray-100 flex justify-between items-center">
                 <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Evidencias</h3>
-                <span class="text-xs text-gray-500">{{ count($photos) }} fotos seleccionadas</span>
+                <span class="text-xs text-gray-500">{{ $evidencePdf ? 'PDF cargado' : count($photos) . ' fotos seleccionadas' }}</span>
             </div>
 
-            <div class="p-6" x-data="{ isUploading: false, progress: 0, previews: {} }"
+            @if ($auditType === \App\Models\Audit::TYPE_STRUCTURAL && ! ($this->existingAudit && $this->existingAudit->photos->count() > 0))
+            {{-- Estructural: fotos O PDF (exclusivo) --}}
+            <div class="px-6 pt-4 flex gap-2" x-data="{ mode: @js($evidencePdf ? 'pdf' : 'photos') }" x-on:evidence-mode.window="mode = $event.detail">
+                <button type="button" x-on:click="mode = 'photos'; $dispatch('evidence-mode', 'photos')" @if($evidencePdf) disabled @endif
+                    x-bind:class="mode === 'photos' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg border disabled:opacity-40">Fotos</button>
+                <button type="button" x-on:click="mode = 'pdf'; $dispatch('evidence-mode', 'pdf')" @if(count($photos) > 0) disabled @endif
+                    x-bind:class="mode === 'pdf' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-300'"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg border disabled:opacity-40">PDF con fotos</button>
+            </div>
+
+            <div class="p-6" x-data="{ mode: @js($evidencePdf ? 'pdf' : 'photos'), isUploading: false, progress: 0 }" x-show="mode === 'pdf'"
+                x-on:evidence-mode.window="mode = $event.detail"
+                x-on:livewire-upload-start="isUploading = true" x-on:livewire-upload-finish="isUploading = false"
+                x-on:livewire-upload-error="isUploading = false" x-on:livewire-upload-progress="progress = $event.detail.progress">
+                @if ($evidencePdf)
+                <div class="flex items-center justify-between p-3 rounded-lg border border-purple-200 bg-purple-50">
+                    <span class="text-sm text-gray-800 truncate">{{ $evidencePdf->getClientOriginalName() }}</span>
+                    <button type="button" wire:click="removePdf" class="text-xs font-semibold text-red-600 ml-3">Quitar</button>
+                </div>
+                @else
+                <label class="block rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50 cursor-pointer p-6 text-center">
+                    <input type="file" accept="application/pdf" class="hidden" wire:model="evidencePdf">
+                    <span class="text-sm font-medium text-gray-500">Seleccionar PDF (máx. 20 MB)</span>
+                </label>
+                @endif
+                <div x-show="isUploading" class="w-full bg-gray-200 rounded-full h-2.5 mt-2 overflow-hidden">
+                    <div class="bg-purple-600 h-2.5 rounded-full transition-all duration-300" x-bind:style="'width: ' + progress + '%'"></div>
+                </div>
+                @error('evidencePdf') <p class="mt-2 text-sm text-red-600">{{ $message }}</p> @enderror
+            </div>
+            @endif
+
+            <div class="p-6" x-data="{ mode: @js($evidencePdf ? 'pdf' : 'photos'), isUploading: false, progress: 0, previews: {} }" x-show="mode === 'photos'"
+                x-on:evidence-mode.window="mode = $event.detail"
                 x-on:livewire-upload-start="isUploading = true" x-on:livewire-upload-finish="isUploading = false"
                 x-on:livewire-upload-error="isUploading = false"
                 x-on:livewire-upload-progress="progress = $event.detail.progress">
