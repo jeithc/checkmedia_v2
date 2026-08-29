@@ -448,10 +448,11 @@
                     <button type="button" wire:click="removePdf" class="text-xs font-semibold text-red-600 ml-3">Quitar</button>
                 </div>
                 @else
-                <label class="block rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50 cursor-pointer p-6 text-center">
-                    <input type="file" accept="application/pdf" class="hidden" wire:model="evidencePdf">
+                <input type="file" id="pdfInput" accept="application/pdf" class="hidden" wire:model="evidencePdf">
+                <div onclick="document.getElementById('pdfInput').click()"
+                    class="rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50 cursor-pointer p-6 text-center select-none">
                     <span class="text-sm font-medium text-gray-500">Seleccionar PDF (máx. 20 MB)</span>
-                </label>
+                </div>
                 @endif
                 <div x-show="isUploading" class="w-full bg-gray-200 rounded-full h-2.5 mt-2 overflow-hidden">
                     <div class="bg-purple-600 h-2.5 rounded-full transition-all duration-300" x-bind:style="'width: ' + progress + '%'"></div>
