@@ -450,7 +450,10 @@
                 @else
                 <input type="file" id="pdfInput" accept="application/pdf" class="hidden" wire:model="evidencePdf">
                 <div onclick="document.getElementById('pdfInput').click()"
-                    class="rounded-lg border-2 border-dashed border-gray-300 hover:border-purple-500 hover:bg-purple-50 cursor-pointer p-6 text-center select-none">
+                    x-data="{ over: false }" x-on:dragover.prevent="over = true" x-on:dragleave.prevent="over = false"
+                    x-on:drop.prevent="over = false; const f = $event.dataTransfer.files[0]; if (f && f.type === 'application/pdf') @this.upload('evidencePdf', f)"
+                    x-bind:class="over ? 'border-purple-500 bg-purple-50' : 'border-gray-300'"
+                    class="rounded-lg border-2 border-dashed hover:border-purple-500 hover:bg-purple-50 cursor-pointer p-6 text-center select-none">
                     <span class="text-sm font-medium text-gray-500">Seleccionar PDF (máx. 20 MB)</span>
                 </div>
                 @endif
