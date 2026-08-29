@@ -461,6 +461,9 @@
             </div>
             @endif
 
+            @if ($this->existingAudit && $this->existingAudit->photos->contains('file_type', 'pdf'))
+            <div class="p-6 text-sm text-gray-500">Esta auditoría ya tiene un PDF de evidencia. No se puede agregar más evidencia.</div>
+            @else
             <div class="p-6" x-data="{ mode: @js($evidencePdf ? 'pdf' : 'photos'), isUploading: false, progress: 0, previews: {} }" x-show="mode === 'photos'"
                 x-on:evidence-mode.window="mode = $event.detail"
                 x-on:livewire-upload-start="isUploading = true" x-on:livewire-upload-finish="isUploading = false"
@@ -553,6 +556,8 @@
                         x-bind:style="'width: ' + progress + '%'"></div>
                 </div>
             </div>
+
+            @endif
 
             @error('photos')
             <div class="px-6 pb-4">

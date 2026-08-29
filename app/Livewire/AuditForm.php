@@ -133,6 +133,8 @@ class AuditForm extends Component
     {
         unset($this->criteria);
 
+        $this->evidencePdf = null;
+
         $this->criteriaIds = [];
         $this->criteriaList = [];
         $this->values = [];
@@ -345,6 +347,12 @@ class AuditForm extends Component
         $totalPhotos = count($this->photos);
         if ($existingAudit) {
             $totalPhotos += $existingAudit->photos->count();
+        }
+
+        if ($existingAudit && $existingAudit->photos->contains('file_type', 'pdf') && (count($this->photos) > 0 || $this->evidencePdf)) {
+            $this->addError('photos', 'Esta auditoría ya tiene un PDF de evidencia; no se puede agregar más evidencia.');
+
+            return;
         }
 
         if ($this->evidencePdf && $totalPhotos > 0) {

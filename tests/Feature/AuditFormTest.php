@@ -478,3 +478,22 @@ test('general audit ignores pdf and still requires photos', function () {
         ->call('save')
         ->assertHasErrors('photos');
 });
+
+test('structural audit with existing pdf rejects additional photos', function () {
+    $this->user->update(['permissions' => ['audit.can_audit_structural' => true]]);
+    AuditCriterion::create(['name' => 'Mastil', 'key' => 'mastil', 'audit_type' => 'structural', 'is_active' => true, 'order_index' => 1]);
+    $week = Audit::getCalendarYearAndWeek(now());
+    $audit = Audit::create([
+        'advertising_space_id' => $this->space->id, 'user_id' => $this->user->id,
+        'year' => $week['year'], 'week' => $week['week'], 'audit_type' => 'structural',
+        'audit_date' => now(), 'general_status' => 'good',
+    ]);
+    $audit->photos()->create(['file_path' => 'audit-photos/x.pdf', 'file_type' => 'pdf']);
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [UploadedFile::fake()->image('a.jpg')])
+        ->call('save')
+        ->assertHasErrors('photos');
+});

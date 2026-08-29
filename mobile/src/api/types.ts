@@ -73,6 +73,7 @@ export interface AuditValueDetail {
 export interface AuditPhotoDetail {
   id: number;
   url: string;
+  file_type?: 'image' | 'pdf';
 }
 
 export interface AuditDetail {
