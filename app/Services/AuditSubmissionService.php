@@ -140,6 +140,13 @@ class AuditSubmissionService
 
                 return $audit;
             });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // La transacción rechazó la evidencia: borrar los objetos ya subidos a S3
+            foreach ($uploadedPaths as $upload) {
+                \Illuminate\Support\Facades\Storage::disk('s3')->delete($upload['path']);
+            }
+
+            throw $e;
         } catch (QueryException $e) {
             // Concurrent retry of the same offline submission: another request won the
             // race on the client_uuid UNIQUE index. Treat as idempotent success and

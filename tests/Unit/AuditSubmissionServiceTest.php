@@ -180,4 +180,5 @@ test('submit rejects photos when a concurrent pdf already exists on the audit', 
     expect(fn () => app(\App\Services\AuditSubmissionService::class)->submit($data))
         ->toThrow(\Illuminate\Validation\ValidationException::class);
     expect($audit->photos()->count())->toBe(1);
+    expect(Storage::disk('s3')->allFiles('audit-photos'))->toBe([]); // sin huérfanos
 });
