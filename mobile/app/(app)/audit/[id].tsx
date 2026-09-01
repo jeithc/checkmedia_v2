@@ -7,6 +7,7 @@ import {
   Image,
   Pressable,
   Modal,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -78,11 +79,17 @@ export default function AuditDetailScreen() {
 
       <Card title={`Fotos (${data.photos.length})`}>
         <View style={styles.thumbs}>
-          {data.photos.map((p) => (
-            <Pressable key={p.id} onPress={() => setZoomUri(p.url)} accessibilityLabel="Ampliar foto">
-              <Image source={{ uri: p.url }} style={styles.thumb} />
-            </Pressable>
-          ))}
+          {data.photos.map((p) =>
+            p.file_type === 'pdf' ? (
+              <Pressable key={p.id} onPress={() => Linking.openURL(p.url)} accessibilityLabel="Abrir PDF" style={styles.pdfThumb}>
+                <Text style={styles.pdfText}>PDF</Text>
+              </Pressable>
+            ) : (
+              <Pressable key={p.id} onPress={() => setZoomUri(p.url)} accessibilityLabel="Ampliar foto">
+                <Image source={{ uri: p.url }} style={styles.thumb} />
+              </Pressable>
+            ),
+          )}
         </View>
       </Card>
 
@@ -121,6 +128,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.borderSubtle,
   },
+  pdfThumb: {
+    width: 100,
+    height: 100,
+    borderRadius: radius.md,
+    backgroundColor: colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pdfText: { ...typography.small, color: colors.textSecondary, fontWeight: "700" },
   backdrop: { flex: 1, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
   full: { width: '100%', height: '85%' },
   closeHint: {

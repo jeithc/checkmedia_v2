@@ -35,6 +35,8 @@ class AuditForm extends Component
 
     public $photos = [];
 
+    public $evidencePdf = null; // solo estructural: PDF en vez de fotos
+
     public $observation;
 
     public $duplicateFound = false;
@@ -131,6 +133,8 @@ class AuditForm extends Component
     {
         unset($this->criteria);
 
+        $this->evidencePdf = null;
+
         $this->criteriaIds = [];
         $this->criteriaList = [];
         $this->values = [];
@@ -185,6 +189,7 @@ class AuditForm extends Component
 
         // Clear form data for the new search
         $this->photos = [];
+        $this->evidencePdf = null;
         $this->observation = '';
         foreach ($this->criteriaIds as $criterionId) {
             $this->values[$criterionId] = ['value' => 'good', 'comment' => ''];
@@ -293,6 +298,7 @@ class AuditForm extends Component
         }
 
         $this->photos = [];
+        $this->evidencePdf = null;
         $this->observation = '';
         $this->duplicateFound = false;
         $this->existingAuditId = null;
@@ -326,7 +332,12 @@ class AuditForm extends Component
         $rules = [
             'spaceId' => 'required',
             'photos.*' => 'image|max:10240',
+            'evidencePdf' => 'nullable|file|mimes:pdf|max:20480',
         ];
+
+        if ($this->auditType !== Audit::TYPE_STRUCTURAL) {
+            $this->evidencePdf = null;
+        }
 
         $this->validate($rules);
 
@@ -338,8 +349,20 @@ class AuditForm extends Component
             $totalPhotos += $existingAudit->photos->count();
         }
 
-        if ($totalPhotos === 0) {
-            $this->addError('photos', 'Debe registrar al menos una foto para guardar la auditoría.');
+        if ($existingAudit && $existingAudit->photos->contains('file_type', 'pdf') && (count($this->photos) > 0 || $this->evidencePdf)) {
+            $this->addError('photos', 'Esta auditoría ya tiene un PDF de evidencia; no se puede agregar más evidencia.');
+
+            return;
+        }
+
+        if ($this->evidencePdf && $totalPhotos > 0) {
+            $this->addError('photos', 'Envía fotos o un PDF, no ambos.');
+
+            return;
+        }
+
+        if ($totalPhotos === 0 && ! $this->evidencePdf) {
+            $this->addError('photos', 'Debe registrar al menos una foto'.($this->auditType === Audit::TYPE_STRUCTURAL ? ' o un PDF' : '').' para guardar la auditoría.');
 
             return;
         }
@@ -377,6 +400,7 @@ class AuditForm extends Component
             photos: $this->photos,
             clientUuid: null,
             allowOverwriteExisting: true,
+            evidencePdf: $this->evidencePdf,
         );
 
         $audit = app(\App\Services\AuditSubmissionService::class)->submit($data);
@@ -390,6 +414,11 @@ class AuditForm extends Component
         }
 
         session()->flash('message', $flashMessage);
+    }
+
+    public function removePdf()
+    {
+        $this->evidencePdf = null;
     }
 
     public function removePhoto($index)

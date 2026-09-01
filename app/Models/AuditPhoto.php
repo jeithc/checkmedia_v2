@@ -13,8 +13,13 @@ class AuditPhoto extends Model
     protected $fillable = [
         'audit_id',
         'file_path',
-        'file_type'
+        'file_type',
     ];
+
+    public function getIsPdfAttribute(): bool
+    {
+        return $this->file_type === 'pdf';
+    }
 
     public function getUrlAttribute(): string
     {

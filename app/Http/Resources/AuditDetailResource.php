@@ -29,6 +29,7 @@ class AuditDetailResource extends JsonResource
             'photos' => $this->photos->map(fn ($p) => [
                 'id' => $p->id,
                 'url' => $p->url,
+                'file_type' => $p->file_type,
             ])->values(),
         ];
     }

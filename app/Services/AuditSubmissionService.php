@@ -52,7 +52,11 @@ class AuditSubmissionService
                 $photo,
                 $photoDateTime->format('Y-m-d g:i a')
             );
-            $uploadedPaths[] = $watermarked->store('audit-photos', 's3');
+            $uploadedPaths[] = ['path' => $watermarked->store('audit-photos', 's3'), 'type' => 'image'];
+        }
+        if ($data->evidencePdf) {
+            // ponytail: PDF estructural sin watermark; reemplaza a las fotos
+            $uploadedPaths[] = ['path' => $data->evidencePdf->store('audit-photos', 's3'), 'type' => 'pdf'];
         }
 
         $generalStatus = 'good';
@@ -81,6 +85,19 @@ class AuditSubmissionService
                         'general_status' => $generalStatus,
                     ]
                 );
+
+                if (! $audit->wasRecentlyCreated && $uploadedPaths !== []) {
+                    // Invariante fotos XOR pdf también ante envíos concurrentes (el form
+                    // valida contra su propio estado, que puede estar desactualizado).
+                    $incomingHasPdf = in_array('pdf', array_column($uploadedPaths, 'type'), true);
+                    $existingHasPdf = $audit->photos()->where('file_type', 'pdf')->exists();
+
+                    if ($existingHasPdf || ($incomingHasPdf && $audit->photos()->exists())) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'photos' => 'La auditoría ya tiene evidencia registrada que no se puede mezclar (fotos y PDF son excluyentes).',
+                        ]);
+                    }
+                }
 
                 if (! $audit->wasRecentlyCreated) {
                     // Elimina solo valores de criterios que ya no vienen en el envío y que no
@@ -113,16 +130,23 @@ class AuditSubmissionService
                     'general_status' => $audit->values()->where('value', 'bad')->exists() ? 'bad' : 'good',
                 ]);
 
-                foreach ($uploadedPaths as $path) {
+                foreach ($uploadedPaths as $upload) {
                     AuditPhoto::create([
                         'audit_id' => $audit->id,
-                        'file_path' => $path,
-                        'file_type' => 'image',
+                        'file_path' => $upload['path'],
+                        'file_type' => $upload['type'],
                     ]);
                 }
 
                 return $audit;
             });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // La transacción rechazó la evidencia: borrar los objetos ya subidos a S3
+            foreach ($uploadedPaths as $upload) {
+                \Illuminate\Support\Facades\Storage::disk('s3')->delete($upload['path']);
+            }
+
+            throw $e;
         } catch (QueryException $e) {
             // Concurrent retry of the same offline submission: another request won the
             // race on the client_uuid UNIQUE index. Treat as idempotent success and

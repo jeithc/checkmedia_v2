@@ -441,3 +441,77 @@ test('it keeps a covered bad value frozen even if the submission tries to mark i
         ->and($frozen->comment)->toBe('Daño previo')
         ->and($existingAudit->fresh()->general_status)->toBe('bad');
 });
+
+test('structural audit accepts a pdf instead of photos', function () {
+    $this->user->update(['permissions' => ['audit.can_audit_structural' => true]]);
+    AuditCriterion::create(['name' => 'Mastil', 'key' => 'mastil', 'audit_type' => 'structural', 'is_active' => true, 'order_index' => 1]);
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('evidencePdf', UploadedFile::fake()->create('informe.pdf', 500, 'application/pdf'))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $this->assertDatabaseHas('audit_photos', ['file_type' => 'pdf']);
+    expect(Audit::where('audit_type', 'structural')->count())->toBe(1);
+});
+
+test('structural audit rejects pdf together with photos', function () {
+    $this->user->update(['permissions' => ['audit.can_audit_structural' => true]]);
+    AuditCriterion::create(['name' => 'Mastil', 'key' => 'mastil', 'audit_type' => 'structural', 'is_active' => true, 'order_index' => 1]);
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [UploadedFile::fake()->image('a.jpg')])
+        ->set('evidencePdf', UploadedFile::fake()->create('informe.pdf', 500, 'application/pdf'))
+        ->call('save')
+        ->assertHasErrors('photos');
+});
+
+test('general audit ignores pdf and still requires photos', function () {
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('evidencePdf', UploadedFile::fake()->create('informe.pdf', 500, 'application/pdf'))
+        ->call('save')
+        ->assertHasErrors('photos');
+});
+
+test('structural audit with existing pdf rejects additional photos', function () {
+    $this->user->update(['permissions' => ['audit.can_audit_structural' => true]]);
+    AuditCriterion::create(['name' => 'Mastil', 'key' => 'mastil', 'audit_type' => 'structural', 'is_active' => true, 'order_index' => 1]);
+    $week = Audit::getCalendarYearAndWeek(now());
+    $audit = Audit::create([
+        'advertising_space_id' => $this->space->id, 'user_id' => $this->user->id,
+        'year' => $week['year'], 'week' => $week['week'], 'audit_type' => 'structural',
+        'audit_date' => now(), 'general_status' => 'good',
+    ]);
+    $audit->photos()->create(['file_path' => 'audit-photos/x.pdf', 'file_type' => 'pdf']);
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('photos', [UploadedFile::fake()->image('a.jpg')])
+        ->call('save')
+        ->assertHasErrors('photos');
+});
+
+test('structural pdf audit can report damaged criteria', function () {
+    $this->user->update(['permissions' => ['audit.can_audit_structural' => true]]);
+    $crit = AuditCriterion::create(['name' => 'Mastil', 'key' => 'mastil', 'audit_type' => 'structural', 'is_active' => true, 'order_index' => 1]);
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('evidencePdf', UploadedFile::fake()->create('informe.pdf', 500, 'application/pdf'))
+        ->set('values', [$crit->id => ['value' => 'bad', 'comment' => 'Mastil corroído']])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $audit = Audit::where('audit_type', 'structural')->firstOrFail();
+    expect($audit->general_status)->toBe('bad');
+    expect($audit->values()->where('value', 'bad')->count())->toBe(1);
+    $this->assertDatabaseHas('audit_photos', ['audit_id' => $audit->id, 'file_type' => 'pdf']);
+});

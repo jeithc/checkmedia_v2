@@ -23,5 +23,6 @@ class AuditSubmissionData
         public readonly array $photos,
         public readonly ?string $clientUuid = null,
         public readonly bool $allowOverwriteExisting = true,
+        public readonly ?\Illuminate\Http\UploadedFile $evidencePdf = null,
     ) {}
 }
