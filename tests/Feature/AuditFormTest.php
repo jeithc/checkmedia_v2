@@ -497,3 +497,21 @@ test('structural audit with existing pdf rejects additional photos', function ()
         ->call('save')
         ->assertHasErrors('photos');
 });
+
+test('structural pdf audit can report damaged criteria', function () {
+    $this->user->update(['permissions' => ['audit.can_audit_structural' => true]]);
+    $crit = AuditCriterion::create(['name' => 'Mastil', 'key' => 'mastil', 'audit_type' => 'structural', 'is_active' => true, 'order_index' => 1]);
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', 'TEST001')
+        ->call('searchSpace')
+        ->set('evidencePdf', UploadedFile::fake()->create('informe.pdf', 500, 'application/pdf'))
+        ->set('values', [$crit->id => ['value' => 'bad', 'comment' => 'Mastil corroído']])
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $audit = Audit::where('audit_type', 'structural')->firstOrFail();
+    expect($audit->general_status)->toBe('bad');
+    expect($audit->values()->where('value', 'bad')->count())->toBe(1);
+    $this->assertDatabaseHas('audit_photos', ['audit_id' => $audit->id, 'file_type' => 'pdf']);
+});
