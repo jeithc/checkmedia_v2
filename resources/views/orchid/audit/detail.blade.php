@@ -214,7 +214,9 @@
 
             <!-- Gallery -->
             <div class="border-top pt-3">
-                @php($evidencePdf = $audit->photos->firstWhere('file_type', 'pdf'))
+                @php
+                    $evidencePdf = $audit->photos->firstWhere('file_type', 'pdf');
+                @endphp
                 @if($evidencePdf)
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="text-black mb-0">Evidencia PDF</h5>
