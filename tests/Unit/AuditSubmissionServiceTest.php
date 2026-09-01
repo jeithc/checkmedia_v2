@@ -152,3 +152,32 @@ it('conflict exception carries the existing audit', function () {
         expect($e->existing->id)->toBe($first->id);
     }
 });
+
+test('submit rejects photos when a concurrent pdf already exists on the audit', function () {
+    $week = \App\Models\Audit::getCalendarYearAndWeek(now());
+    $audit = \App\Models\Audit::create([
+        'advertising_space_id' => ($space = makeSpace())->id,
+        'user_id' => ($user = makeUser())->id,
+        'year' => $week['year'],
+        'week' => $week['week'],
+        'audit_type' => \App\Models\Audit::TYPE_STRUCTURAL,
+        'audit_date' => now(),
+        'general_status' => 'good',
+    ]);
+    $audit->photos()->create(['file_path' => 'audit-photos/x.pdf', 'file_type' => 'pdf']);
+
+    $data = new \App\Services\AuditSubmissionData(
+        user: $user,
+        space: $space,
+        auditType: \App\Models\Audit::TYPE_STRUCTURAL,
+        purpose: \App\Models\Audit::PURPOSE_AUDIT_ONLY,
+        values: [],
+        observation: null,
+        capturedAt: now(),
+        photos: [\Illuminate\Http\UploadedFile::fake()->image('a.jpg')],
+    );
+
+    expect(fn () => app(\App\Services\AuditSubmissionService::class)->submit($data))
+        ->toThrow(\Illuminate\Validation\ValidationException::class);
+    expect($audit->photos()->count())->toBe(1);
+});

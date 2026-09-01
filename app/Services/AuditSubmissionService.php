@@ -86,6 +86,19 @@ class AuditSubmissionService
                     ]
                 );
 
+                if (! $audit->wasRecentlyCreated && $uploadedPaths !== []) {
+                    // Invariante fotos XOR pdf también ante envíos concurrentes (el form
+                    // valida contra su propio estado, que puede estar desactualizado).
+                    $incomingHasPdf = in_array('pdf', array_column($uploadedPaths, 'type'), true);
+                    $existingHasPdf = $audit->photos()->where('file_type', 'pdf')->exists();
+
+                    if ($existingHasPdf || ($incomingHasPdf && $audit->photos()->exists())) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'photos' => 'La auditoría ya tiene evidencia registrada que no se puede mezclar (fotos y PDF son excluyentes).',
+                        ]);
+                    }
+                }
+
                 if (! $audit->wasRecentlyCreated) {
                     // Elimina solo valores de criterios que ya no vienen en el envío y que no
                     // están amarrados a un mantenimiento abierto (pivot maintenance_audit_value).
