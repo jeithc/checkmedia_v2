@@ -214,7 +214,9 @@
 
             <!-- Gallery -->
             <div class="border-top pt-3">
-                @php($evidencePdf = $audit->photos->firstWhere('file_type', 'pdf'))
+                @php
+                    $evidencePdf = $audit->photos->firstWhere('file_type', 'pdf');
+                @endphp
                 @if($evidencePdf)
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="text-black mb-0">Evidencia PDF</h5>
@@ -767,7 +769,10 @@
 <script>
     // Variable para almacenar la imagen comprimida
     let compressedRevisionPhoto = null;
-    
+
+    // Compresión en curso: Guardar la espera para no subir el original pesado.
+    let revisionPhotoCompression = null;
+
     // Estado original de los criterios (para detectar cambios)
     const originalCriteria = {
         @foreach($audit->values as $val)
@@ -791,6 +796,9 @@
                 fileInput.classList.remove('is-invalid'); // Limpiar error al seleccionar
                 const file = e.target.files[0];
                 if (file) {
+                    // El archivo original queda disponible ya: la compresión es
+                    // asíncrona y no puede ser lo único que marque "hay foto".
+                    compressedRevisionPhoto = file;
                     compressImage(file);
                 }
             });
@@ -844,6 +852,13 @@
         sizeInfo.textContent = 'Comprimiendo...';
         previewImg.src = '';
 
+        // La promesa se resuelve pase lo que pase (éxito, error o cuelgue del
+        // compresor): Guardar espera esto y nunca debe quedarse bloqueado.
+        let settle;
+        revisionPhotoCompression = new Promise(resolve => { settle = resolve; });
+        const compressionTimeout = setTimeout(settle, 15000);
+        const done = () => { clearTimeout(compressionTimeout); settle(); };
+
         new Compressor(file, {
             quality: 0.85,
             maxWidth: 2048,
@@ -864,30 +879,33 @@
                 const originalSize = (file.size / 1024).toFixed(0);
                 const compressedSize = (compressedRevisionPhoto.size / 1024).toFixed(0);
                 sizeInfo.textContent = `${originalSize}KB → ${compressedSize}KB`;
+                done();
             },
             error(err) {
                 console.error('Error comprimiendo:', err);
                 // Usar original si falla la compresión
                 compressedRevisionPhoto = file;
                 sizeInfo.textContent = 'Usando imagen original';
-                
+
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     previewImg.src = e.target.result;
                 };
                 reader.readAsDataURL(file);
+                done();
             }
         });
     }
 
     function clearRevisionPhoto() {
         compressedRevisionPhoto = null;
+        revisionPhotoCompression = null;
         const fileInput = document.getElementById('revision_photo_input');
         if (fileInput) fileInput.value = '';
         document.getElementById('photo_preview').classList.add('d-none');
     }
 
-    function submitRevisionForm() {
+    async function submitRevisionForm() {
         const modal = document.getElementById('uploadRevisionModal');
         const fileInput = document.getElementById('revision_photo_input');
         const commentInput = document.getElementById('revision_comment_input');
@@ -904,18 +922,26 @@
             return;
         }
         
+        // Si la compresión sigue corriendo, esperarla antes de validar.
+        if (revisionPhotoCompression) {
+            await revisionPhotoCompression;
+        }
+
         // Limpiar errores previos
         fileInput.classList.remove('is-invalid');
         commentInput.classList.remove('is-invalid');
-        
+
         let hasErrors = false;
-        
+
+        // El input manda: si tiene archivo hay foto, comprimida o no.
+        const revisionPhoto = compressedRevisionPhoto || (fileInput.files && fileInput.files[0]);
+
         // Validación de foto
-        if (!compressedRevisionPhoto) {
+        if (!revisionPhoto) {
             fileInput.classList.add('is-invalid');
             hasErrors = true;
         }
-        
+
         // Validación de observación (requerida)
         if (!commentInput.value || commentInput.value.trim().length < 3) {
             commentInput.classList.add('is-invalid');
@@ -929,7 +955,7 @@
         // Construir FormData
         const formData = new FormData();
         formData.append('_token', '{{ csrf_token() }}');
-        formData.append('revision_photo', compressedRevisionPhoto);
+        formData.append('revision_photo', revisionPhoto);
         formData.append('revision_comment', commentInput.value || '');
         formData.append('client_emails', emailsInput.value || '');
         
