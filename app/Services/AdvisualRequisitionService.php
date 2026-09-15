@@ -6,7 +6,6 @@ use App\Models\Maintenance;
 use App\Models\RequisitionBatch;
 use App\Models\User;
 use App\Services\Advisual\AdvisualConnector;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AdvisualRequisitionService
@@ -500,42 +499,9 @@ class AdvisualRequisitionService
             $nowStr,
         ];
 
-        $requisitionId = null;
-
-        try {
-            // 1. Intentar FreeTDS ODBC (Prioridad para Hostinger Shared)
-            $username = config('database.connections.advisual.username');
-            $password = config('database.connections.advisual.password');
-            $database = config('database.connections.advisual.database');
-            $host = config('database.connections.advisual.host');
-            $port = config('database.connections.advisual.port', '1433');
-
-            $dsn = "odbc:Driver=FreeTDS;Server={$host};Port={$port};Database={$database};TDS_Version=7.4;";
-            $pdo = new \PDO($dsn, $username, $password);
-            $stmt = $pdo->prepare($sqlQuery);
-            $stmt->execute($bindings);
-
-            do {
-                $row = $stmt->fetch(\PDO::FETCH_OBJ);
-                if ($row && isset($row->id)) {
-                    $requisitionId = $row;
-                    break;
-                }
-            } while ($stmt->nextRowset());
-
-            // Fallback preventivo si fetch directo falló pero insertó (FreeTDS quirk)
-            if (! $requisitionId) {
-                $stmt = $pdo->query('SELECT @@IDENTITY AS id');
-                $requisitionId = $stmt->fetch(\PDO::FETCH_OBJ);
-            }
-        } catch (\Exception $eOdbc) {
-            // 2. Fallback: Intentar conexión estándar nativa (Local/VPS con sqlsrv)
-            try {
-                $requisitionId = DB::connection('advisual')->selectOne($sqlQuery, $bindings);
-            } catch (\Exception $eNative) {
-                throw new \Exception('ODBC Error: '.$eOdbc->getMessage().' | Native Error: '.$eNative->getMessage());
-            }
-        }
+        // ponytail: sin fallback a @@IDENTITY — el connector abre una conexión por
+        // llamada, así que otra sesión devolvería NULL de todos modos.
+        $requisitionId = $this->connector->selectOneAcrossRowsets($sqlQuery, $bindings, 'id');
 
         if (! $requisitionId || ! $requisitionId->id) {
             return null;

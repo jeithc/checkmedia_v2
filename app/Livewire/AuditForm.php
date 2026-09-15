@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Exceptions\AdvisualUnavailableException;
 use App\Models\AdvertisingSpace;
 use App\Models\Audit;
 use App\Models\AuditCriterion;
@@ -202,8 +203,10 @@ class AuditForm extends Component
         if (! $space) {
             try {
                 $space = $syncService->syncSpaceByCcde($this->external_code);
-            } catch (\Exception $e) {
-                // Log error but treat as not found for UI
+            } catch (AdvisualUnavailableException $e) {
+                $this->addError('external_code', 'No se pudo consultar Advisual (servicio caído). El código puede existir; reintenta en unos minutos o avisa a soporte.');
+
+                return;
             }
         }
 

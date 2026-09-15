@@ -20,12 +20,36 @@ class AdvisualConnector
     {
         if ($this->shouldTryOdbc()) {
             try {
-                $pdo = $this->odbcConnection();
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($bindings);
-                $row = $stmt->fetch(\PDO::FETCH_OBJ);
+                $row = $this->odbcExecute($sql, $bindings)->fetch(\PDO::FETCH_OBJ);
 
                 return $row ?: null;
+            } catch (\Throwable $eOdbc) {
+                return $this->nativeSelectOne($sql, $bindings, $eOdbc);
+            }
+        }
+
+        return $this->nativeSelectOne($sql, $bindings);
+    }
+
+    /**
+     * First row carrying `$column` across every result set the statement
+     * produces. Needed for `INSERT ...; SELECT SCOPE_IDENTITY()` batches,
+     * where the id may land in a later rowset.
+     */
+    public function selectOneAcrossRowsets(string $sql, array $bindings, string $column): ?object
+    {
+        if ($this->shouldTryOdbc()) {
+            try {
+                $stmt = $this->odbcExecute($sql, $bindings);
+
+                do {
+                    $row = $stmt->fetch(\PDO::FETCH_OBJ);
+                    if ($row && isset($row->{$column})) {
+                        return $row;
+                    }
+                } while ($stmt->nextRowset());
+
+                return null;
             } catch (\Throwable $eOdbc) {
                 return $this->nativeSelectOne($sql, $bindings, $eOdbc);
             }
@@ -38,11 +62,7 @@ class AdvisualConnector
     {
         if ($this->shouldTryOdbc()) {
             try {
-                $pdo = $this->odbcConnection();
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($bindings);
-
-                return $stmt->fetchAll(\PDO::FETCH_OBJ) ?: [];
+                return $this->odbcExecute($sql, $bindings)->fetchAll(\PDO::FETCH_OBJ) ?: [];
             } catch (\Throwable $eOdbc) {
                 return $this->nativeSelect($sql, $bindings, $eOdbc);
             }
@@ -55,9 +75,7 @@ class AdvisualConnector
     {
         if ($this->shouldTryOdbc()) {
             try {
-                $pdo = $this->odbcConnection();
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($bindings);
+                $this->odbcExecute($sql, $bindings);
 
                 return;
             } catch (\Throwable $eOdbc) {
@@ -78,17 +96,109 @@ class AdvisualConnector
     {
         if ($this->shouldTryOdbc()) {
             try {
-                $pdo = $this->odbcConnection();
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute($bindings);
-
-                return $stmt->rowCount();
+                return $this->odbcExecute($sql, $bindings)->rowCount();
             } catch (\Throwable $eOdbc) {
                 return $this->nativeAffectingStatement($sql, $bindings, $eOdbc);
             }
         }
 
         return $this->nativeAffectingStatement($sql, $bindings);
+    }
+
+    /**
+     * Run a statement over ODBC. Some FreeTDS/pdo_odbc builds reject every
+     * bound parameter with HY090 ("Invalid string or buffer length"); when
+     * that happens the same SQL is retried with the bindings quoted inline.
+     */
+    protected function odbcExecute(string $sql, array $bindings): \PDOStatement
+    {
+        $pdo = $this->odbcConnection();
+
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($bindings);
+
+            return $stmt;
+        } catch (\PDOException $e) {
+            if (! $bindings || ! $this->isParameterBindingFailure($e)) {
+                throw $e;
+            }
+
+            return $pdo->query($this->interpolate($sql, $bindings));
+        }
+    }
+
+    protected function isParameterBindingFailure(\PDOException $e): bool
+    {
+        return ($e->getCode() === 'HY090')
+            || str_contains($e->getMessage(), 'HY090')
+            || str_contains($e->getMessage(), 'Invalid string or buffer length');
+    }
+
+    /**
+     * Replace each `?` placeholder (outside of string literals) with its
+     * quoted binding, T-SQL style.
+     */
+    public function interpolate(string $sql, array $bindings): string
+    {
+        $bindings = array_values($bindings);
+        $out = '';
+        $inString = false;
+        $i = 0;
+        $length = strlen($sql);
+
+        for ($pos = 0; $pos < $length; $pos++) {
+            $char = $sql[$pos];
+
+            if ($char === "'") {
+                $inString = ! $inString;
+                $out .= $char;
+
+                continue;
+            }
+
+            if ($char === '?' && ! $inString) {
+                if (! array_key_exists($i, $bindings)) {
+                    throw new \InvalidArgumentException('Advisual: not enough bindings for the placeholders in the query.');
+                }
+
+                $out .= $this->quote($bindings[$i]);
+                $i++;
+
+                continue;
+            }
+
+            $out .= $char;
+        }
+
+        return $out;
+    }
+
+    protected function quote(mixed $value): string
+    {
+        if ($value === null) {
+            return 'NULL';
+        }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            $value = $value->format('Y-m-d H:i:s');
+        }
+
+        $value = (string) $value;
+
+        if (str_contains($value, "\0")) {
+            throw new \InvalidArgumentException('Advisual: NUL byte in a query binding.');
+        }
+
+        return "N'".str_replace("'", "''", $value)."'";
     }
 
     protected function nativeAffectingStatement(string $sql, array $bindings, ?\Throwable $eOdbc = null): int

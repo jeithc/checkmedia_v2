@@ -515,3 +515,16 @@ test('structural pdf audit can report damaged criteria', function () {
     expect($audit->values()->where('value', 'bad')->count())->toBe(1);
     $this->assertDatabaseHas('audit_photos', ['audit_id' => $audit->id, 'file_type' => 'pdf']);
 });
+
+test('it says Advisual is down instead of "no encontrado" when the sync fails', function () {
+    $mock = Mockery::mock(AdvisualSyncService::class);
+    $mock->shouldReceive('syncSpaceByCcde')
+        ->andThrow(new App\Exceptions\AdvisualUnavailableException('No se pudo consultar Advisual: HY090'));
+    $this->app->instance(AdvisualSyncService::class, $mock);
+
+    Livewire::test(AuditForm::class)
+        ->set('external_code', '17766')
+        ->call('searchSpace')
+        ->assertHasErrors('external_code')
+        ->assertSee('No se pudo consultar Advisual');
+});
