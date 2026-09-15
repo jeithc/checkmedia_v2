@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\AdvisualUnavailableException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SpaceResource;
 use App\Models\AdvertisingSpace;
@@ -22,8 +23,10 @@ class SpaceController extends Controller
         if (! $space) {
             try {
                 $space = $sync->syncSpaceByCcde($code);
-            } catch (\Throwable $e) {
-                // remote unavailable; treat as not found
+            } catch (AdvisualUnavailableException $e) {
+                return response()->json([
+                    'message' => 'No se pudo consultar Advisual (servicio caído). El código puede existir; reintenta en unos minutos.',
+                ], 503);
             }
         }
 

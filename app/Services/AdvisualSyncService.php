@@ -2,25 +2,33 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\DB;
+use App\Exceptions\AdvisualUnavailableException;
 use App\Models\AdvertisingSpace;
 use App\Models\CommercialBooking;
+use App\Services\Advisual\AdvisualConnector;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
 class AdvisualSyncService
 {
+    protected AdvisualConnector $connector;
+
+    public function __construct(?AdvisualConnector $connector = null)
+    {
+        $this->connector = $connector ?? new AdvisualConnector;
+    }
+
     /**
      * Fetch space data from external SQL Server and sync to local DB.
      * Replaces legacy logic from buscardata2.php
-     * 
-     * @param string $code EspacioCodigo
+     *
+     * @param  string  $code  EspacioCodigo
      * @return AdvertisingSpace|null
      */
     public function syncSpaceByCcde(string $code)
     {
         try {
-            $sqlQuery = "
+            $sqlQuery = '
                 SELECT TOP 1 
                     ElementoCodigo,
                     EspacioCodigo,
@@ -48,30 +56,20 @@ class AdvisualSyncService
                 LEFT JOIN Negocio as n on n.NegocioCodigo=ped.negociocodigo
                 LEFT JOIN cliente as cl on n.NegocioClienteCodigo=cl.ClienteCodigo
                 WHERE EspacioCodigo = ?
-            ";
+            ';
 
-            $row = null;
-
+            // ODBC (Hostinger) con fallback nativo lo resuelve el connector.
+            // Un fallo de conexión se propaga: "no existe" y "no pude preguntar"
+            // son cosas distintas para quien llama.
             try {
-                // 1. Intentar FreeTDS ODBC (Prioridad para Hostinger Shared)
-                $username = config('database.connections.advisual.username');
-                $password = config('database.connections.advisual.password');
-                $database = config('database.connections.advisual.database');
-                $host = config('database.connections.advisual.host');
-                $port = config('database.connections.advisual.port', '1433');
+                $row = $this->connector->selectOne($sqlQuery, [$code]);
+            } catch (\Throwable $e) {
+                Log::error("Advisual Sync Error for code $code: ".$e->getMessage());
 
-                $dsn = "odbc:Driver=FreeTDS;Server={$host};Port={$port};Database={$database};TDS_Version=7.4;";
-                $pdo = new \PDO($dsn, $username, $password);
-                $stmt = $pdo->prepare($sqlQuery);
-                $stmt->execute([$code]);
-                $row = $stmt->fetch(\PDO::FETCH_OBJ);
-            } catch (Exception $e) {
-                // 2. Fallback: Intentar conexión estándar nativa (Local/VPS con sqlsrv)
-                Log::info("Advisual ODBC connection failed. Attempting standard Laravel fallback. " . $e->getMessage());
-                $row = DB::connection('advisual')->selectOne($sqlQuery, [$code]);
+                throw new AdvisualUnavailableException('No se pudo consultar Advisual: '.$e->getMessage(), 0, $e);
             }
 
-            if (!$row) {
+            if (! $row) {
                 return null;
             }
 
@@ -90,7 +88,7 @@ class AdvisualSyncService
                     'address' => $row->EspacioUbicacion,
                     'zone' => $row->LocalizacionNombre,
                     // 'latitude' => ... // Not present in legacy query
-                    // 'longitude' => ... 
+                    // 'longitude' => ...
                 ]
             );
 
@@ -115,8 +113,11 @@ class AdvisualSyncService
 
             return $space;
 
+        } catch (AdvisualUnavailableException $e) {
+            throw $e;
         } catch (Exception $e) {
-            Log::error("Advisual Sync Error for code $code: " . $e->getMessage());
+            Log::error("Advisual Sync mapping error for code $code: ".$e->getMessage());
+
             // Fail gracefully? Or rethrow?
             // For now, return null so UI handles it as "Not Found in Remote" or "Connection Error"
             return null;

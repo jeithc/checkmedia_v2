@@ -90,3 +90,18 @@ it('returns 404 when space not found', function () {
         ->getJson('/api/spaces/search?code=NOPE')
         ->assertStatus(404);
 });
+
+it('returns 503, not 404, when Advisual is unreachable', function () {
+    $mock = Mockery::mock(App\Services\AdvisualSyncService::class);
+    $mock->shouldReceive('syncSpaceByCcde')
+        ->andThrow(new App\Exceptions\AdvisualUnavailableException('No se pudo consultar Advisual: HY090'));
+    $this->app->instance(App\Services\AdvisualSyncService::class, $mock);
+
+    $user = User::factory()->create();
+    $token = $user->createToken('t')->plainTextToken;
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/spaces/search?code=17766')
+        ->assertStatus(503)
+        ->assertJsonPath('message', fn ($m) => str_contains($m, 'Advisual'));
+});
