@@ -499,9 +499,14 @@ class AdvisualRequisitionService
             $nowStr,
         ];
 
-        // ponytail: sin fallback a @@IDENTITY — el connector abre una conexión por
-        // llamada, así que otra sesión devolvería NULL de todos modos.
-        $requisitionId = $this->connector->selectOneAcrossRowsets($sqlQuery, $bindings, 'id');
+        // El fallback a @@IDENTITY corre sobre la misma conexión ODBC: si FreeTDS
+        // insertó pero no devolvió el rowset del SCOPE_IDENTITY(), el id se recupera.
+        $requisitionId = $this->connector->selectOneAcrossRowsets(
+            $sqlQuery,
+            $bindings,
+            'id',
+            'SELECT @@IDENTITY AS id'
+        );
 
         if (! $requisitionId || ! $requisitionId->id) {
             return null;

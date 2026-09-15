@@ -36,11 +36,12 @@ class AdvisualConnector
      * produces. Needed for `INSERT ...; SELECT SCOPE_IDENTITY()` batches,
      * where the id may land in a later rowset.
      */
-    public function selectOneAcrossRowsets(string $sql, array $bindings, string $column): ?object
+    public function selectOneAcrossRowsets(string $sql, array $bindings, string $column, ?string $fallbackSql = null): ?object
     {
         if ($this->shouldTryOdbc()) {
             try {
-                $stmt = $this->odbcExecute($sql, $bindings);
+                $pdo = $this->odbcConnection();
+                $stmt = $this->odbcExecute($sql, $bindings, $pdo);
 
                 do {
                     $row = $stmt->fetch(\PDO::FETCH_OBJ);
@@ -48,6 +49,17 @@ class AdvisualConnector
                         return $row;
                     }
                 } while ($stmt->nextRowset());
+
+                // FreeTDS a veces ejecuta el INSERT sin exponer el rowset del
+                // SCOPE_IDENTITY(): se pregunta por la identidad en la MISMA
+                // conexión, o el id de una fila ya insertada se pierde.
+                if ($fallbackSql) {
+                    $row = $pdo->query($fallbackSql)->fetch(\PDO::FETCH_OBJ);
+
+                    if ($row && isset($row->{$column})) {
+                        return $row;
+                    }
+                }
 
                 return null;
             } catch (\Throwable $eOdbc) {
@@ -110,9 +122,9 @@ class AdvisualConnector
      * bound parameter with HY090 ("Invalid string or buffer length"); when
      * that happens the same SQL is retried with the bindings quoted inline.
      */
-    protected function odbcExecute(string $sql, array $bindings): \PDOStatement
+    protected function odbcExecute(string $sql, array $bindings, ?\PDO $pdo = null): \PDOStatement
     {
-        $pdo = $this->odbcConnection();
+        $pdo ??= $this->odbcConnection();
 
         try {
             $stmt = $pdo->prepare($sql);
