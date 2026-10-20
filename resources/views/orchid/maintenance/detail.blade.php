@@ -93,12 +93,17 @@
                     <p class="mb-0">{{ $maintenance->closure_comment }}</p>
                 </div>
                 @endif
-                @if($maintenance->closure_document_path)
+                @if($maintenance->closure_documents)
                 <div class="mb-2">
-                    <small class="text-muted fw-bold d-block mb-1">Documento:</small>
-                    <a href="{{ $maintenance->closure_document_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                        <i class="icon-doc me-1"></i> Ver Documento
-                    </a>
+                    <small class="text-muted fw-bold d-block mb-1">{{ count($maintenance->closure_documents) > 1 ? 'Documentos:' : 'Documento:' }}</small>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach($maintenance->closure_documents as $doc)
+                            <a href="{{ $doc['url'] }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="icon-doc me-1"></i> Ver Documento{{ count($maintenance->closure_documents) > 1 ? ' ' . $loop->iteration : '' }}
+                                @if($doc['extension'])<small class="text-uppercase opacity-75">({{ $doc['extension'] }})</small>@endif
+                            </a>
+                        @endforeach
+                    </div>
                 </div>
                 @endif
             @endif
@@ -195,17 +200,20 @@
             {{-- Sin <form> propio: Orchid envuelve el screen en un post-form global; un form anidado
                  lo descarta el browser y el submit termina en POST /maintenances/{id} (método inexistente).
                  El botón usa formaction, igual que los Button nativos de Orchid. --}}
-            @error('closure_document')
+            @error('closure_documents')
                 <div class="alert alert-danger py-2">{{ $message }}</div>
             @enderror
+            @foreach(collect($errors->get('closure_documents.*'))->flatten()->unique() as $message)
+                <div class="alert alert-danger py-2">{{ $message }}</div>
+            @endforeach
             @error('closure_comment')
                 <div class="alert alert-danger py-2">{{ $message }}</div>
             @enderror
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label fw-bold">Documento de Cierre (PDF o Imagen) *</label>
-                    <input type="file" name="closure_document" class="form-control" accept=".pdf,image/*" required>
-                    <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
+                    <label class="form-label fw-bold">Documentos de Cierre (PDF o Imagen) *</label>
+                    <input type="file" name="closure_documents[]" class="form-control" accept=".pdf,image/*" multiple required>
+                    <small class="text-muted">Puede seleccionar varios archivos (hasta 10). Formato: PDF, JPG, PNG. Máximo 10MB c/u.</small>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold">Comentario de Cierre</label>

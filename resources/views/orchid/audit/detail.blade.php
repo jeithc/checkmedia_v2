@@ -1191,10 +1191,16 @@
             closureDoc.classList.add('is-invalid');
             return;
         }
+        if (closureDoc.files.length > 10) {
+            alert('Máximo 10 documentos de cierre.');
+            return;
+        }
 
         var formData = new FormData();
         formData.append('_token', '{{ csrf_token() }}');
-        formData.append('closure_document', closureDoc.files[0]);
+        Array.from(closureDoc.files).forEach(function (file) {
+            formData.append('closure_documents[]', file);
+        });
         formData.append('closure_comment', closureComment.value);
 
         var maintenanceSelect = document.getElementById('close_maintenance_id_input');
@@ -1216,6 +1222,8 @@
             if (response.ok || response.status === 302) {
                 bypassOrchidDirtyCheck();
                 window.location.reload();
+            } else if (response.status === 413) {
+                alert('Los archivos superan el tamaño máximo que acepta el servidor. Intente con menos archivos o más livianos.');
             } else {
                 return response.json().then(data => {
                     var msg = data.message || 'Error al cerrar el mantenimiento.';
@@ -1428,9 +1436,9 @@
                         </div>
                     @endif
                     <div class="col-12">
-                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Documento de Cierre (PDF o Imagen) *</label>
-                        <input type="file" id="closure_document_input" class="form-control form-control-sm" accept=".pdf,image/*" required>
-                        <small class="text-muted">Formato: PDF, JPG, PNG. Máximo 10MB.</small>
+                        <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Documentos de Cierre (PDF o Imagen) *</label>
+                        <input type="file" id="closure_document_input" class="form-control form-control-sm" accept=".pdf,image/*" multiple required>
+                        <small class="text-muted">Puede seleccionar varios archivos (hasta 10). Formato: PDF, JPG, PNG. Máximo 10MB c/u.</small>
                     </div>
                     <div class="col-12">
                         <label class="form-label text-uppercase text-muted fw-bold mb-1" style="font-size: 0.7rem;">Comentario de Cierre</label>

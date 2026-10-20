@@ -51,7 +51,7 @@ test('close button targets the close route via formaction (no nested form)', fun
 test('posting to the close route closes the maintenance', function () {
     $response = $this->actingAs($this->admin)
         ->post(route('platform.maintenances.close', $this->maintenance), [
-            'closure_document' => UploadedFile::fake()->create('cierre.pdf', 100, 'application/pdf'),
+            'closure_documents' => [UploadedFile::fake()->create('cierre.pdf', 100, 'application/pdf')],
             'closure_comment' => 'Listo',
         ]);
 
@@ -70,6 +70,74 @@ test('posting the outer post-form to the screen URL no longer happens but the cl
         ->from(route('platform.maintenances.detail', $this->maintenance))
         ->post(route('platform.maintenances.close', $this->maintenance), []);
 
-    $response->assertSessionHasErrors('closure_document');
+    $response->assertSessionHasErrors('closure_documents');
     expect($this->maintenance->refresh()->status)->toBe(Maintenance::STATUS_REPORTED);
+});
+
+test('closing accepts several documents and keeps the first as the legacy single path', function () {
+    $response = $this->actingAs($this->admin)
+        ->post(route('platform.maintenances.close', $this->maintenance), [
+            'closure_documents' => [
+                UploadedFile::fake()->create('acta.pdf', 100, 'application/pdf'),
+                UploadedFile::fake()->create('factura.pdf', 100, 'application/pdf'),
+                UploadedFile::fake()->image('foto.jpg'),
+            ],
+        ]);
+
+    $response->assertSessionHasNoErrors();
+
+    $this->maintenance->refresh();
+    expect($this->maintenance->status)->toBe(Maintenance::STATUS_CLOSED)
+        ->and($this->maintenance->closure_document_paths)->toHaveCount(3)
+        ->and($this->maintenance->closure_document_path)->toBe($this->maintenance->closure_document_paths[0]);
+
+    foreach ($this->maintenance->closure_document_paths as $path) {
+        Storage::disk('s3')->assertExists($path);
+    }
+});
+
+test('closing rejects a non pdf/image document among several', function () {
+    $response = $this->actingAs($this->admin)
+        ->post(route('platform.maintenances.close', $this->maintenance), [
+            'closure_documents' => [
+                UploadedFile::fake()->create('acta.pdf', 100, 'application/pdf'),
+                UploadedFile::fake()->create('virus.exe', 100, 'application/octet-stream'),
+            ],
+        ]);
+
+    $response->assertSessionHasErrors('closure_documents.1');
+    expect($this->maintenance->refresh()->status)->toBe(Maintenance::STATUS_REPORTED);
+});
+
+test('closing rejects more than 10 documents', function () {
+    $files = array_map(fn ($i) => UploadedFile::fake()->create("doc{$i}.pdf", 10, 'application/pdf'), range(1, 11));
+
+    $response = $this->actingAs($this->admin)
+        ->post(route('platform.maintenances.close', $this->maintenance), ['closure_documents' => $files]);
+
+    $response->assertSessionHasErrors('closure_documents');
+    expect($this->maintenance->refresh()->status)->toBe(Maintenance::STATUS_REPORTED);
+});
+
+test('detail lists every closure document, falling back to the legacy single path', function () {
+    $this->maintenance->update([
+        'status' => Maintenance::STATUS_CLOSED,
+        'closed_at' => now(),
+        'closure_document_path' => 'maintenance-closures/a.pdf',
+        'closure_document_paths' => ['maintenance-closures/a.pdf', 'maintenance-closures/b.jpg'],
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('platform.maintenances.detail', $this->maintenance))
+        ->assertOk()
+        ->assertSee(Storage::disk('s3')->url('maintenance-closures/a.pdf'), false)
+        ->assertSee(Storage::disk('s3')->url('maintenance-closures/b.jpg'), false);
+
+    // Cierres anteriores a esta versión solo tienen closure_document_path.
+    $this->maintenance->update(['closure_document_paths' => null, 'closure_document_path' => 'maintenance-closures/old.pdf']);
+
+    $this->actingAs($this->admin)
+        ->get(route('platform.maintenances.detail', $this->maintenance))
+        ->assertOk()
+        ->assertSee(Storage::disk('s3')->url('maintenance-closures/old.pdf'), false);
 });

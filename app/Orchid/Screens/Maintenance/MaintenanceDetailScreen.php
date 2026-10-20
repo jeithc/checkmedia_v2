@@ -79,17 +79,27 @@ class MaintenanceDetailScreen extends Screen
         }
 
         $request->validate([
-            'closure_document' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'closure_documents' => 'required|array|min:1|max:10',
+            'closure_documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
             'closure_comment' => 'nullable|string|max:1000',
+        ], [
+            'closure_documents.required' => 'Debe adjuntar al menos un documento de cierre.',
+            'closure_documents.max' => 'Máximo 10 documentos de cierre.',
+            'closure_documents.*.mimes' => 'Cada archivo debe ser PDF o imagen (JPG, PNG).',
+            'closure_documents.*.max' => 'Cada archivo no debe superar 10MB.',
         ]);
 
-        $path = $request->file('closure_document')->store('maintenance-closures', 's3');
+        $paths = array_map(
+            fn ($file) => $file->store('maintenance-closures', 's3'),
+            $request->file('closure_documents')
+        );
 
         $maintenance->update([
             'status' => Maintenance::STATUS_CLOSED,
             'closed_by' => auth()->id(),
             'closed_at' => now(),
-            'closure_document_path' => $path,
+            'closure_document_path' => $paths[0],
+            'closure_document_paths' => $paths,
             'closure_comment' => $request->input('closure_comment'),
         ]);
 
@@ -101,7 +111,7 @@ class MaintenanceDetailScreen extends Screen
             metadata: [
                 'maintenance_id' => $maintenance->id,
                 'closed_by' => auth()->user()->name,
-                'document_path' => $path,
+                'document_paths' => $paths,
             ],
         );
 
