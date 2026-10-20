@@ -98,6 +98,7 @@ class Maintenance extends Model
         'closed_by',
         'closed_at',
         'closure_document_path',
+        'closure_document_paths',
         'closure_comment',
         'support_files_paths',
     ];
@@ -117,6 +118,7 @@ class Maintenance extends Model
         'advisual_purchase_order_last_checked_at' => 'datetime',
         'closed_at' => 'datetime',
         'support_files_paths' => 'array',
+        'closure_document_paths' => 'array',
     ];
 
     public function getClosureDocumentUrlAttribute(): ?string
@@ -124,6 +126,22 @@ class Maintenance extends Model
         return $this->closure_document_path
             ? Storage::disk('s3')->url($this->closure_document_path)
             : null;
+    }
+
+    /**
+     * Every closure document as ['url' => ..., 'extension' => ...]. Closures
+     * before multi-upload only have closure_document_path; newer ones keep the
+     * first file there too, so the single-path accessor above keeps working.
+     */
+    public function getClosureDocumentsAttribute(): array
+    {
+        $paths = $this->closure_document_paths
+            ?: array_filter([$this->closure_document_path]);
+
+        return array_values(array_map(fn ($path) => [
+            'url' => Storage::disk('s3')->url($path),
+            'extension' => strtolower(pathinfo($path, PATHINFO_EXTENSION)),
+        ], $paths));
     }
 
     protected $allowedSorts = [
