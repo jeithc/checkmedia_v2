@@ -1,4 +1,5 @@
-/* Login Efectimedios (pantalla independiente, sin build de Vite). */
+/* Pantallas de acceso Efectimedios: login, recuperar y restablecer contraseña
+   (independientes, sin build de Vite). */
 :root {
     --brand: #dc003d;
     --brand-dark: #b30032;
@@ -283,6 +284,15 @@ body.login {
 .login__submit:focus-visible {
     outline: 2px solid var(--brand-light);
     outline-offset: 2px;
+}
+
+.login__submit--spaced {
+    margin-top: 1.75rem;
+}
+
+.login__back {
+    margin: 1.5rem 0 0;
+    text-align: center;
 }
 
 .login__footer {
