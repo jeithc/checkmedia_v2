@@ -4,167 +4,77 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Check Media - EFECTIMEDIOS</title>
+    <meta name="theme-color" content="#030712">
+    <title>Check Media · Efectimedios</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('brand/favicon.svg') }}">
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
     <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
-    <style>
-        body.loginpage {
-            background: #c60813;
-            font-family: 'Roboto', sans-serif, Helvetica, Arial;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
 
-        .loginpanel {
-            width: 100%;
-            max-width: 350px;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .logo img {
-            max-width: 100%;
-            height: auto;
-            margin-bottom: 30px;
-        }
-
-        .inputwrapper {
-            margin-bottom: 15px;
-        }
-
-        .inputwrapper input {
-            width: 100%;
-            padding: 12px;
-            border: 0;
-            background: #fff;
-            box-sizing: border-box;
-            outline: none;
-            font-size: 14px;
-        }
-
-        /* Specific fix: Don't let global input styling break the checkbox */
-        .inputwrapper input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-        }
-
-        .inputwrapper button {
-            width: 100%;
-            padding: 12px;
-            background: #dd0915;
-            border: 1px solid #a30c15;
-            color: #fff;
-            text-transform: uppercase;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .inputwrapper button:hover {
-            background: #a30c15;
-        }
-
-        .loginfooter {
-            position: fixed;
-            bottom: 20px;
-            width: 100%;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 11px;
-            font-family: Arial, sans-serif;
-        }
-
-        /* Flex container for the bottom row */
-        .signin-options {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: #fff;
-            font-size: 12px;
-            margin-top: 15px;
-        }
-
-        .signin-options a {
-            color: #ddd;
-            text-decoration: none;
-        }
-
-        .signin-options label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            gap: 5px;
-            /* Space between checkbox and text */
-        }
-
-        .signin-options input[type="checkbox"] {
-            margin: 0;
-            width: auto;
-        }
-
-        .alert-error {
-            color: white;
-            background: #ea4145;
-            padding: 10px;
-            font-size: 12px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/login.css') }}?v={{ filemtime(public_path('css/login.css')) }}">
 </head>
 
-<body class="loginpage">
-
-    <div class="loginpanel">
-        <div class="logo">
-            <img src="{{ asset('logo.png') }}" alt="Efectimedios" style="max-width: 220px;">
+<body class="login">
+    <div class="login__shell">
+        <div class="login__glow" aria-hidden="true">
+            <div class="login__glow-wash"></div>
         </div>
 
-        <form action="{{ route('platform.login.auth') }}" method="POST">
-            @csrf
+        <header class="login__brand">
+            <x-brand-logo class="login__logo" />
+            <p class="login__subtitle">Check Media</p>
+        </header>
 
-            @error('username')
-                <div class="alert-error">{{ $message }}</div>
-            @enderror
-            @error('password')
-                <div class="alert-error">{{ $message }}</div>
-            @enderror
-
-            <div class="inputwrapper">
-                <input type="text" name="username" value="{{ old('username') }}" placeholder="Ingrese su Usuario"
-                    required autofocus>
-            </div>
-            <div class="inputwrapper">
-                <input type="password" name="password" placeholder="Ingrese su Clave" required>
+        <main class="login__card">
+            <div class="login__header">
+                <h1 class="login__title">Iniciar sesión</h1>
+                <p class="login__lead">Ingresa con tu usuario para continuar.</p>
             </div>
 
-            <div class="inputwrapper">
-                <button type="submit">ENTRAR</button>
-            </div>
+            @if (session('status'))
+                <div class="login__alert login__alert--status" role="status">{{ session('status') }}</div>
+            @endif
 
-            <div class="signin-options">
-                <label>
-                    <input type="checkbox" name="remember">
-                    Recordarme
-                </label>
-                <a href="{{ route('password.request') }}">No recuerda su Clave?</a>
-            </div>
-        </form>
+            @if ($errors->any())
+                <div class="login__alert login__alert--error" role="alert" id="login-errors">
+                    {{ $errors->first('username') ?: $errors->first('password') }}
+                </div>
+            @endif
+
+            <form action="{{ route('platform.login.auth') }}" method="POST">
+                @csrf
+
+                <div class="login__field">
+                    <label class="login__label" for="username">Usuario</label>
+                    <input class="login__input" id="username" type="text" name="username"
+                        value="{{ old('username') }}" placeholder="Ingresa tu usuario" required autofocus
+                        autocomplete="username" autocapitalize="none" spellcheck="false"
+                        @error('username') aria-invalid="true" aria-describedby="login-errors" @enderror>
+                </div>
+
+                <div class="login__field">
+                    <label class="login__label" for="password">Contraseña</label>
+                    <input class="login__input" id="password" type="password" name="password" required
+                        autocomplete="current-password"
+                        @error('password') aria-invalid="true" aria-describedby="login-errors" @enderror>
+                </div>
+
+                <div class="login__options">
+                    <label class="login__remember" for="remember">
+                        <input id="remember" type="checkbox" name="remember">
+                        <span>Recordarme</span>
+                    </label>
+
+                    <a class="login__link" href="{{ route('password.request') }}">¿Olvidaste tu contraseña?</a>
+                </div>
+
+                <button class="login__submit" type="submit">Ingresar</button>
+            </form>
+        </main>
+
+        <p class="login__footer">&copy; {{ date('Y') }} Efectimedios</p>
     </div>
-
-    <div class="loginfooter">
-        <div style="margin-bottom: 10px;">
-            <img src="{{ asset('logoefectimedios.png') }}" alt="Check Media" style="height: 40px;">
-        </div>
-        <p>&copy; {{ date('Y') }}. Check Media - EFECTIMEDIOS. Todos los derechos reservados.</p>
-    </div>
-
 </body>
 
 </html>
