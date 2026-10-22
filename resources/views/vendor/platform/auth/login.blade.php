@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#030712">
     <title>Check Media · Efectimedios</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('brand/favicon.svg') }}">
-    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="32x32">
     <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -38,7 +38,11 @@
 
             @if ($errors->any())
                 <div class="login__alert login__alert--error" role="alert" id="login-errors">
-                    {{ $errors->first('username') ?: $errors->first('password') }}
+                    <ul class="login__errors">
+                        @foreach ($errors->messages() as $field => $messages)
+                            <li id="login-error-{{ $field }}">{{ implode(' ', $messages) }}</li>
+                        @endforeach
+                    </ul>
                 </div>
             @endif
 
@@ -50,14 +54,14 @@
                     <input class="login__input" id="username" type="text" name="username"
                         value="{{ old('username') }}" placeholder="Ingresa tu usuario" required autofocus
                         autocomplete="username" autocapitalize="none" spellcheck="false"
-                        @error('username') aria-invalid="true" aria-describedby="login-errors" @enderror>
+                        @error('username') aria-invalid="true" aria-describedby="login-error-username" @enderror>
                 </div>
 
                 <div class="login__field">
                     <label class="login__label" for="password">Contraseña</label>
                     <input class="login__input" id="password" type="password" name="password" required
                         autocomplete="current-password"
-                        @error('password') aria-invalid="true" aria-describedby="login-errors" @enderror>
+                        @error('password') aria-invalid="true" aria-describedby="login-error-password" @enderror>
                 </div>
 
                 <div class="login__options">

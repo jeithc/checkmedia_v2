@@ -84,3 +84,28 @@ it('rejects invalid credentials and shows the error on the branded login', funct
         ->assertSee('value="admin-user"', false)
         ->assertSee('aria-invalid="true"', false);
 });
+
+it('shows the session status message', function () {
+    $this->withSession(['status' => 'Contraseña restablecida'])
+        ->get(route('platform.login'))
+        ->assertOk()
+        ->assertSee('role="status"', false)
+        ->assertSee('Contraseña restablecida');
+});
+
+it('renders every server-side error and links each field to its own message', function () {
+    $this->from(route('platform.login'))
+        ->post(route('platform.login.auth'), ['username' => '', 'password' => ''])
+        ->assertRedirect(route('platform.login'))
+        ->assertSessionHasErrors(['username', 'password']);
+
+    $errors = session('errors')->getBag('default');
+
+    $this->get(route('platform.login'))
+        ->assertSee('id="login-error-username"', false)
+        ->assertSee('id="login-error-password"', false)
+        ->assertSee($errors->first('username'))
+        ->assertSee($errors->first('password'))
+        ->assertSee('aria-describedby="login-error-username"', false)
+        ->assertSee('aria-describedby="login-error-password"', false);
+});
