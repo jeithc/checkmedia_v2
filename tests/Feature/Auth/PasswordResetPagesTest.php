@@ -71,7 +71,7 @@ it('sends the reset link and shows the status message', function () {
 
     $this->get(route('password.request'))
         ->assertSee('role="status"', false)
-        ->assertSee(session('status'));
+        ->assertSee('Te hemos enviado por correo el enlace para restablecer tu contraseña.');
 });
 
 it('shows validation errors linked to the email field on forgot password', function () {
@@ -106,7 +106,7 @@ it('shows every reset error linked to its field', function () {
         ->assertSee($errors->first('email'))
         ->assertSee($errors->first('password'))
         ->assertSee('aria-describedby="login-error-email"', false)
-        ->assertSee('aria-describedby="login-error-password"', false);
+        ->assertSee('aria-describedby="password-hint login-error-password"', false);
 });
 
 it('resets the password with a valid token and returns to the login', function () {
@@ -122,4 +122,59 @@ it('resets the password with a valid token and returns to the login', function (
         ->assertSessionHas('status');
 
     expect(Hash::check('NuevaClave123', $user->fresh()->password))->toBeTrue();
+
+    $this->get(route('platform.login'))
+        ->assertSee('role="status"', false)
+        ->assertSee('Tu contraseña ha sido restablecida.');
+});
+
+it('renders forgot password validation errors in Spanish', function () {
+    $this->from(route('password.request'))
+        ->post(route('password.email'), ['email' => ''])
+        ->assertRedirect(route('password.request'));
+
+    $this->get(route('password.request'))
+        ->assertSee('El campo correo electrónico es obligatorio.')
+        ->assertDontSee('The email field is required.');
+});
+
+it('renders reset password rule errors in Spanish', function () {
+    $url = route('password.reset', ['token' => 'dummy-token', 'email' => 'a@b.co']);
+
+    $this->from($url)->post(route('password.update'), [
+        'token' => 'dummy-token',
+        'email' => 'a@b.co',
+        'password' => 'corta',
+        'password_confirmation' => 'otra',
+    ])->assertRedirect($url);
+
+    $this->get($url)
+        ->assertSee('La confirmación del campo contraseña no coincide.')
+        ->assertSee('El campo contraseña debe tener al menos 8 caracteres.');
+});
+
+it('describes the new password field with its hint', function () {
+    $this->get(route('password.reset', ['token' => 'dummy-token']))
+        ->assertSee('id="password-hint"', false)
+        ->assertSee('Mínimo 8 caracteres.')
+        ->assertSee('aria-describedby="password-hint"', false)
+        ->assertDontSee('Solicitar un nuevo enlace');
+});
+
+it('offers a new link when the reset token is rejected', function () {
+    $user = User::factory()->create(['email' => 'auditor@efectimedios.com']);
+    $url = route('password.reset', ['token' => 'vencido', 'email' => $user->email]);
+
+    $this->from($url)->post(route('password.update'), [
+        'token' => 'vencido',
+        'email' => $user->email,
+        'password' => 'NuevaClave123',
+        'password_confirmation' => 'NuevaClave123',
+    ])->assertRedirect($url)->assertSessionHasErrors('email');
+
+    $this->get($url)
+        ->assertSee('El token de restablecimiento de contraseña es inválido.')
+        ->assertSee('href="'.route('password.request').'"', false)
+        ->assertSee('Solicitar un nuevo enlace')
+        ->assertSee('aria-describedby="login-error-email"', false);
 });
